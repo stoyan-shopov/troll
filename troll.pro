@@ -14,8 +14,11 @@ TEMPLATE = app
 
 SOURCES +=\
         mainwindow.cxx \
-	main.cxx
+	main.cxx \
+    libtroll/libtroll.cxx
 
-HEADERS  += mainwindow.hxx
+HEADERS  += mainwindow.hxx \
+    libtroll/dwarf.h \
+    libtroll/libtroll.hxx
 
 FORMS    += mainwindow.ui
