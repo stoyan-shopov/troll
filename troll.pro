@@ -22,3 +22,5 @@ HEADERS  += mainwindow.hxx \
     libtroll/libtroll.hxx
 
 FORMS    += mainwindow.ui
+
+INCLUDEPATH += libtroll/
