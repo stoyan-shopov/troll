@@ -20,6 +20,9 @@ MainWindow::MainWindow(QWidget *parent) :
 	}
 	debug_file.seek(debug_aranges_offset);
 	QByteArray debug_aranges = debug_file.read(debug_aranges_len);
+	
+	DwarfData dwdata(debug_aranges.data(), debug_aranges.length());
+	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata.compilation_unit_count()));
 }
 
 MainWindow::~MainWindow()
