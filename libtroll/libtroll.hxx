@@ -49,6 +49,17 @@ private:
 	} __attribute__((packed))
 	* debug_aranges;
 	uint32_t	debug_aranges_len;
+	const struct debug_arange * next(const struct debug_arange * arange)
+	{
+		arange = (const struct debug_arange *) ((uint8_t *) arange + sizeof arange->unit_length + arange->unit_length);
+		return ((uint8_t *) arange < (uint8_t *) debug_aranges + debug_aranges_len) ?
+			arange : 0;
+	}
+	const struct debug_arange * first_arange(void)
+	{
+		return debug_aranges_len ? debug_aranges : 0;
+	}
+	
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len)
 	{
@@ -60,8 +71,8 @@ public:
 	{
 		int i;
 		uint32_t start, len;
-		const struct debug_arange * arange = debug_aranges;
-		while ((uint32_t) arange < (uint32_t) debug_aranges + debug_aranges_len)
+		const struct debug_arange * arange = first_arange();
+		while (arange)
 		{
 			if (arange->address_size != 4)
 				DwarfUtil::panic();
@@ -69,8 +80,17 @@ public:
 			while ((start = arange->ranges[i].start_address) && (len = arange->ranges[i].length))
 				if (start <= address && address < start + len)
 					return arange->compilation_unit_debug_info_offset;
+			arange = next(arange);
 		}
 		return -1;
+	}
+	int compilation_unit_count(void)
+	{
+		int i;
+		const struct debug_arange * arange = first_arange();
+		for (i = 0; arange; arange = next(arange), i++)
+			;
+		return i;
 	}
 };
 
