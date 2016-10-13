@@ -7,17 +7,17 @@ public:
 	static void panic(...) {*(int*)0=0;}
 	static uint32_t uleb128(const uint8_t * data, int * decoded_len)
 	{
-		uint64_t result;
+		uint64_t result = 0;
 		uint8_t x;
 		int shift = * decoded_len = 0;
-		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, * decoded_len ++; while (x & 0x80);
+		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
 		if (result > 0xffffffff)
 			panic();
 		return result;
 	}
 	static uint32_t uleb128(const uint8_t * data)
 	{
-		uint64_t result;
+		uint64_t result = 0;
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
@@ -27,10 +27,10 @@ public:
 	}
 	static int32_t sleb128(const uint8_t * data, int * decoded_len)
 	{
-		uint64_t result;
+		uint64_t result = 0;
 		uint8_t x;
 		int shift = * decoded_len = 0;
-		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, * decoded_len ++; while (x & 0x80);
+		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
 		if (result > 0xffffffff)
 			panic();
 		/* handle sign */
@@ -41,7 +41,7 @@ public:
 	}
 	static int32_t sleb128(const uint8_t * data)
 	{
-		uint64_t result;
+		uint64_t result = 0;
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
@@ -57,7 +57,7 @@ public:
 
 struct debug_arange
 {
-	const uint8_t		* data;
+	const uint8_t	* data;
 	uint32_t	unit_length(){return*(uint32_t*)(data+0);}
 	uint16_t	version(){return*(uint16_t*)(data+4);}
 	uint32_t	compilation_unit_debug_info_offset(){return*(uint32_t*)(data+6);}
@@ -73,18 +73,22 @@ struct debug_arange
 	void next(void) { data += unit_length() + sizeof unit_length(); }
 };
 
+struct compilation_unit_header
+{
+	const uint8_t		* data;
+	uint32_t	unit_length(){return*(uint32_t*)(data+0);}
+	uint16_t	version(){return*(uint16_t*)(data+4);}
+	uint32_t	debug_abbrev_offset(){return*(uint32_t*)(data+6);}
+	uint8_t		address_size(){return*(uint8_t*)(data+10);}
+	compilation_unit_header(const uint8_t * data) { this->data = data; }
+	void next(void) { data += unit_length() + sizeof unit_length(); }
+};
+
 
 class DwarfData
 {
 private:
-	const struct compilation_unit
-	{
-		uint32_t	unit_length;
-		uint16_t	version;
-		uint32_t	debug_abbrev_offset;
-		uint8_t		address_size;
-	} __attribute__((packed))
-	* debug_info;
+	const uint8_t * debug_info;
 	uint32_t	debug_info_len;
 	const uint8_t	* debug_abbrev;
 	uint32_t	debug_abbrev_len;
@@ -97,7 +101,7 @@ public:
 	{
 		this->debug_aranges = (const uint8_t *) debug_aranges;
 		this->debug_aranges_len = debug_aranges_len;
-		this->debug_info = (const struct compilation_unit *) debug_info;
+		this->debug_info = (const uint8_t *) debug_info;
 		this->debug_info_len = debug_info_len;
 		this->debug_abbrev = (const uint8_t *) debug_abbrev;
 		this->debug_abbrev_len = debug_abbrev_len;
@@ -134,8 +138,8 @@ public:
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
 	std::map<uint32_t, uint32_t> abbreviations_of_compilation_unit(uint32_t compilation_unit_offset)
 	{
-		const uint8_t * debug_abbrev = this->debug_abbrev + ((const struct compilation_unit *) ((uint8_t *) debug_info + compilation_unit_offset)) -> debug_abbrev_offset; 
-		uint32_t code, tag, name, form;
+		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
+		uint32_t code, tag, has_children, name, form;
 		int len;
 		std::map<uint32_t, uint32_t> abbrevs;
 		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
@@ -147,6 +151,8 @@ public:
 			debug_abbrev += len;
 			tag = DwarfUtil::uleb128(debug_abbrev, & len);
 			debug_abbrev += len;
+			has_children = DwarfUtil::uleb128(debug_abbrev, & len);
+			debug_abbrev += len;
 			do
 			{
 				name = DwarfUtil::uleb128(debug_abbrev, & len);
@@ -154,7 +160,7 @@ public:
 				form = DwarfUtil::uleb128(debug_abbrev, & len);
 				debug_abbrev += len;
 			}
-			while (name || code);
+			while (name || form);
 		}
 		return abbrevs;
 	}
