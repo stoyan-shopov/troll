@@ -1,5 +1,7 @@
+#include <dwarf.h>
 #include <stdint.h>
 #include <map>
+#include <vector>
 
 class DwarfUtil
 {
@@ -53,6 +55,70 @@ public:
 			result |= - 1 << (shift - 1);
 		return result;
 	}
+	static int skip_form_bytes(int form, const uint8_t * debug_info_bytes)
+	{
+		int bytes_to_skip;
+		switch (form)
+		{
+		case DW_FORM_addr:
+			return 4;
+		case DW_FORM_block2:
+			return 2 + * (uint16_t *) debug_info_bytes;
+		case DW_FORM_block4:
+			return 4 + * (uint32_t *) debug_info_bytes;
+		case DW_FORM_data2:
+			return 2;
+		case DW_FORM_data4:
+			return 4;
+		case DW_FORM_data8:
+			return 8;
+		case DW_FORM_string:
+			return strlen((const char *) debug_info_bytes) + 1;
+		case DW_FORM_block:
+			panic();
+		case DW_FORM_block1:
+			return 1 + * debug_info_bytes;
+		case DW_FORM_data1:
+			return 1;
+		case DW_FORM_flag:
+			return 1;
+		case DW_FORM_sdata:
+			return sleb128(debug_info_bytes, & bytes_to_skip) + bytes_to_skip;
+		case DW_FORM_strp:
+			return 4;
+		case DW_FORM_udata:
+			return uleb128(debug_info_bytes, & bytes_to_skip) + bytes_to_skip;
+		case DW_FORM_ref_addr:
+			return 4;
+		case DW_FORM_ref1:
+			return 1;
+		case DW_FORM_ref2:
+			return 2;
+		case DW_FORM_ref4:
+			return 4;
+		case DW_FORM_ref8:
+			return 8;
+		case DW_FORM_ref_udata:
+			return uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip;
+		case DW_FORM_indirect:
+			panic();
+		case DW_FORM_sec_offset:
+			return 4;
+		case DW_FORM_exprloc:
+			panic();
+		case DW_FORM_flag_present:
+			return 0;
+		case DW_FORM_ref_sig8:
+			panic();
+		}
+	}
+};
+
+struct Die
+{
+	/* offset of this die in the .debug_info section */
+	uint32_t	offset;
+	std::vector<struct Die> children;
 };
 
 struct debug_arange
@@ -171,14 +237,9 @@ public:
 		}
 		return abbrevs;
 	}
-};
-
-class Die
-{
-protected:
-	uint32_t	debug_info_offset;
-	class Die	* sibling;
-	class Die	* children;
+	struct Die debug_tree_of_compilation_unit(uint32_t compilation_unit_offset)
+	{
+	}
 };
 
 class CompilationUnit : Die
