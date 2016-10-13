@@ -70,7 +70,7 @@ struct debug_arange
 	};
 	struct compilation_unit_range (*ranges(void))[]{return 0;}
 	debug_arange(const uint8_t * data) { this->data = data; }
-	void next(void) { data += unit_length() + sizeof unit_length(); }
+	struct debug_arange & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
 };
 
 struct compilation_unit_header
@@ -81,7 +81,7 @@ struct compilation_unit_header
 	uint32_t	debug_abbrev_offset(){return*(uint32_t*)(data+6);}
 	uint8_t		address_size(){return*(uint8_t*)(data+10);}
 	compilation_unit_header(const uint8_t * data) { this->data = data; }
-	void next(void) { data += unit_length() + sizeof unit_length(); }
+	struct compilation_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
 };
 
 
@@ -134,6 +134,13 @@ public:
 			if (arange.address_size() != 4)
 				DwarfUtil::panic();
 		return i;
+	}
+	uint32_t next_compilation_unit(uint32_t compilation_unit_offset)
+	{
+		uint32_t x = compilation_unit_header(debug_info + compilation_unit_offset).next().data - debug_info;
+		if (x >= debug_info_len)
+			x = -1;
+		return x;
 	}
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
 	std::map<uint32_t, uint32_t> abbreviations_of_compilation_unit(uint32_t compilation_unit_offset)

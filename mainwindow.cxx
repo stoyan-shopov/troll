@@ -30,6 +30,11 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	auto x = dwdata.abbreviations_of_compilation_unit(0);
 	ui->plainTextEdit->appendPlainText(QString("number of abbreviations in the first compilation unit : %1").arg(x.size()));
+	
+	int i;
+	uint32_t cu;
+	for (i = cu = 0; cu != -1; i++, cu = dwdata.next_compilation_unit(cu));
+	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_info section : %1").arg(i));
 }
 
 MainWindow::~MainWindow()
