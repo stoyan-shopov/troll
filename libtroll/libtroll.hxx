@@ -119,10 +119,12 @@ public:
 
 struct Die
 {
+	uint32_t	tag;
 	/* offset of this die in the .debug_info section */
 	uint32_t	offset;
 	uint32_t	abbrev_offset;
 	std::vector<struct Die> children;
+	Die(uint32_t tag, uint32_t offset, uint32_t abbrev_offset){ this->tag = tag, this->offset = offset, this->abbrev_offset = abbrev_offset; }
 };
 
 struct Abbreviation
@@ -293,13 +295,12 @@ public:
 			DwarfUtil::panic("null die requested");
 		while (code)
 		{
-		struct Die die;
 			auto x = abbreviations.find(code);
 			if (x == abbreviations.end())
 				DwarfUtil::panic("abbreviation code not found");
-			die.offset = die_offset;
-			die.abbrev_offset = x->second;
-			struct Abbreviation a(debug_abbrev + die.abbrev_offset);
+			struct Abbreviation a(debug_abbrev + x->second);
+			struct Die die(a.tag(), die_offset, x->second);
+			
 			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
 			while (attr.first)
 			{
@@ -322,12 +323,8 @@ public:
 			p += len;
 		}
 		die_offset = p - debug_info;
-		
+
 		return dies;
-	}
-	uint32_t tag(struct Die & die)
-	{
-		return Abbreviation(debug_abbrev + die.abbrev_offset).tag();
 	}
 };
 

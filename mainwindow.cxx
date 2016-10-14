@@ -9,7 +9,7 @@ void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
 int i;
 	for (i = 0; i < dies.size(); i++)
 	{
-		ui->plainTextEdit->appendPlainText(QString(level, QChar('\t')) + QString("tag %1, @offset $%2").arg(dwdata->tag(dies.at(i))).arg(dies.at(i).offset, 0, 16));
+		ui->plainTextEdit->appendPlainText(QString(level, QChar('\t')) + QString("tag %1, @offset $%2").arg(dies.at(i).tag).arg(dies.at(i).offset, 0, 16));
 		if (!dies.at(i).children.empty())
 			dump_debug_tree(dies.at(i).children, level + 1);
 	}
