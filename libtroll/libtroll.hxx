@@ -118,7 +118,48 @@ struct Die
 {
 	/* offset of this die in the .debug_info section */
 	uint32_t	offset;
+	uint32_t	abbrev_offset;
 	std::vector<struct Die> children;
+};
+
+struct Abbreviation
+{
+private:
+	struct
+	{
+		const uint8_t	* attributes;
+		uint32_t code, tag;
+		bool has_children;
+	} s;
+public:
+	uint32_t tag(void){ return s.tag; }
+	bool has_children(void){ return s.has_children; }
+	/* first number is the attribute name, the second is the attribute form */
+	std::pair<uint32_t, uint32_t> next_attribute(void)
+	{
+		const uint8_t * p = s.attributes;
+		std::pair<uint32_t, uint32_t> a;
+		int len;
+		a.first = DwarfUtil::uleb128(p, & len);
+		p += len;
+		a.second = DwarfUtil::uleb128(p, & len);
+		p += len;
+		if (a.first || a.second)
+			/* not the last attribute - skip to the next one */
+			s.attributes = p;
+		return a;
+	}
+
+	Abbreviation(const uint8_t * abbreviation_data)
+	{
+		int len;
+		s.code = DwarfUtil::uleb128(abbreviation_data, & len);
+		abbreviation_data += len;
+		s.tag = DwarfUtil::uleb128(abbreviation_data, & len);
+		abbreviation_data += len;
+		s.has_children = (DwarfUtil::uleb128(abbreviation_data, & len) == DW_CHILDREN_yes);
+		s.attributes = abbreviation_data + len;
+	}
 };
 
 struct debug_arange
@@ -237,8 +278,36 @@ public:
 		}
 		return abbrevs;
 	}
-	struct Die debug_tree_of_compilation_unit(uint32_t compilation_unit_offset)
+	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations)
 	{
+		std::vector<struct Die> dies;
+		struct Die die;
+		const uint8_t * p = debug_info + die_offset;
+		int len;
+		uint32_t code = DwarfUtil::uleb128(p, & len);
+		p += len;
+		if (!code)
+			DwarfUtil::panic("null die requested");
+		while (code)
+		{
+			auto x = abbreviations.find(code);
+			if (x == abbreviations.end())
+				DwarfUtil::panic("abbreviation code not found");
+			die.offset = die_offset;
+			die.abbrev_offset = x->second;
+			Abbreviation a(debug_abbrev + die.abbrev_offset);
+			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
+			while (attr.first)
+				die_offset += (len = DwarfUtil::skip_form_bytes(attr.second, p)), p += len;
+			if (a.has_children())
+				die.children = debug_tree_of_die(die_offset, abbreviations);
+			dies.push_back(die);
+				
+			code = DwarfUtil::uleb128(p, & len);
+			p += len;
+		}
+		
+		return dies;
 	}
 };
 
