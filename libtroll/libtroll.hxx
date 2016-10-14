@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <map>
 #include <vector>
+#include <QDebug>
 
 class DwarfUtil
 {
@@ -83,10 +84,12 @@ public:
 		case DW_FORM_flag:
 			return 1;
 		case DW_FORM_sdata:
+			panic();
 			return sleb128(debug_info_bytes, & bytes_to_skip) + bytes_to_skip;
 		case DW_FORM_strp:
 			return 4;
 		case DW_FORM_udata:
+			panic();
 			return uleb128(debug_info_bytes, & bytes_to_skip) + bytes_to_skip;
 		case DW_FORM_ref_addr:
 			return 4;
@@ -105,11 +108,11 @@ public:
 		case DW_FORM_sec_offset:
 			return 4;
 		case DW_FORM_exprloc:
-			panic();
+			return uleb128(debug_info_bytes, & bytes_to_skip) + bytes_to_skip;
 		case DW_FORM_flag_present:
 			return 0;
 		case DW_FORM_ref_sig8:
-			panic();
+			return 8;
 		}
 	}
 };
@@ -281,33 +284,50 @@ public:
 	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations)
 	{
 		std::vector<struct Die> dies;
-		struct Die die;
 		const uint8_t * p = debug_info + die_offset;
 		int len;
 		uint32_t code = DwarfUtil::uleb128(p, & len);
+		qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 		p += len;
 		if (!code)
 			DwarfUtil::panic("null die requested");
 		while (code)
 		{
+		struct Die die;
 			auto x = abbreviations.find(code);
 			if (x == abbreviations.end())
 				DwarfUtil::panic("abbreviation code not found");
 			die.offset = die_offset;
 			die.abbrev_offset = x->second;
-			Abbreviation a(debug_abbrev + die.abbrev_offset);
+			struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
 			while (attr.first)
-				die_offset += (len = DwarfUtil::skip_form_bytes(attr.second, p)), p += len;
+			{
+				p += DwarfUtil::skip_form_bytes(attr.second, p);
+				attr = a.next_attribute();
+			}
+			die_offset = p - debug_info;
 			if (a.has_children())
+			{
 				die.children = debug_tree_of_die(die_offset, abbreviations);
+				p = debug_info + die_offset;
+			}
 			dies.push_back(die);
+			
+			if (a.tag() == DW_TAG_compile_unit)
+				return dies;
 				
 			code = DwarfUtil::uleb128(p, & len);
+			qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 			p += len;
 		}
+		die_offset = p - debug_info;
 		
 		return dies;
+	}
+	uint32_t tag(struct Die & die)
+	{
+		return Abbreviation(debug_abbrev + die.abbrev_offset).tag();
 	}
 };
 
