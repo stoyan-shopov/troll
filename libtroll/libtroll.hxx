@@ -180,7 +180,7 @@ struct debug_arange
 		uint32_t	start_address;
 		uint32_t	length;
 	};
-	struct compilation_unit_range (*ranges(void))[]{return 0;}
+	struct compilation_unit_range *ranges(void){return (struct compilation_unit_range *) (data+12);}
 	debug_arange(const uint8_t * data) { this->data = data; }
 	struct debug_arange & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
 };
@@ -221,21 +221,24 @@ public:
 	/* returns -1 if the compilation unit is not found */
 	uint32_t	get_compilation_unit_debug_info_offset_for_address(uint32_t address)
 	{
-#if 0
 		int i;
-		uint32_t start, len;
-		const struct debug_arange * arange = first_arange();
-		while (arange)
+		struct debug_arange arange(debug_aranges);
+		while (arange.data < debug_aranges + debug_aranges_len)
 		{
-			if (arange->address_size != 4)
+			struct debug_arange::compilation_unit_range r;
+			if (arange.address_size() != 4)
 				DwarfUtil::panic();
 			i = 0;
-			while ((start = arange->ranges[i].start_address) && (len = arange->ranges[i].length))
-				if (start <= address && address < start + len)
-					return arange->compilation_unit_debug_info_offset;
-			arange = next(arange);
+			do
+			{
+				r = arange.ranges()[i];
+				if (r.start_address <= address && address < r.start_address + r.length)
+					return arange.compilation_unit_debug_info_offset();
+				i ++;
+			}
+			while (r.length || r.start_address);
+			arange.next();
 		}
-#endif
 		return -1;
 	}
 	int compilation_unit_count(void)
