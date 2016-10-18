@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <map>
 #include <vector>
+#include <sstream>
 #include <QDebug>
 
 class DwarfUtil
@@ -344,7 +345,13 @@ private:
 		bool isFDE(void) { return * (uint32_t *) (data + 4) != 0xffffffff; }
 		bool isCIE(void) { return * (uint32_t *) (data + 4) == 0xffffffff; }
 		uint32_t length(void) { return * (uint32_t *) data; }
+		uint32_t CIE_pointer(void) { return * (uint32_t *) (data + 4); }
+		uint32_t initial_location(void) { return * (uint32_t *) (data + 8); }
+		uint32_t address_range(void) { return * (uint32_t *) (data + 12); }
 		uint8_t version(void) { return data[8]; }
+		
+		std::pair<const uint8_t *, int> fde_instructions(void) { return std::pair<const uint8_t *, int>(data + 16, length() - sizeof(uint32_t) - 12); }
+		
 		const char * augmentation(void) { return (const char *) data + 9; }
 		CIEFDE(const uint8_t * debug_frame, uint32_t debug_frame_offset)
 		{
@@ -383,18 +390,70 @@ private:
 			int len, offset;
 			if (!isCIE())
 				DwarfUtil::panic("");
-			return std::pair<const uint8_t *, int> (
+			x = std::pair<const uint8_t *, int> (
 			data + (offset = (DwarfUtil::uleb128(data + (offset = 9 + strlen(augmentation()) + 1), & len)
 					, DwarfUtil::sleb128(data + (offset += len), & len)
 					, offset + len)
 					+ 1),
-			length() - offset
+				0
 				);
+			x.second = length() + sizeof(uint32_t) - offset;
+			return x;
 		}
+		std::string cie_sforth_code(void)
+		{
+			auto x = initial_instructions();
+			int i, len;
+			uint32_t op;
+			std::stringstream result;
+			for (i = 0; i < x.second; i++)
+			{
+				switch (* x.first ++)
+				{
+					case DW_CFA_def_cfa:
+						op = DwarfUtil::uleb128(x.first, & len);
+						x.first += len;
+						i += len;
+						result << op << " ";
+						op = DwarfUtil::uleb128(x.first, & len);
+						x.first += len;
+						i += len;
+						result << op << " ";
+						result << "DW_CFA_def_cfa" << " ";
+						break;
+				}
+			}
+			return result.str();
+		}
+
+		void dump(void)
+		{
+			qDebug() << (isCIE() ? "CIE" : "FDE");
+			if (isCIE())
+			{
+				qDebug() << "version " << version();
+				qDebug() << "code alignment factor " << code_alignment_factor();
+				qDebug() << "data alignment factor " << data_alignment_factor();
+				qDebug() << "return address register " << return_address_register();
+				auto insn = initial_instructions();
+				//qDebug() << "initial instructions " << QByteArray((const char *) insn.first, insn.second).toHex() << "count" << insn.second;
+				qDebug() << "initial instructions " << QString().fromStdString(cie_sforth_code());
+			}
+			else
+			{
+				qDebug() << "initial address " << QString("$%1").arg(initial_location(), 0, 16);
+				qDebug() << "range " << address_range();
+			}
+		}
+		void next(void) { data += sizeof(uint32_t) + length(); }
 	};
+	
+	struct CIEFDE ciefde;
 
 public:
-	DwarfUnwinder(const uint8_t * debug_frame, uint32_t debug_frame_len) { this->debug_frame = debug_frame, this->debug_frame_len = debug_frame_len; }
+	DwarfUnwinder(const void * debug_frame, uint32_t debug_frame_len) : ciefde((const uint8_t *) debug_frame, 0) { this->debug_frame = (const uint8_t *) debug_frame, this->debug_frame_len = debug_frame_len; }
+	void dump(void) { ciefde.dump(); }
+	void next(void) { ciefde.next(); }
 };
 
 class CompilationUnit : Die

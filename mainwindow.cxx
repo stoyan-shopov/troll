@@ -32,6 +32,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	QByteArray debug_info = debug_file.read(debug_info_len);
 	debug_file.seek(debug_abbrev_offset);
 	QByteArray debug_abbrev = debug_file.read(debug_abbrev_len);
+	debug_file.seek(debug_frame_offset);
+	QByteArray debug_frame = debug_file.read(debug_frame_len);
 	
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
@@ -48,6 +50,11 @@ MainWindow::MainWindow(QWidget *parent) :
 	auto debug_tree = dwdata->debug_tree_of_die(die_offset, x);
 	ui->plainTextEdit->appendPlainText(QString("debug tree decoding ended at offset: %1").arg(die_offset));
 	dump_debug_tree(debug_tree, 1);
+	
+	DwarfUnwinder dwundwind(debug_frame.data(), debug_frame.length());
+	dwundwind.dump();
+	dwundwind.next();
+	dwundwind.dump();
 }
 
 MainWindow::~MainWindow()
