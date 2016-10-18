@@ -52,9 +52,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	dump_debug_tree(debug_tree, 1);
 	
 	DwarfUnwinder dwundwind(debug_frame.data(), debug_frame.length());
-	dwundwind.dump();
-	dwundwind.next();
-	dwundwind.dump();
+	while (!dwundwind.at_end())
+		dwundwind.dump(), dwundwind.next();
 }
 
 MainWindow::~MainWindow()

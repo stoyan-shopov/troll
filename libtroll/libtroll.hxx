@@ -340,7 +340,8 @@ private:
 	struct CIEFDE
 	{
 	private:
-		const uint8_t * data;
+		const uint8_t * data, * debug_frame;
+		uint32_t debug_frame_len;
 	public:
 		bool isFDE(void) { return * (uint32_t *) (data + 4) != 0xffffffff; }
 		bool isCIE(void) { return * (uint32_t *) (data + 4) == 0xffffffff; }
@@ -353,8 +354,10 @@ private:
 		std::pair<const uint8_t *, int> fde_instructions(void) { return std::pair<const uint8_t *, int>(data + 16, length() - 12); }
 		
 		const char * augmentation(void) { return (const char *) data + 9; }
-		CIEFDE(const uint8_t * debug_frame, uint32_t debug_frame_offset)
+		CIEFDE(const uint8_t * debug_frame, uint32_t debug_frame_len, uint32_t debug_frame_offset)
 		{
+			this->debug_frame = debug_frame;
+			this->debug_frame_len = debug_frame_len;
 			data = debug_frame + debug_frame_offset;
 			if (version() != 1)
 				DwarfUtil::panic("unsupported .debug_frame version");
@@ -447,6 +450,12 @@ private:
 						i -= len;
 						result << op << " " << "DW_CFA_def_cfa_offset" << " ";
 						break;
+					case DW_CFA_def_cfa_register:
+						op = DwarfUtil::uleb128(insn, & len);
+						insn += len;
+						i -= len;
+						result << op << " " << "DW_CFA_def_cfa_register" << " ";
+						break;
 					case DW_CFA_nop:
 						break;
 				}
@@ -474,15 +483,19 @@ private:
 				qDebug() << "instructions " << QString().fromStdString(ciefde_sforth_code(fde_instructions()));
 			}
 		}
-		void next(void) { data += sizeof(uint32_t) + length(); }
+		void next(void) { if (data != debug_frame + debug_frame_len) data += sizeof(uint32_t) + length(); }
+		bool at_end(void) { return (data == debug_frame + debug_frame_len) ? true : false; }
+		void rewind(void) { data = debug_frame; }
 	};
 	
 	struct CIEFDE ciefde;
 
 public:
-	DwarfUnwinder(const void * debug_frame, uint32_t debug_frame_len) : ciefde((const uint8_t *) debug_frame, 0) { this->debug_frame = (const uint8_t *) debug_frame, this->debug_frame_len = debug_frame_len; }
+	DwarfUnwinder(const void * debug_frame, uint32_t debug_frame_len) : ciefde((const uint8_t *) debug_frame, debug_frame_len, 0) { this->debug_frame = (const uint8_t *) debug_frame, this->debug_frame_len = debug_frame_len; }
 	void dump(void) { ciefde.dump(); }
 	void next(void) { ciefde.next(); }
+	bool at_end(void) { return ciefde.at_end(); }
+	void rewind(void) { ciefde.rewind(); }
 };
 
 class CompilationUnit : Die
