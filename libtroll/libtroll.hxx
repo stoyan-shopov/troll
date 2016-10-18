@@ -331,6 +331,72 @@ public:
 	}
 };
 
+class DwarfUnwinder
+{
+private:
+	const uint8_t	* debug_frame;
+	uint32_t	debug_frame_len;
+	struct CIEFDE
+	{
+	private:
+		const uint8_t * data;
+	public:
+		bool isFDE(void) { return * (uint32_t *) (data + 4) != 0xffffffff; }
+		bool isCIE(void) { return * (uint32_t *) (data + 4) == 0xffffffff; }
+		uint32_t length(void) { return * (uint32_t *) data; }
+		uint8_t version(void) { return data[8]; }
+		const char * augmentation(void) { return (const char *) data + 9; }
+		CIEFDE(const uint8_t * debug_frame, uint32_t debug_frame_offset)
+		{
+			data = debug_frame + debug_frame_offset;
+			if (version() != 1)
+				DwarfUtil::panic("unsupported .debug_frame version");
+			if (strlen(augmentation()))
+				DwarfUtil::panic("unsupported .debug_frame CIE augmentation");
+		}
+		uint32_t code_alignment_factor(void)
+		{
+			if (!isCIE())
+				DwarfUtil::panic("");
+			return DwarfUtil::uleb128(data + 9 + strlen(augmentation()) + 1);
+		}
+		int32_t data_alignment_factor(void)
+		{
+			int len, offset;
+			if (!isCIE())
+				DwarfUtil::panic("");
+			return DwarfUtil::uleb128(data + (offset = 9 + strlen(augmentation()) + 1), & len), DwarfUtil::sleb128(data + offset + len);
+		}
+		uint8_t return_address_register(void)
+		{
+			int len, offset;
+			if (!isCIE())
+				DwarfUtil::panic("");
+			return DwarfUtil::uleb128(data + (offset = 9 + strlen(augmentation()) + 1), & len)
+					, DwarfUtil::sleb128(data + (offset += len), & len)
+					, data[offset + len];
+		}
+		/* pointer to the initial instructions, and bytecount in instruction block */
+		std::pair<const uint8_t *, int> initial_instructions(void)
+		{
+			std::pair<const uint8_t *, int> x;
+			int len, offset;
+			if (!isCIE())
+				DwarfUtil::panic("");
+			return std::pair<const uint8_t *, int> (
+			data + (offset = (DwarfUtil::uleb128(data + (offset = 9 + strlen(augmentation()) + 1), & len)
+					, DwarfUtil::sleb128(data + (offset += len), & len)
+					, offset + len)
+					+ 1),
+			length() - offset
+				);
+		}
+	};
+
+public:
+	DwarfUnwinder(const uint8_t * debug_frame, uint32_t debug_frame_len) { this->debug_frame = debug_frame, this->debug_frame_len = debug_frame_len; }
+};
+
 class CompilationUnit : Die
 {
 public:
