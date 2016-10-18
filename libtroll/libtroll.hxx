@@ -350,7 +350,7 @@ private:
 		uint32_t address_range(void) { return * (uint32_t *) (data + 12); }
 		uint8_t version(void) { return data[8]; }
 		
-		std::pair<const uint8_t *, int> fde_instructions(void) { return std::pair<const uint8_t *, int>(data + 16, length() - sizeof(uint32_t) - 12); }
+		std::pair<const uint8_t *, int> fde_instructions(void) { return std::pair<const uint8_t *, int>(data + 16, length() - 12); }
 		
 		const char * augmentation(void) { return (const char *) data + 9; }
 		CIEFDE(const uint8_t * debug_frame, uint32_t debug_frame_offset)
@@ -400,26 +400,54 @@ private:
 			x.second = length() + sizeof(uint32_t) - offset;
 			return x;
 		}
-		std::string cie_sforth_code(void)
+		std::string ciefde_sforth_code(const std::pair<const uint8_t *, int> & instructions)
 		{
-			auto x = initial_instructions();
-			int i, len;
+			const uint8_t * insn = instructions.first;
+			int i = instructions.second, len;
+			uint8_t dwopcode;
 			uint32_t op;
 			std::stringstream result;
-			for (i = 0; i < x.second; i++)
+			while (i --)
 			{
-				switch (* x.first ++)
+				switch (((dwopcode = * insn ++) >> 6))
 				{
+					case 0:
+						break;
+					case 1:
+						result << (dwopcode & ((1 << 6) - 1)) << " " << "DW_CFA_advance_loc" << " ";
+						continue;
+					case 2:
+						op = DwarfUtil::uleb128(insn, & len);
+						insn += len;
+						i -= len;
+						result << (dwopcode & ((1 << 6) - 1)) << " " << op << " " << "DW_CFA_offset" << " ";
+						continue;
+					default:
+					DwarfUtil::panic();
+				}
+
+				switch (dwopcode)
+				{
+					default:
+					DwarfUtil::panic();
 					case DW_CFA_def_cfa:
-						op = DwarfUtil::uleb128(x.first, & len);
-						x.first += len;
-						i += len;
+						op = DwarfUtil::uleb128(insn, & len);
+						insn += len;
+						i -= len;
 						result << op << " ";
-						op = DwarfUtil::uleb128(x.first, & len);
-						x.first += len;
-						i += len;
+						op = DwarfUtil::uleb128(insn, & len);
+						insn += len;
+						i -= len;
 						result << op << " ";
 						result << "DW_CFA_def_cfa" << " ";
+						break;
+					case DW_CFA_def_cfa_offset:
+						op = DwarfUtil::uleb128(insn, & len);
+						insn += len;
+						i -= len;
+						result << op << " " << "DW_CFA_def_cfa_offset" << " ";
+						break;
+					case DW_CFA_nop:
 						break;
 				}
 			}
@@ -437,12 +465,13 @@ private:
 				qDebug() << "return address register " << return_address_register();
 				auto insn = initial_instructions();
 				//qDebug() << "initial instructions " << QByteArray((const char *) insn.first, insn.second).toHex() << "count" << insn.second;
-				qDebug() << "initial instructions " << QString().fromStdString(cie_sforth_code());
+				qDebug() << "initial instructions " << QString().fromStdString(ciefde_sforth_code(initial_instructions()));
 			}
 			else
 			{
 				qDebug() << "initial address " << QString("$%1").arg(initial_location(), 0, 16);
 				qDebug() << "range " << address_range();
+				qDebug() << "instructions " << QString().fromStdString(ciefde_sforth_code(fde_instructions()));
 			}
 		}
 		void next(void) { data += sizeof(uint32_t) + length(); }
