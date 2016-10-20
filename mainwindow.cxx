@@ -20,7 +20,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
-	QFile debug_file("blackmagic");
+	QFile debug_file("main_aps.elf");
 	if (!debug_file.open(QFile::ReadOnly))
 	{
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
@@ -34,8 +34,10 @@ MainWindow::MainWindow(QWidget *parent) :
 	QByteArray debug_abbrev = debug_file.read(debug_abbrev_len);
 	debug_file.seek(debug_frame_offset);
 	QByteArray debug_frame = debug_file.read(debug_frame_len);
+	debug_file.seek(debug_ranges_offset);
+	QByteArray debug_ranges = debug_file.read(debug_ranges_len);
 	
-	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length());
+	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
 	
 	auto x = dwdata->abbreviations_of_compilation_unit(0);
@@ -54,6 +56,9 @@ MainWindow::MainWindow(QWidget *parent) :
 	DwarfUnwinder dwundwind(debug_frame.data(), debug_frame.length());
 	while (!dwundwind.at_end())
 		dwundwind.dump(), dwundwind.next();
+	auto context = dwdata->executionContextForAddress(0x800f226);
+	qDebug() << context.size();
+	qDebug() << context.at(0).offset << context.at(1).offset;
 }
 
 MainWindow::~MainWindow()
