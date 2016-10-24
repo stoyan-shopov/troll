@@ -462,6 +462,7 @@ private:
 		uint32_t address_range(void) { return * (uint32_t *) (data + 12); }
 		uint8_t version(void) { return data[8]; }
 		
+		/* pointer to the initial instructions, and bytecount in instruction block */
 		std::pair<const uint8_t *, int> fde_instructions(void) { return std::pair<const uint8_t *, int>(data + 16, length() - 12); }
 		
 		const char * augmentation(void) { return (const char *) data + 9; }
@@ -470,9 +471,9 @@ private:
 			this->debug_frame = debug_frame;
 			this->debug_frame_len = debug_frame_len;
 			data = debug_frame + debug_frame_offset;
-			if (version() != 1)
+			if (isCIE() && version() != 1)
 				DwarfUtil::panic("unsupported .debug_frame version");
-			if (strlen(augmentation()))
+			if (isCIE() && strlen(augmentation()))
 				DwarfUtil::panic("unsupported .debug_frame CIE augmentation");
 		}
 		uint32_t code_alignment_factor(void)
@@ -514,10 +515,12 @@ private:
 			x.second = length() + sizeof(uint32_t) - offset;
 			return x;
 		}
-		std::string ciefde_sforth_code(const std::pair<const uint8_t *, int> & instructions)
+		/* pointer to the initial instructions, and bytecount in instruction block */
+		std::pair<const uint8_t *, int> instructions(void) { return isCIE() ? initial_instructions() : fde_instructions(); }
+		std::string ciefde_sforth_code(void)
 		{
-			const uint8_t * insn = instructions.first;
-			int i = instructions.second, len;
+			const uint8_t * insn = instructions().first;
+			int i = instructions().second, len;
 			uint8_t dwopcode;
 			uint32_t op;
 			std::stringstream result;
@@ -585,18 +588,29 @@ private:
 				qDebug() << "return address register " << return_address_register();
 				auto insn = initial_instructions();
 				//qDebug() << "initial instructions " << QByteArray((const char *) insn.first, insn.second).toHex() << "count" << insn.second;
-				qDebug() << "initial instructions " << QString().fromStdString(ciefde_sforth_code(initial_instructions()));
+				qDebug() << "initial instructions " << QString().fromStdString(ciefde_sforth_code());
 			}
 			else
 			{
 				qDebug() << "initial address " << QString("$%1").arg(initial_location(), 0, 16);
 				qDebug() << "range " << address_range();
-				qDebug() << "instructions " << QString().fromStdString(ciefde_sforth_code(fde_instructions()));
+				qDebug() << "instructions " << QString().fromStdString(ciefde_sforth_code());
 			}
 		}
 		void next(void) { if (data != debug_frame + debug_frame_len) data += sizeof(uint32_t) + length(); }
-		bool at_end(void) { return (data == debug_frame + debug_frame_len) ? true : false; }
+		bool atEnd(void) { return (data == debug_frame + debug_frame_len) ? true : false; }
 		void rewind(void) { data = debug_frame; }
+		/* return -1 if a fde for the given address is not found */
+		uint32_t fdeForAddress(uint32_t address)
+		{
+			rewind();
+			while (!atEnd())
+				if (isFDE() && initial_location() <= address && address < initial_location() + address_range())
+					return data - debug_frame;
+				else
+					next();
+			return -1;
+		}
 	};
 	
 	struct CIEFDE ciefde;
@@ -605,8 +619,16 @@ public:
 	DwarfUnwinder(const void * debug_frame, uint32_t debug_frame_len) : ciefde((const uint8_t *) debug_frame, debug_frame_len, 0) { this->debug_frame = (const uint8_t *) debug_frame, this->debug_frame_len = debug_frame_len; }
 	void dump(void) { ciefde.dump(); }
 	void next(void) { ciefde.next(); }
-	bool at_end(void) { return ciefde.at_end(); }
+	bool at_end(void) { return ciefde.atEnd(); }
 	void rewind(void) { ciefde.rewind(); }
+	std::string sforthCodeForAddress(uint32_t address)
+	{
+		uint32_t fde_offset(ciefde.fdeForAddress(address));
+		if (fde_offset == -1) 
+			return "abort";
+		CIEFDE fde(debug_frame, debug_frame_len, fde_offset), cie(debug_frame, debug_frame_len, fde.CIE_pointer());
+		return cie.ciefde_sforth_code() + fde.ciefde_sforth_code();
+	}
 };
 
 class CompilationUnit : Die
