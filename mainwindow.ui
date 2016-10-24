@@ -16,6 +16,12 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
+     <widget class="QLineEdit" name="lineEditSforthCommand"/>
+    </item>
+    <item>
+     <widget class="QPlainTextEdit" name="plainTextEditSforthConsole"/>
+    </item>
+    <item>
      <widget class="QPlainTextEdit" name="plainTextEdit"/>
     </item>
    </layout>

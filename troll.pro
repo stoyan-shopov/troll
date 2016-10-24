@@ -15,12 +15,24 @@ TEMPLATE = app
 SOURCES +=\
         mainwindow.cxx \
 	main.cxx \
-    libtroll/libtroll.cxx
+    libtroll/libtroll.cxx \
+    sforth/engine.c \
+    sforth/sf-opt-file.c \
+    sforth/sf-opt-prog-tools.c \
+    sforth/sf-opt-string.c \
+    sforth.cxx
 
 HEADERS  += mainwindow.hxx \
     libtroll/dwarf.h \
-    libtroll/libtroll.hxx
+    libtroll/libtroll.hxx \
+    sforth.hxx
 
 FORMS    += mainwindow.ui
 
-INCLUDEPATH += libtroll/
+INCLUDEPATH += libtroll/ sforth/
+
+DEFINES += ENGINE_32BIT CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32
+
+#QMAKE_LFLAGS += -fno-leading-underscore
+#QMAKE_CXXFLAGS += -fno-leading-underscore
+#QMAKE_CFLAGS += -fno-leading-underscore

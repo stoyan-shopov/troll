@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "libtroll.hxx"
+#include "sforth.hxx"
 
 namespace Ui {
 class MainWindow;
@@ -21,10 +22,14 @@ class MainWindow : public QMainWindow
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
+	Sforth	* sforth;
 	
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
+	
+private slots:
+	void on_lineEditSforthCommand_returnPressed();
 	
 private:
 	Ui::MainWindow *ui;

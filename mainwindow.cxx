@@ -63,9 +63,17 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << context.at(0).offset << context.at(1).offset;
 	qDebug() << QString().fromStdString(dwdata->nameOfDie(context.at(1)));
 	qDebug() << QString().fromStdString(dwundwind.sforthCodeForAddress(0x800f226));
+	
+	sforth = new Sforth(ui->plainTextEditSforthConsole);
 }
 
 MainWindow::~MainWindow()
 {
 	delete ui;
+}
+
+void MainWindow::on_lineEditSforthCommand_returnPressed()
+{
+	sforth->evaluate(ui->lineEditSforthCommand->text() + '\n');
+	ui->lineEditSforthCommand->clear();
 }

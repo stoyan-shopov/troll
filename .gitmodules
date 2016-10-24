@@ -1,0 +1,3 @@
+[submodule "sforth"]
+	path = sforth
+	url = https://github.com/stoyan-shopov/sforth.git
