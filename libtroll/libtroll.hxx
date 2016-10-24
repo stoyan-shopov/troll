@@ -128,6 +128,19 @@ public:
 			panic();
 		}
 	}
+	static std::string formString(uint32_t attribute_form, const uint8_t * debug_info_bytes, const uint8_t * debug_str)
+	{
+		switch (attribute_form)
+		{
+		case DW_FORM_string:
+			return (const char *) debug_info_bytes;
+		case DW_FORM_strp:
+			return (const char *) (debug_str + * (uint32_t *) debug_info_bytes);
+		default:
+			panic();
+		}
+	}
+
 	static uint32_t fetchHighLowPC(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t relocation_address = 0)
 	{
 		switch (attribute_form)
@@ -254,9 +267,13 @@ private:
 
 	const uint8_t * debug_ranges;
 	uint32_t	debug_ranges_len;
+	
+	const uint8_t * debug_str;
+	uint32_t	debug_str_len;
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
-		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len)
+		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
+		  const void * debug_str, uint32_t debug_str_len)
 	{
 		this->debug_aranges = (const uint8_t *) debug_aranges;
 		this->debug_aranges_len = debug_aranges_len;
@@ -266,6 +283,8 @@ public:
 		this->debug_abbrev_len = debug_abbrev_len;
 		this->debug_ranges = (const uint8_t *) debug_aranges;
 		this->debug_ranges_len = debug_aranges_len;
+		this->debug_str = (const uint8_t *) debug_str;
+		this->debug_str_len = debug_str_len;
 	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t	get_compilation_unit_debug_info_offset_for_address(uint32_t address)
@@ -440,6 +459,14 @@ public:
 			else
 				i ++;
 		return context;
+	}
+	std::string nameOfDie(const struct Die & die)
+	{
+		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
+		auto x = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
+		if (!x.first)
+			return "<<< no name >>>";
+		return DwarfUtil::formString(x.first, x.second, debug_str);
 	}
 };
 

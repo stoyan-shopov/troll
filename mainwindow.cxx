@@ -36,8 +36,10 @@ MainWindow::MainWindow(QWidget *parent) :
 	QByteArray debug_frame = debug_file.read(debug_frame_len);
 	debug_file.seek(debug_ranges_offset);
 	QByteArray debug_ranges = debug_file.read(debug_ranges_len);
+	debug_file.seek(debug_str_offset);
+	QByteArray debug_str = debug_file.read(debug_str_len);
 	
-	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length());
+	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
 	
 	auto x = dwdata->abbreviations_of_compilation_unit(0);
@@ -59,6 +61,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	auto context = dwdata->executionContextForAddress(0x800f226);
 	qDebug() << context.size();
 	qDebug() << context.at(0).offset << context.at(1).offset;
+	qDebug() << QString().fromStdString(dwdata->nameOfDie(context.at(1)));
 	qDebug() << QString().fromStdString(dwundwind.sforthCodeForAddress(0x800f226));
 }
 
