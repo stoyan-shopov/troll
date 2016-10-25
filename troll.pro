@@ -21,13 +21,15 @@ SOURCES +=\
     sforth/sf-opt-prog-tools.c \
     sforth/sf-opt-string.c \
     sforth.cxx \
-    cortexm0.cxx
+    cortexm0.cxx \
+    cortexm0-sfext.c
 
 HEADERS  += mainwindow.hxx \
     libtroll/dwarf.h \
     libtroll/libtroll.hxx \
     sforth.hxx \
-    cortexm0.hxx
+    cortexm0.hxx \
+    util.hxx
 
 FORMS    += mainwindow.ui
 

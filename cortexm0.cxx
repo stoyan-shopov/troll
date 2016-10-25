@@ -1,4 +1,11 @@
 #include "cortexm0.hxx"
+#include "util.hxx"
+
+extern "C"
+{
+void do_target_fetch(void) { print_str("cortexm0 support\n"); }
+}
+
 
 /*
 
@@ -49,7 +56,7 @@ create cfa-offset-table register-count cells allot
 : DW_CFA_nop ;
 
 : DW_CFA_offset ( register-number offset --)
-	swap cfa-offset-table [] !
+	swap cfa-offset-table [] data-alignment-factor * !
 	;
 
 \ !!! must be called before each run of the unwinder
@@ -65,4 +72,5 @@ create cfa-offset-table register-count cells allot
 CortexM0::CortexM0(Sforth * sforth)
 {
 	this->sforth = sforth;
+	Util::panic();
 }
