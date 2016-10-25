@@ -8,7 +8,7 @@ class CortexM0
 private:
 	Sforth	* sforth;
 public:
-	CortexM0(Sforth * sforth);
+	CortexM0(Sforth * sforth, class Target * target_controller);
 };
 
 #endif // CORTEXM0_H

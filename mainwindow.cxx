@@ -64,6 +64,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << QString().fromStdString(dwdata->nameOfDie(context.at(1)));
 	qDebug() << QString().fromStdString(dwundwind.sforthCodeForAddress(0x800f226));
 	
+	target = new Target("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 }
 

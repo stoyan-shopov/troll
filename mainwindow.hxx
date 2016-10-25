@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "libtroll.hxx"
 #include "sforth.hxx"
+#include "target.hxx"
 
 namespace Ui {
 class MainWindow;
@@ -23,6 +24,7 @@ class MainWindow : public QMainWindow
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
 	Sforth	* sforth;
+	Target	* target;
 	
 public:
 	explicit MainWindow(QWidget *parent = 0);

@@ -38,3 +38,9 @@ FORMS    += mainwindow.ui
 INCLUDEPATH += libtroll/ sforth/
 
 DEFINES += ENGINE_32BIT CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32
+
+DISTFILES += \
+    unwinder.fs
+
+RESOURCES += \
+    resources.qrc

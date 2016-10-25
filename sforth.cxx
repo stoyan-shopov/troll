@@ -26,6 +26,9 @@ Sforth::Sforth(QPlainTextEdit * console)
 {
 	sforth_console = console;
 	sf_reset();
+	QFile f(":/new/sforth/unwinder.fs");
+	f.open(QFile::ReadOnly);
+	evaluate(f.readAll() + '\n');
 }
 
 void Sforth::evaluate(const QString &sforth_commands)
