@@ -22,21 +22,19 @@ SOURCES +=\
     sforth/sf-opt-string.c \
     sforth.cxx \
     cortexm0.cxx \
-    cortexm0-sfext.c
+    cortexm0-sfext.c \
+    target.cxx
 
 HEADERS  += mainwindow.hxx \
     libtroll/dwarf.h \
     libtroll/libtroll.hxx \
     sforth.hxx \
     cortexm0.hxx \
-    util.hxx
+    util.hxx \
+    target.hxx
 
 FORMS    += mainwindow.ui
 
 INCLUDEPATH += libtroll/ sforth/
 
 DEFINES += ENGINE_32BIT CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32
-
-#QMAKE_LFLAGS += -fno-leading-underscore
-#QMAKE_CXXFLAGS += -fno-leading-underscore
-#QMAKE_CFLAGS += -fno-leading-underscore
