@@ -648,19 +648,20 @@ public:
 	void next(void) { ciefde.next(); }
 	bool at_end(void) { return ciefde.atEnd(); }
 	void rewind(void) { ciefde.rewind(); }
-	std::string sforthCodeForAddress(uint32_t address)
+	/* the string in the pair is the sforth dwarf unwind code, the integer is the base address for the unwind code */
+	std::pair<std::string, uint32_t> sforthCodeForAddress(uint32_t address)
 	{
 		uint32_t fde_offset(ciefde.fdeForAddress(address));
 		if (fde_offset == -1) 
-			return "abort";
+			return std::pair<std::string, uint32_t>("abort", -1);
 		CIEFDE fde(debug_frame, debug_frame_len, fde_offset), cie(debug_frame, debug_frame_len, fde.CIE_pointer());
 
-		std::stringstream result;
-		result
+		std::stringstream sfcode;
+		sfcode
 				<< cie.code_alignment_factor() << " to code-alignment-factor "
 				<< cie.data_alignment_factor() << " to data-alignment-factor "
 				<< (cie.ciefde_sforth_code() + fde.ciefde_sforth_code()) << " unwinding-rules-defined ";
-		return result.str();
+		return std::pair<std::string, uint32_t>(sfcode.str(), 0);
 	}
 };
 

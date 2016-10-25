@@ -5,6 +5,7 @@
 #include "libtroll.hxx"
 #include "sforth.hxx"
 #include "target.hxx"
+#include "cortexm0.hxx"
 
 namespace Ui {
 class MainWindow;
@@ -25,6 +26,7 @@ class MainWindow : public QMainWindow
 	DwarfData * dwdata;
 	Sforth	* sforth;
 	Target	* target;
+	CortexM0	* cortexm0;
 	
 public:
 	explicit MainWindow(QWidget *parent = 0);

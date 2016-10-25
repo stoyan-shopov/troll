@@ -1,5 +1,5 @@
 <RCC>
-    <qresource prefix="/new/sforth">
+    <qresource prefix="/sforth">
         <file>unwinder.fs</file>
     </qresource>
 </RCC>
