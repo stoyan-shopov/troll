@@ -33,8 +33,8 @@ bool CortexM0::unwindFrame(const QString & unwind_code, uint32_t start_address, 
 {
 int i;
 	for (i = 0; i < registers.size(); sforth->push(registers.at(i++)));
-	sforth->evaluate(QString("%1 to start-address %2 to unwind-address ").arg(start_address).arg(unwind_address)
-				+ "init-unwinder-round " + unwind_code + '\n');
+	sforth->evaluate("init-unwinder-round\n");
+	sforth->evaluate(QString("%1 to current-address %2 to unwind-address ").arg(start_address).arg(unwind_address) + unwind_code + '\n');
 	registers.clear();
 	auto r = sforth->getResults(1);
 	if (r.size() != 1)

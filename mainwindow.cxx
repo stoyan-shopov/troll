@@ -58,16 +58,18 @@ MainWindow::MainWindow(QWidget *parent) :
 	DwarfUnwinder dwundwind(debug_frame.data(), debug_frame.length());
 	while (!dwundwind.at_end())
 		dwundwind.dump(), dwundwind.next();
+	auto unwind_data = dwundwind.sforthCodeForAddress(0x800f226);
 	auto context = dwdata->executionContextForAddress(0x800f226);
 	qDebug() << context.size();
 	qDebug() << context.at(0).offset << context.at(1).offset;
 	qDebug() << QString().fromStdString(dwdata->nameOfDie(context.at(1)));
-	qDebug() << QString().fromStdString(dwundwind.sforthCodeForAddress(0x800f226).first);
+	qDebug() << QString().fromStdString(unwind_data.first);
 	
 	target = new Target("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 	cortexm0 = new CortexM0(sforth, target);
 	cortexm0->primeUnwinder();
+	cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
 }
 
 MainWindow::~MainWindow()

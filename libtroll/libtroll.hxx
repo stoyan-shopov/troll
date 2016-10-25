@@ -661,7 +661,7 @@ public:
 				<< cie.code_alignment_factor() << " to code-alignment-factor "
 				<< cie.data_alignment_factor() << " to data-alignment-factor "
 				<< (cie.ciefde_sforth_code() + fde.ciefde_sforth_code()) << " unwinding-rules-defined ";
-		return std::pair<std::string, uint32_t>(sfcode.str(), 0);
+		return std::pair<std::string, uint32_t>(sfcode.str(), fde.initial_location());
 	}
 };
 

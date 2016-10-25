@@ -30,6 +30,7 @@ Sforth::Sforth(QPlainTextEdit * console)
 
 void Sforth::evaluate(const QString &sforth_commands)
 {
+	sforth_console->appendPlainText(QString(">>> ") + sforth_commands);
 	sf_eval(sforth_commands.toLocal8Bit().data());
 }
 

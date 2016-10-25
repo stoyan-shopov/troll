@@ -23,24 +23,28 @@ swap constant register-count
 \ data for the DW_CFA_def_cfa instruction
 -1 value cfa-register-number
 -1 value cfa-register-offset
+\ the computed cfa value
+-1 value cfa-value
 0 value cfa-rule-xt
-: cfa-rule-register-offset ( --)
-	;
 : invalid-unwind-rule ( --)
 	panic ;
 
 \ data tables for unwinding all frame registers
 \ register unwind vector table
 create unwind-xts register-count cells allot
-: unwind-rule-same-value ( --) ;
+: unwind-rule-same-value ( register-number --) drop ;
 
 \ data table for unwinding registers by the DW_CFA_offset instruction
 create cfa-offset-table register-count cells allot
 
 \ unwind parameters	
--1 value start-address
+-1 value current-address
 -1 value unwind-address
 create unwound-registers register-count cells allot
+
+: cfa-rule-register-offset ( --)
+	cfa-register-number unwound-registers [] @ cfa-register-offset + to cfa-value
+	;
 
 \ dwarf unwind instructions
 : DW_CFA_def_cfa ( register-number offset --)
@@ -57,19 +61,40 @@ create unwound-registers register-count cells allot
 
 : DW_CFA_nop ;
 
+: register-rule-cfa-offset ( register-number --)
+	drop
+	;
 : DW_CFA_offset ( register-number offset --)
-	swap cfa-offset-table [] data-alignment-factor * !
+	over >r
+	data-alignment-factor * swap cfa-offset-table [] !
+	['] register-rule-cfa-offset r> unwind-xts [] !
+	;
+
+: unwinding-rules-defined ( --)
+	." end of unwinding"cr
+	\ discard rest of unwinding code
+	source nip >in !
+	\ apply unwinding rules
+	cfa-rule-xt execute
+	register-count 0 do i i unwind-xts [] @ execute loop
+	\ unwinding successful
+	true
+	;
+: DW_CFA_advance_loc ( delta --)
+	code-alignment-factor * current-address + to current-address
+	current-address unwind-address > if unwinding-rules-defined then
 	;
 
 \ !!! must be called before each run of the unwinder - push all of the current target
-\ register contents on the stack before calling
+\ registers on the stack before calling
 : init-unwinder-round ( n0 .. nk --) \ expects all target registers to be on the stack before invoking
 	0 register-count 1- do i unwound-registers [] ! -1 +loop
 	-1 to code-alignment-factor
 	-1 to data-alignment-factor
 	-1 to cfa-register-number
 	-1 to cfa-register-offset
-	-1 to start-address
+	-1 to cfa-value
+	-1 to current-address
 	-1 to unwind-address
 	['] invalid-unwind-rule to cfa-rule-xt
 	register-count 0 do ['] unwind-rule-same-value i unwind-xts [] ! loop
