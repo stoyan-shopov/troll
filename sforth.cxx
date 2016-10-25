@@ -32,3 +32,13 @@ void Sforth::evaluate(const QString &sforth_commands)
 {
 	sf_eval(sforth_commands.toLocal8Bit().data());
 }
+
+std::vector<cell> Sforth::getResults(int result_count)
+{
+cell x[result_count];
+int i, n;
+std::vector<cell> result;
+	n = sf_get_results(x, result_count);
+	for (i = 0; i < n; result.push_back(x[i++]));
+	return result;
+}
