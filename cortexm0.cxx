@@ -1,5 +1,4 @@
 #include "cortexm0.hxx"
-#include "util.hxx"
 #include "target.hxx"
 
 static Target		* target;

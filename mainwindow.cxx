@@ -15,6 +15,21 @@ int i;
 	}
 }
 
+void MainWindow::backtrace()
+{
+	cortexm0->primeUnwinder();
+	auto context = dwdata->executionContextForAddress(cortexm0->programCounter());
+	
+	qDebug() << "backtrace:";
+	while (context.size())
+	{
+		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
+		qDebug() << QString().fromStdString(dwdata->nameOfDie(context.back()));
+		if (cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
+			context = dwdata->executionContextForAddress(cortexm0->programCounter());
+	}
+}
+
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
@@ -55,10 +70,16 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->plainTextEdit->appendPlainText(QString("debug tree decoding ended at offset: %1").arg(die_offset));
 	dump_debug_tree(debug_tree, 1);
 	
-	DwarfUnwinder dwundwind(debug_frame.data(), debug_frame.length());
-	while (!dwundwind.at_end())
-		dwundwind.dump(), dwundwind.next();
-	auto unwind_data = dwundwind.sforthCodeForAddress(0x800f226);
+	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
+	while (!dwundwind->at_end())
+		dwundwind->dump(), dwundwind->next();
+	
+	
+	
+	
+	
+	
+	auto unwind_data = dwundwind->sforthCodeForAddress(0x800f226);
 	auto context = dwdata->executionContextForAddress(0x800f226);
 	qDebug() << context.size();
 	qDebug() << context.at(0).offset << context.at(1).offset;
@@ -74,11 +95,13 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << regs;
 
 	qDebug() << "next frame";
-	unwind_data = dwundwind.sforthCodeForAddress(regs.at(15));
+	unwind_data = dwundwind->sforthCodeForAddress(regs.at(15));
 	qDebug() << QString().fromStdString(unwind_data.first);
 	cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
 	regs = cortexm0->unwoundRegisters();
 	qDebug() << regs;
+	
+	backtrace();
 }
 
 MainWindow::~MainWindow()

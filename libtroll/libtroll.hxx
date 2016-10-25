@@ -360,7 +360,7 @@ public:
 		const uint8_t * p = debug_info + die_offset;
 		int len;
 		uint32_t code = DwarfUtil::uleb128(p, & len);
-		qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+		if (0) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 		p += len;
 		if (!code)
 			DwarfUtil::panic("null die requested");
@@ -390,7 +390,7 @@ public:
 				return dies;
 				
 			code = DwarfUtil::uleb128(p, & len);
-			qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+			if (0) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 			p += len;
 		}
 		die_offset = p - debug_info;
@@ -415,8 +415,8 @@ public:
 			auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
 			if (!hi_pc.first)
 				return false;
-			qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second));
-			qDebug() <<  DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
+			if (0) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second));
+			if (0) qDebug() <<  DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
 			x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second);
 			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
 		}

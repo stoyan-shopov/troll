@@ -26,7 +26,9 @@ class MainWindow : public QMainWindow
 	DwarfData * dwdata;
 	Sforth	* sforth;
 	Target	* target;
+	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
+	void backtrace(void);
 	
 public:
 	explicit MainWindow(QWidget *parent = 0);
