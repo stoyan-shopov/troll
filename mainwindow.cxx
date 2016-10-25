@@ -70,6 +70,15 @@ MainWindow::MainWindow(QWidget *parent) :
 	cortexm0 = new CortexM0(sforth, target);
 	cortexm0->primeUnwinder();
 	cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
+	auto regs = cortexm0->unwoundRegisters();
+	qDebug() << regs;
+
+	qDebug() << "next frame";
+	unwind_data = dwundwind.sforthCodeForAddress(regs.at(15));
+	qDebug() << QString().fromStdString(unwind_data.first);
+	cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
+	regs = cortexm0->unwoundRegisters();
+	qDebug() << regs;
 }
 
 MainWindow::~MainWindow()

@@ -21,9 +21,9 @@ Target::Target(const QString & rom_filename, uint32_t rom_base_address, const QS
 
 uint32_t Target::readWord(uint32_t address)
 {
-	if (rom_base_address <= address && address < rom.length() - sizeof(uint32_t) + 1)
+	if (rom_base_address <= address && address < rom_base_address + rom.length() - sizeof(uint32_t) + 1)
 		return * (uint32_t *) (rom.data() + address - rom_base_address);
-	if (ram_base_address <= address && address < ram.length() - sizeof(uint32_t) + 1)
+	if (ram_base_address <= address && address < ram_base_address + ram.length() - sizeof(uint32_t) + 1)
 		return * (uint32_t *) (ram.data() + address - ram_base_address);
 	Util::panic();
 }

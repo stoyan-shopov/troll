@@ -62,12 +62,11 @@ create unwound-registers register-count cells allot
 : DW_CFA_nop ;
 
 : register-rule-cfa-offset ( register-number --)
-	drop
+	dup cfa-offset-table [] @ data-alignment-factor * cfa-value + t@ swap unwound-registers [] !
 	;
 : DW_CFA_offset ( register-number offset --)
-	over >r
-	data-alignment-factor * swap cfa-offset-table [] !
-	['] register-rule-cfa-offset r> unwind-xts [] !
+	over cfa-offset-table [] !
+	['] register-rule-cfa-offset swap unwind-xts [] !
 	;
 
 : unwinding-rules-defined ( --)
