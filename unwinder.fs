@@ -69,7 +69,7 @@ create unwound-registers register-count cells allot
 	['] register-rule-cfa-offset swap unwind-xts [] !
 	;
 
-: unwinding-rules-defined ( --)
+: unwinding-rules-defined ( -- t= unwinding successfull | f= unwinding failed)
 	." end of unwinding"cr
 	\ discard rest of unwinding code
 	source nip >in !
@@ -81,7 +81,7 @@ create unwound-registers register-count cells allot
 	;
 : DW_CFA_advance_loc ( delta --)
 	code-alignment-factor * current-address + to current-address
-	current-address unwind-address > if unwinding-rules-defined then
+	current-address unwind-address u> if unwinding-rules-defined then
 	;
 
 \ !!! must be called before each run of the unwinder - push all of the current target
@@ -97,6 +97,23 @@ create unwound-registers register-count cells allot
 	-1 to unwind-address
 	['] invalid-unwind-rule to cfa-rule-xt
 	register-count 0 do ['] unwind-rule-same-value i unwind-xts [] ! loop
+	;
+
+: architectural-unwind ( -- t= unwinding successfull | f= unwinding failed)
+	14 unwound-registers [] @
+	." architectural unwind pc, cfa: " cfa-value .s drop
+	dup $fffffff1 = swap $fffffff9 = or if
+		." architectural unwind triggerred"cr
+		cfa-value dup 0 cells + t@ 0 unwound-registers [] !
+		dup 1 cells + t@ 1 unwound-registers [] !
+		dup 2 cells + t@ 2 unwound-registers [] !
+		dup 3 cells + t@ 3 unwound-registers [] !
+		dup 4 cells + t@ 12 unwound-registers [] !
+		dup 5 cells + t@ 14 unwound-registers [] !
+		dup 6 cells + t@ 15 unwound-registers [] !
+		8 cells + 13 unwound-registers [] !
+		true
+	else false then
 	;
 
 .( dwarf unwinder compiled, ) unused - . .( bytes used)cr

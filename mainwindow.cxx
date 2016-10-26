@@ -18,7 +18,8 @@ int i;
 void MainWindow::backtrace()
 {
 	cortexm0->primeUnwinder();
-	auto context = dwdata->executionContextForAddress(cortexm0->programCounter());
+	uint32_t last_pc;
+	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
 	
 	qDebug() << "backtrace:";
 	while (context.size())
@@ -27,7 +28,17 @@ void MainWindow::backtrace()
 		qDebug() << QString().fromStdString(dwdata->nameOfDie(context.back()));
 		if (cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
+		if (context.empty() && cortexm0->architecturalUnwind())
+		{
+			context = dwdata->executionContextForAddress(cortexm0->programCounter());
+			if (!context.empty())
+				qDebug() << "architecture-specific unwinding performed";
+		}
+		if (last_pc == cortexm0->programCounter())
+			break;
+		last_pc = cortexm0->programCounter();
 	}
+	qDebug() << "registers: " << cortexm0->unwoundRegisters();
 }
 
 MainWindow::MainWindow(QWidget *parent) :

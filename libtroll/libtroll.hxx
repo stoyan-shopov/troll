@@ -123,6 +123,7 @@ public:
 		{
 		case DW_FORM_addr:
 		case DW_FORM_data4:
+		case DW_FORM_sec_offset:
 			return * (uint32_t *) debug_info_bytes;
 		default:
 			panic();
@@ -281,8 +282,8 @@ public:
 		this->debug_info_len = debug_info_len;
 		this->debug_abbrev = (const uint8_t *) debug_abbrev;
 		this->debug_abbrev_len = debug_abbrev_len;
-		this->debug_ranges = (const uint8_t *) debug_aranges;
-		this->debug_ranges_len = debug_aranges_len;
+		this->debug_ranges = (const uint8_t *) debug_ranges;
+		this->debug_ranges_len = debug_ranges_len;
 		this->debug_str = (const uint8_t *) debug_str;
 		this->debug_str_len = debug_str_len;
 	}
@@ -408,23 +409,9 @@ public:
 	bool isAddressInRange(const struct Die & die, uint32_t address, const struct Die & compilation_unit_die)
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
-		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
-		if (low_pc.first)
+		auto range = a.dataForAttribute(DW_AT_ranges, debug_info + die.offset);
+		if (range.first)
 		{
-			uint32_t x;
-			auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
-			if (!hi_pc.first)
-				return false;
-			if (0) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second));
-			if (0) qDebug() <<  DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
-			x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second);
-			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
-		}
-		else
-		{
-			auto range = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
-			if (!range.first)
-				return false;
 			auto base_address = compilation_unit_base_address(compilation_unit_die);
 			const uint32_t * range_list = (const uint32_t *) (debug_ranges + DwarfUtil::formConstant(range.first, range.second));
 			while (range_list[0] && range_list[1])
@@ -435,6 +422,18 @@ public:
 					return true;
 				range_list += 2;
 			}
+		}
+		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
+		if (low_pc.first)
+		{
+			uint32_t x;
+			auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
+			if (!hi_pc.first)
+				return false;
+			if (0) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second));
+			if (0) qDebug() << DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
+			x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second);
+			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
 		}
 		return false;
 	}

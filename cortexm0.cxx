@@ -13,6 +13,17 @@ void do_panic(void)		{ Util::panic(); }
 const int CortexM0::register_count = 16, CortexM0::program_counter_register_number = 15, CortexM0::return_address_register_number = 14,
 	CortexM0::cfa_register_number = 13;
 
+void CortexM0::readRegisters()
+{
+	int i;
+	registers.clear();
+	sforth->evaluate("unwound-registers\n");
+	auto r = sforth->getResults(1);
+	if (r.size() != 1)
+		return;
+	for (i = 0; i < register_count; registers.push_back(*(uint32_t*)(r.at(0) + i ++ * sizeof(uint32_t))));
+}
+
 CortexM0::CortexM0(Sforth * sforth_engine, Target *target_controller)
 {
 	sforth = sforth_engine;
@@ -37,7 +48,6 @@ uint32_t cfa;
 	for (i = 0; i < registers.size(); sforth->push(registers.at(i++)));
 	sforth->evaluate("init-unwinder-round\n");
 	sforth->evaluate(QString("%1 to current-address %2 to unwind-address ").arg(start_address).arg(unwind_address) + unwind_code + '\n');
-	registers.clear();
 	auto r = sforth->getResults(1);
 	if (r.size() != 1 || r.at(0) != 0xffffffff)
 		return false;
@@ -45,11 +55,20 @@ uint32_t cfa;
 	if ((r = sforth->getResults(1)).size() != 1)
 		return false;
 	cfa = r.at(0);
-	sforth->evaluate("unwound-registers\n");
-	if ((r = sforth->getResults(1)).size() != 1)
+	readRegisters();
+	if (registers.size() != register_count)
 		return false;
-	for (i = 0; i < register_count; registers.push_back(*(uint32_t*)(r.at(0) + i ++ * sizeof(uint32_t))));
 	registers.at(program_counter_register_number) = registers.at(return_address_register_number);
 	registers.at(cfa_register_number) = cfa;
+	return true;
+}
+
+bool CortexM0::architecturalUnwind()
+{
+	sforth->evaluate("architectural-unwind\n");
+	auto r = sforth->getResults(1);
+	if (r.size() != 1 || r.at(0) != 0xffffffff)
+		return false;
+	readRegisters();
 	return true;
 }
