@@ -22,18 +22,26 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 	auto t = a.dataForAttribute(DW_AT_type, debug_info + type_cache.at(index).die.offset);
 	if (t.first)
 	{
+                int i;
 		uint32_t cu_offset(compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset));
-		qDebug() << "read type die at index " << (type_cache.at(index).next = readType(readTypeOffset(t.first, t.second, cu_offset), abbreviations, type_cache));
-	}
+                i = readType(readTypeOffset(t.first, t.second, cu_offset), abbreviations, type_cache);
+                type_cache.at(index).next = i;
+                qDebug() << "read type die at index " << i;
+        }
 	if (type_cache.at(index).die.children.size())
 	{
-		int i, * x = & type_cache.at(index).childlist;
+                int i, x, y;
 		qDebug() << "aggregate type, child count" << type_cache.at(index).die.children.size();
-		for (i = 0; i < type_cache.at(index).die.children.size(); i ++)
+                x = readType(type_cache.at(index).die.children.at(0).offset, abbreviations, type_cache);
+                type_cache.at(index).childlist = x;
+                for (i = 1; i < type_cache.at(index).die.children.size(); i ++)
 		{
 			qDebug() << "reading type child" << i << ", offset is" << type_cache.at(index).die.children.at(i).offset;
-			* x = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache), x = & type_cache.at(* x).sibling;
-		}
+                        //* x = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache), x = & type_cache.at(* x).sibling;
+                        y = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache);
+                        type_cache.at(x).sibling = y;
+                        x = y;
+                }
 	}
 	return index;
 }

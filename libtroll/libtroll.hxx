@@ -173,7 +173,7 @@ struct DwarfTypeNode
 	int		next;
 	int		sibling;
 	int		childlist;
-	DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; }
+        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = sibling = childlist = -1; }
 };
 
 struct Abbreviation
