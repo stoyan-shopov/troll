@@ -25,7 +25,7 @@ void MainWindow::backtrace()
 	while (context.size())
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
-		qDebug() << QString().fromStdString(dwdata->nameOfDie(context.back()));
+		qDebug() << cortexm0->programCounter() << QString().fromStdString(dwdata->nameOfDie(context.back()));
 		if (cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 		if (context.empty() && cortexm0->architecturalUnwind())
@@ -69,7 +69,15 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
 	
 	auto x = dwdata->abbreviations_of_compilation_unit(0);
+	//*
 	ui->plainTextEdit->appendPlainText(QString("number of abbreviations in the first compilation unit : %1").arg(x.size()));
+	std::vector<struct DwarfTypeNode> type_cache;
+	dwdata->readType(0x98, x, type_cache);
+	qDebug() << __FILE__ << __LINE__ << type_cache.size() << type_cache.at(0).die.children.size();
+	qDebug() << QString().fromStdString(dwdata->typeString(type_cache));
+	
+	Util::panic();
+	//*/
 	
 	int i;
 	uint32_t cu;

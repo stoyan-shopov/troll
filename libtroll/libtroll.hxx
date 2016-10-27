@@ -166,6 +166,16 @@ struct Die
 	Die(uint32_t tag, uint32_t offset, uint32_t abbrev_offset){ this->tag = tag, this->offset = offset, this->abbrev_offset = abbrev_offset; }
 };
 
+/* !!! warning - this can generally be a circular graph !!! */
+struct DwarfTypeNode
+{
+	struct Die	die;
+	int		next;
+	int		sibling;
+	int		childlist;
+	DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; }
+};
+
 struct Abbreviation
 {
 private:
@@ -288,6 +298,17 @@ public:
 		this->debug_str_len = debug_str_len;
 	}
 	/* returns -1 if the compilation unit is not found */
+	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
+	{
+		compilation_unit_header h(debug_info);
+		while (h.data - debug_info < debug_info_len)
+			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
+				return h.data - debug_info;
+			else h.next();
+		return -1;
+	}
+
+	/* returns -1 if the compilation unit is not found */
 	uint32_t	get_compilation_unit_debug_info_offset_for_address(uint32_t address)
 	{
 		int i;
@@ -355,7 +376,7 @@ public:
 		}
 		return abbrevs;
 	}
-	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations)
+	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
 		std::vector<struct Die> dies;
 		const uint8_t * p = debug_info + die_offset;
@@ -382,12 +403,16 @@ public:
 			die_offset = p - debug_info;
 			if (a.has_children())
 			{
-				die.children = debug_tree_of_die(die_offset, abbreviations);
+				die.children = debug_tree_of_die(die_offset, abbreviations, depth + 1);
 				p = debug_info + die_offset;
 			}
 			dies.push_back(die);
 			
+			/*
 			if (a.tag() == DW_TAG_compile_unit)
+				return dies;
+				*/
+			if (depth == 0)
 				return dies;
 				
 			code = DwarfUtil::uleb128(p, & len);
@@ -459,6 +484,83 @@ public:
 				i ++;
 		return context;
 	}
+private:
+	uint32_t readTypeOffset(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
+	{
+		switch (attribute_form)
+		{
+		case DW_FORM_addr:
+		case DW_FORM_data4:
+		case DW_FORM_sec_offset:
+			return * (uint32_t *) debug_info_bytes;
+		case DW_FORM_ref4:
+			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
+		default:
+			DwarfUtil::panic();
+		}
+	}
+public:
+#if 0
+	/* the first node in the vector is the head of the type graph
+ 	 * returns the position in the vector at which the new node is placed */
+	int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache)
+	{
+		int index;
+		uint32_t saved_die_offset(die_offset);
+		qDebug() << "reading type die at offset" << die_offset;
+		if (die_offset == 76)
+		{
+			die_offset = 76;
+		}
+		auto type = debug_tree_of_die(die_offset, abbreviations);
+		if (type.size() != 1)
+			DwarfUtil::panic();
+		struct DwarfTypeNode node(type.at(0));
+		type_cache.push_back(node);
+		index = type_cache.size() - 1;
+		//struct DwarfTypeNode * pnode = & type_cache.at(index);
+		struct Abbreviation a(debug_abbrev + type.at(0).abbrev_offset);
+		auto t = a.dataForAttribute(DW_AT_type, debug_info + type_cache.at(index).die.offset);
+		if (t.first)
+		{
+			uint32_t cu_offset(compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset));
+			qDebug() << "read type die at index " << (type_cache.at(index).next = readType(readTypeOffset(t.first, t.second, cu_offset), abbreviations, type_cache));
+		}
+		if (type_cache.at(index).die.children.size())
+		{
+			int i, * x = & type_cache.at(index).childlist;
+			qDebug() << "aggregate type, child count" << type_cache.at(index).die.children.size();
+			for (i = 0; i < type_cache.at(index).die.children.size(); i ++)
+			{
+				qDebug() << "reading type child" << i << ", offset is" << type_cache.at(index).die.children.at(i).offset;
+				* x = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache), x = & type_cache.at(* x).sibling;
+			}
+		}
+		return index;
+	}
+#endif
+int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache);
+	std::string typeString(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
+	{
+		std::string type_string;
+		int i(node_number);
+		while (i != -1)
+		{
+			switch (type.at(i).die.tag)
+			{
+				case DW_TAG_structure_type:
+					int j;
+					type_string += "struct " + nameOfDie(type.at(i).die) + "{\n";
+					for (j = type.at(i).childlist; j != -1; j = type.at(j).sibling)
+						type_string += typeString(type, j);
+					type_string += "\n};";
+				break;
+			}
+			i = type.at(0).next;
+		}
+		return type_string;
+	}
+
 	std::string nameOfDie(const struct Die & die)
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
