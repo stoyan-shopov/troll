@@ -125,6 +125,8 @@ public:
 		case DW_FORM_data4:
 		case DW_FORM_sec_offset:
 			return * (uint32_t *) debug_info_bytes;
+		case DW_FORM_data1:
+			return * (uint8_t *) debug_info_bytes;
 		default:
 			panic();
 		}
@@ -543,22 +545,87 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 	std::string typeString(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
 	{
 		std::string type_string;
-		int i(node_number);
-		while (i != -1)
+		const struct Die & die(type.at(node_number).die);
+
+		switch (die.tag)
 		{
-			switch (type.at(i).die.tag)
-			{
-				case DW_TAG_structure_type:
-					int j;
-					type_string += "struct " + nameOfDie(type.at(i).die) + "{\n";
-					for (j = type.at(i).childlist; j != -1; j = type.at(j).sibling)
-						type_string += typeString(type, j);
-					type_string += "\n};";
+			case DW_TAG_structure_type:
+				int j;
+				type_string = "struct " + nameOfDie(die) + "{\n";
+				for (j = type.at(node_number).childlist; j != -1; j = type.at(j).sibling)
+					type_string += typeString(type, j);
+				type_string += "\n};";
+			break;
+			case DW_TAG_member:
+				type_string = typeString(type, type.at(node_number).next) + nameOfDie(die) + ";\n";
 				break;
+			case DW_TAG_volatile_type:
+				type_string = "volatile " + typeString(type, type.at(node_number).next);
+				break;
+			case DW_TAG_typedef:
+				type_string = "typedef " + nameOfDie(die) + " " + typeString(type, type.at(node_number).next);
+				break;
+			case DW_TAG_base_type:
+			{
+				Abbreviation a(debug_abbrev + die.abbrev_offset);
+				auto x = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
+				auto size = a.dataForAttribute(DW_AT_byte_size, debug_info + die.offset);
+				if (x.first == 0 || size.first == 0)
+					DwarfUtil::panic();
+				switch (DwarfUtil::formConstant(x.first, x.second))
+				{
+					default:
+						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x.first, x.second);
+						DwarfUtil::panic();
+					case DW_ATE_unsigned:
+						switch (DwarfUtil::formConstant(size.first, size.second))
+						{
+							default:
+								DwarfUtil::panic();
+							case 1:
+								type_string = "unsigned char ";
+								break;
+							case 2:
+								type_string = "unsigned short ";
+								break;
+							case 4:
+								type_string = "unsigned int ";
+								break;
+						}
+						break;
+				}
 			}
-			i = type.at(0).next;
+				break;
+			case DW_TAG_array_type:
+			{
+				type_string = typeString(type, type.at(node_number).next) + " " + nameOfDie(type.at(node_number).die);
+				int i;
+				if (die.children.size())
+					for (i = 0; i < die.children.size(); i ++)
+					{
+						Abbreviation a(debug_abbrev + die.children.at(i).abbrev_offset);
+						auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + die.children.at(i).offset);
+						if (subrange.first == 0)
+							continue;
+						type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange.first, subrange.second) + 1) + "]";
+					}
+				else
+					type_string += "[]";
+			}
+				break;
+			default:
+				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag;
+				DwarfUtil::panic();
 		}
 		return type_string;
+	}
+	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
+	{
+		Abbreviation a(debug_abbrev + type.at(node_number).die.abbrev_offset);
+		auto x = a.dataForAttribute(DW_AT_byte_size, debug_info + type.at(node_number).die.offset);
+		if (x.first)
+			return DwarfUtil::formConstant(x.first, x.second);
+		return sizeOf(type, type.at(node_number).next);
 	}
 
 	std::string nameOfDie(const struct Die & die)
