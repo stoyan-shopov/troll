@@ -46,6 +46,9 @@
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="QDockWidget" name="dockWidget">
+   <property name="windowTitle">
+    <string>data objects</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>
@@ -62,6 +65,21 @@
         </property>
        </column>
       </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockWidget_2">
+   <property name="windowTitle">
+    <string>backtrace</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <item>
+      <widget class="QListWidget" name="listWidget"/>
      </item>
     </layout>
    </widget>

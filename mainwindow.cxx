@@ -17,7 +17,7 @@ int i;
 
 QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node)
 {
-auto n = new QTreeWidgetItem(QStringList() << QString().fromStdString(node.data.at(0)));
+auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)));
 int i;
 	for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i ++ ))));
 	return n;
@@ -30,17 +30,22 @@ void MainWindow::backtrace()
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
 	
 	qDebug() << "backtrace:";
+	ui->listWidget->clear();
 	while (context.size())
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
-		qDebug() << cortexm0->programCounter() << QString().fromStdString(dwdata->nameOfDie(context.back()));
-		if (cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
+		qDebug() << cortexm0->programCounter() << QString::fromStdString(dwdata->nameOfDie(context.back()));
+		ui->listWidget->addItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0')) + QString("\t") + QString::fromStdString(dwdata->nameOfDie(context.back())));
+		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 		if (context.empty() && cortexm0->architecturalUnwind())
 		{
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 			if (!context.empty())
+			{
 				qDebug() << "architecture-specific unwinding performed";
+				ui->listWidget->addItem("\tarchitecture-specific unwinding performed");
+			}
 		}
 		if (last_pc == cortexm0->programCounter())
 			break;
@@ -82,7 +87,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(0x98, x, type_cache);
 	qDebug() << __FILE__ << __LINE__ << type_cache.size() << type_cache.at(0).die.children.size();
-	qDebug() << QString().fromStdString(dwdata->typeString(type_cache));
+	qDebug() << QString::fromStdString(dwdata->typeString(type_cache));
 	
 	struct DwarfData::DataNode node;
 	dwdata->dataForType(type_cache, node);
@@ -115,21 +120,21 @@ MainWindow::MainWindow(QWidget *parent) :
 	auto context = dwdata->executionContextForAddress(0x800f226);
 	qDebug() << context.size();
 	qDebug() << context.at(0).offset << context.at(1).offset;
-	qDebug() << QString().fromStdString(dwdata->nameOfDie(context.at(1)));
-	qDebug() << QString().fromStdString(unwind_data.first);
+	qDebug() << QString::fromStdString(dwdata->nameOfDie(context.at(1)));
+	qDebug() << QString::fromStdString(unwind_data.first);
 	
 	target = new Target("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 	cortexm0 = new CortexM0(sforth, target);
 	cortexm0->primeUnwinder();
-	cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
+	cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
 	auto regs = cortexm0->unwoundRegisters();
 	qDebug() << regs;
 
 	qDebug() << "next frame";
 	unwind_data = dwundwind->sforthCodeForAddress(regs.at(15));
-	qDebug() << QString().fromStdString(unwind_data.first);
-	cortexm0->unwindFrame(QString().fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
+	qDebug() << QString::fromStdString(unwind_data.first);
+	cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
 	regs = cortexm0->unwoundRegisters();
 	qDebug() << regs;
 	

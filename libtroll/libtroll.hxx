@@ -266,6 +266,71 @@ struct compilation_unit_header
 	struct compilation_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
 };
 
+class DebugLine
+{
+private:
+	const uint8_t *	debug_line, * header;
+	uint32_t	debug_line_len;
+	
+	uint32_t unit_length(void) { return * (uint32_t *) header; }
+	uint16_t version(void) { return * (uint16_t *) (header + 4); }
+	uint32_t header_length(void) { return * (uint32_t *) (header + 6); }
+	uint8_t minimum_instruction_length(void) { return * (uint8_t *) (header + 10); }
+	//uint8_t maximum_operations_per_instruction(void) { return * (uint8_t *) (header + 11); }
+	uint8_t default_is_stmt(void) { return * (uint8_t *) (header + 11); }
+	int8_t line_base(void) { return * (int8_t *) (header + 12); }
+	uint8_t line_range(void) { return * (uint8_t *) (header + 13); }
+	uint8_t opcode_base(void) { return * (uint8_t *) (header + 14); }
+	const uint8_t * include_directories(void)
+	{
+		int i(opcode_base()), len;
+		const uint8_t * p(header + 15);
+		while (i --) DwarfUtil::uleb128(p, & len), p += len;
+		return p;
+	}
+	const uint8_t * line_number_program(void) { return header + sizeof(uint32_t) + header_length(); }
+	uint32_t line, file, address, is_stmt;
+	void init(void) { address = 0, file = 1, line = 1, is_stmt = default_is_stmt(); }
+public:
+	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
+	void sourceCodeForAddress(uint32_t target_address, uint32_t header_offset_in_debug_line)
+	{
+		header = debug_line + header_offset_in_debug_line;
+		if (version() != 2) DwarfUtil::panic();
+		const uint8_t * p(line_number_program());
+		init();
+		while (p < header + sizeof(uint32_t) + unit_length())
+		{
+			if (! * p)
+			{
+				/* extended opcodes */
+			}
+			else if (* p >= opcode_base())
+			{
+				/* special opcodes */
+			}
+			/* standard opcodes */
+			else switch (* p ++)
+			{
+				default:
+					DwarfUtil::panic();
+					break;
+				case DW_LNS_copy:
+					break;
+				case DW_LNS_advance_pc:
+					break;
+				case DW_LNS_advance_line:
+					break;
+				case DW_LNS_set_file:
+					break;
+				case DW_LNS_set_column:
+					break;
+				case DW_LNS_negate_stmt:
+					break;
+			}
+		}
+	}
+};
 
 class DwarfData
 {
