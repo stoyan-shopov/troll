@@ -5,6 +5,8 @@
 #include <sstream>
 #include <QDebug>
 
+#define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
+
 class DwarfUtil
 {
 public:
@@ -288,26 +290,53 @@ private:
 		while (i --) DwarfUtil::uleb128(p, & len), p += len;
 		return p;
 	}
-	const uint8_t * line_number_program(void) { return header + sizeof(uint32_t) + header_length(); }
-	uint32_t line, file, address, is_stmt;
-	void init(void) { address = 0, file = 1, line = 1, is_stmt = default_is_stmt(); }
+	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
+	uint32_t file, address, xaddr, is_stmt;
+	int32_t line;
+	void init(void) { xaddr = -1, address = 0, file = line = 1, is_stmt = default_is_stmt(); }
 public:
-	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
-	void sourceCodeForAddress(uint32_t target_address, uint32_t header_offset_in_debug_line)
+	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
+	void dump(void)
 	{
-		header = debug_line + header_offset_in_debug_line;
 		if (version() != 2) DwarfUtil::panic();
-		const uint8_t * p(line_number_program());
+		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
+		int lbase(line_base());
+		uint32_t min_insn_length(minimum_instruction_length());
+		int len, x;
 		init();
+		qDebug() << "debug line for offset" << HEX(header - debug_line);
 		while (p < header + sizeof(uint32_t) + unit_length())
 		{
 			if (! * p)
 			{
 				/* extended opcodes */
+				len = DwarfUtil::uleb128(++ p, & x);
+				p += x;
+				if (!len)
+					DwarfUtil::panic();
+				switch (* p ++)
+				{
+					default:
+						DwarfUtil::panic();
+					case DW_LNE_end_sequence:
+						if (len != 1) DwarfUtil::panic();
+						qDebug() << "end of sequence";
+						break;
+					case DW_LNE_set_address:
+						if (len != 5) DwarfUtil::panic();
+						address = * (uint32_t *) p;
+						p += sizeof address;
+						qDebug() << "extended opcode, set address to" << HEX(address);
+						break;
+				}
 			}
-			else if (* p >= opcode_base())
+			else if (* p >= op_base)
 			{
 				/* special opcodes */
+				uint8_t x = * p ++ - op_base;
+				address += (x / lrange) * min_insn_length;
+				line += lbase + x % lrange;
+				qDebug() << "special opcode, set address to" << HEX(address) << "line to" << line;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -316,20 +345,41 @@ public:
 					DwarfUtil::panic();
 					break;
 				case DW_LNS_copy:
+				/*
+					if (xaddr <= target_address && target_address < address)
+						DwarfUtil::panic();*/
+					qDebug() << "copy";
+					xaddr = address;
 					break;
 				case DW_LNS_advance_pc:
+					address += DwarfUtil::uleb128(p, & len) * min_insn_length;
+					qDebug() << "advance pc to" << HEX(address);
+					p += len;
 					break;
 				case DW_LNS_advance_line:
+					line += DwarfUtil::sleb128(p, & len);
+					qDebug() << "advance line to" << line;
+					p += len;
+					break;
+				case DW_LNS_const_add_pc:
+					address += ((255 - op_base) / lrange) * min_insn_length;
+					qDebug() << "advance pc to" << HEX(address);
 					break;
 				case DW_LNS_set_file:
+					DwarfUtil::panic();
 					break;
 				case DW_LNS_set_column:
+					DwarfUtil::panic();
 					break;
 				case DW_LNS_negate_stmt:
+					is_stmt = ! is_stmt;
+					qDebug() << "set is_stmt to " << is_stmt;
 					break;
 			}
 		}
 	}
+	void rewind(void) { header = debug_line; }
+	bool next(void) { return (header += ((header != debug_line + debug_line_len) ? sizeof unit_length() + unit_length() : 0)) != debug_line + debug_line_len; }
 };
 
 class DwarfData
@@ -348,10 +398,14 @@ private:
 	
 	const uint8_t * debug_str;
 	uint32_t	debug_str_len;
+	
+	const uint8_t * debug_line;
+	uint32_t	debug_line_len;
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
-		  const void * debug_str, uint32_t debug_str_len)
+		  const void * debug_str, uint32_t debug_str_len,
+		  const void * debug_line, uint32_t debug_line_len)
 	{
 		this->debug_aranges = (const uint8_t *) debug_aranges;
 		this->debug_aranges_len = debug_aranges_len;
@@ -363,6 +417,8 @@ public:
 		this->debug_ranges_len = debug_ranges_len;
 		this->debug_str = (const uint8_t *) debug_str;
 		this->debug_str_len = debug_str_len;
+		this->debug_line = (const uint8_t *) debug_line;
+		this->debug_line_len = debug_line_len;
 	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
@@ -742,6 +798,13 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		if (!x.first)
 			return "<<< no name >>>";
 		return DwarfUtil::formString(x.first, x.second, debug_str);
+	}
+	void dumpLines(void)
+	{
+		class DebugLine l(debug_line, debug_line_len);
+		l.dump();
+		while (l.next())
+			l.dump();
 	}
 };
 

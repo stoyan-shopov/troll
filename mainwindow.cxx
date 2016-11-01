@@ -77,8 +77,10 @@ MainWindow::MainWindow(QWidget *parent) :
 	QByteArray debug_ranges = debug_file.read(debug_ranges_len);
 	debug_file.seek(debug_str_offset);
 	QByteArray debug_str = debug_file.read(debug_str_len);
+	debug_file.seek(debug_line_offset);
+	QByteArray debug_line = debug_file.read(debug_line_len);
 	
-	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length());
+	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
 	
 	auto x = dwdata->abbreviations_of_compilation_unit(0);
@@ -139,6 +141,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << regs;
 	
 	backtrace();
+	
+	dwdata->dumpLines();
 }
 
 MainWindow::~MainWindow()

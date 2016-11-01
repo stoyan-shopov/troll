@@ -22,6 +22,7 @@ class MainWindow : public QMainWindow
 	const qint64 debug_frame_offset = 0x0841c8, debug_frame_len = 0x004798;
 	const qint64 debug_ranges_offset = 0x088960, debug_ranges_len = 0x000928;
 	const qint64 debug_str_offset = 0x06f4d7, debug_str_len = 0x014c51;
+	const qint64 debug_line_offset = 0x063987, debug_line_len = 0x00bb50;
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
