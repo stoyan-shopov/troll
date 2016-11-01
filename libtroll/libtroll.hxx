@@ -318,6 +318,11 @@ public:
 				{
 					default:
 						DwarfUtil::panic();
+					case DW_LNE_set_discriminator:
+						qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
+						if (len != x + 1) DwarfUtil::panic();
+						p += x;
+						break;
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
 						qDebug() << "end of sequence";
@@ -358,15 +363,17 @@ public:
 					break;
 				case DW_LNS_advance_line:
 					line += DwarfUtil::sleb128(p, & len);
-					qDebug() << "advance line to" << line;
 					p += len;
+					qDebug() << "advance line to" << line;
 					break;
 				case DW_LNS_const_add_pc:
 					address += ((255 - op_base) / lrange) * min_insn_length;
 					qDebug() << "advance pc to" << HEX(address);
 					break;
 				case DW_LNS_set_file:
-					DwarfUtil::panic();
+					file = DwarfUtil::uleb128(p, & len);
+					p += len;
+					qDebug() << "set file to" << file;
 					break;
 				case DW_LNS_set_column:
 					DwarfUtil::panic();
