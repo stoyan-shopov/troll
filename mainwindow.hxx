@@ -2,6 +2,7 @@
 #define MAINWINDOW_HXX
 
 #include <QMainWindow>
+#include <QTreeWidget>
 #include "libtroll.hxx"
 #include "sforth.hxx"
 #include "target.hxx"
@@ -28,6 +29,7 @@ class MainWindow : public QMainWindow
 	Target	* target;
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
+	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node);
 	void backtrace(void);
 	
 public:

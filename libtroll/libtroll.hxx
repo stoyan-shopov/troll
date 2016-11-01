@@ -542,7 +542,7 @@ public:
 	}
 #endif
 int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache);
-	std::string typeString(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
+	std::string typeString(const std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0)
 	{
 		std::string type_string;
 		const struct Die & die(type.at(node_number).die);
@@ -551,19 +551,28 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		{
 			case DW_TAG_structure_type:
 				int j;
-				type_string = "struct " + nameOfDie(die) + "{\n";
-				for (j = type.at(node_number).childlist; j != -1; j = type.at(j).sibling)
-					type_string += typeString(type, j);
-				type_string += "\n};";
+				type_string = "struct " + nameOfDie(die) + " ";
+				if (!short_type_print)
+				{
+					type_string += "{\n";
+					for (j = type.at(node_number).childlist; j != -1; j = type.at(j).sibling)
+						type_string += typeString(type, short_type_print, j);
+					type_string += "\n};";
+				}
 			break;
 			case DW_TAG_member:
-				type_string = typeString(type, type.at(node_number).next) + nameOfDie(die) + ";\n";
+				type_string = typeString(type, short_type_print, type.at(node_number).next) + nameOfDie(die);
+				if (!short_type_print)
+					type_string += ";\n";
 				break;
 			case DW_TAG_volatile_type:
-				type_string = "volatile " + typeString(type, type.at(node_number).next);
+				type_string = "volatile " + typeString(type, short_type_print, type.at(node_number).next);
 				break;
 			case DW_TAG_typedef:
-				type_string = "typedef " + nameOfDie(die) + " " + typeString(type, type.at(node_number).next);
+				if (!short_type_print) type_string += "typedef ";
+				type_string += nameOfDie(die) + " ";
+				if (!short_type_print)
+					type_string += typeString(type, short_type_print, type.at(node_number).next);
 				break;
 			case DW_TAG_base_type:
 			{
@@ -598,7 +607,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 				break;
 			case DW_TAG_array_type:
 			{
-				type_string = typeString(type, type.at(node_number).next) + " " + nameOfDie(type.at(node_number).die);
+				type_string = typeString(type, short_type_print, type.at(node_number).next) + " ";// + nameOfDie(type.at(node_number).die);
 				int i;
 				if (die.children.size())
 					for (i = 0; i < die.children.size(); i ++)
@@ -626,6 +635,39 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		if (x.first)
 			return DwarfUtil::formConstant(x.first, x.second);
 		return sizeOf(type, type.at(node_number).next);
+	}
+	
+	struct DataNode
+	{
+		std::vector<std::string> data;
+		std::vector<struct DataNode> children;
+	};
+	void dataForType(const std::vector<struct DwarfTypeNode> & type, struct DataNode & node, bool short_type_print = true, int type_node_number = 0)
+	{
+		struct Die die(type.at(type_node_number).die);
+		node.data.push_back(typeString(type, short_type_print, type_node_number));
+		switch (die.tag)
+		{
+			case DW_TAG_structure_type:
+				int j;
+				for (j = type.at(type_node_number).childlist; j != -1; j = type.at(j).sibling)
+					node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, j);
+			break;
+			case DW_TAG_member:
+				break;
+			case DW_TAG_volatile_type:
+				break;
+			case DW_TAG_typedef:
+				break;
+			case DW_TAG_base_type:
+			
+				break;
+			case DW_TAG_array_type:
+				break;
+			default:
+				qDebug() << "unhandled tag" <<  type.at(type_node_number).die.tag;
+				DwarfUtil::panic();
+		}
 	}
 
 	std::string nameOfDie(const struct Die & die)

@@ -15,6 +15,14 @@ int i;
 	}
 }
 
+QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node)
+{
+auto n = new QTreeWidgetItem(QStringList() << QString().fromStdString(node.data.at(0)));
+int i;
+	for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i ++ ))));
+	return n;
+}
+
 void MainWindow::backtrace()
 {
 	cortexm0->primeUnwinder();
@@ -76,7 +84,12 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << __FILE__ << __LINE__ << type_cache.size() << type_cache.at(0).die.children.size();
 	qDebug() << QString().fromStdString(dwdata->typeString(type_cache));
 	
-	Util::panic();
+	struct DwarfData::DataNode node;
+	dwdata->dataForType(type_cache, node);
+	qDebug() << node.children.size();
+	ui->treeWidget->addTopLevelItem(itemForNode(node));
+	
+	
 	//*/
 	
 	int i;
