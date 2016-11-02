@@ -35,8 +35,13 @@ void MainWindow::backtrace()
 	while (context.size())
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
+		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
+		qDebug() << QString::fromStdString(x.first) << (signed) x.second;
+
 		qDebug() << cortexm0->programCounter() << QString::fromStdString(dwdata->nameOfDie(context.back()));
-		ui->listWidget->addItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0')) + QString("\t") + QString::fromStdString(dwdata->nameOfDie(context.back())));
+		ui->listWidget->addItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0')) + QString("\t") + QString::fromStdString(dwdata->nameOfDie(context.back()))
+				+ QString("\t%1").arg(x.second));
+		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 		if (context.empty() && cortexm0->architecturalUnwind())

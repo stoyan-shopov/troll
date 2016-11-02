@@ -298,8 +298,8 @@ private:
 	}
 	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
 	uint32_t file, address, xaddr, is_stmt;
-	int32_t line;
-	void init(void) { xaddr = -1, address = 0, file = line = 1, is_stmt = default_is_stmt(); }
+	int32_t line, xline;
+	void init(void) { xline = xaddr = -1, address = 0, file = line = 1, is_stmt = default_is_stmt(); }
 public:
 	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
 	void dump(void)
@@ -390,6 +390,105 @@ public:
 					break;
 			}
 		}
+	}
+	/* returns -1 if no line number was found */
+	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset)
+	{
+		if (version() != 2) DwarfUtil::panic();
+		header = debug_line + statememnt_list_offset;
+		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
+		int lbase(line_base());
+		uint32_t min_insn_length(minimum_instruction_length());
+		int len, x;
+		init();
+		if (DEBUG_ENABLED) qDebug() << "debug line for offset" << HEX(header - debug_line);
+		while (p < header + sizeof(uint32_t) + unit_length())
+		{
+			if (! * p)
+			{
+				/* extended opcodes */
+				len = DwarfUtil::uleb128(++ p, & x);
+				p += x;
+				if (!len)
+					DwarfUtil::panic();
+				switch (* p ++)
+				{
+					default:
+						DwarfUtil::panic();
+					case DW_LNE_set_discriminator:
+						if (DEBUG_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
+						if (len != x + 1) DwarfUtil::panic();
+						p += x;
+						break;
+					case DW_LNE_end_sequence:
+						if (len != 1) DwarfUtil::panic();
+						if (xaddr <= target_address && target_address < address)
+							return xline;
+						init();
+						if (DEBUG_ENABLED) qDebug() << "end of sequence";
+						break;
+					case DW_LNE_set_address:
+						if (len != 5) DwarfUtil::panic();
+						address = * (uint32_t *) p;
+						p += sizeof address;
+						if (DEBUG_ENABLED) qDebug() << "extended opcode, set address to" << HEX(address);
+						break;
+				}
+			}
+			else if (* p >= op_base)
+			{
+				/* special opcodes */
+				uint8_t x = * p ++ - op_base;
+				address += (x / lrange) * min_insn_length;
+				line += lbase + x % lrange;
+				if (xaddr <= target_address && target_address < address)
+					return xline;
+				xaddr = address;
+				xline = line;
+				if (DEBUG_ENABLED) qDebug() << "special opcode, set address to" << HEX(address) << "line to" << line;
+			}
+			/* standard opcodes */
+			else switch (* p ++)
+			{
+				default:
+					DwarfUtil::panic();
+					break;
+				case DW_LNS_copy:
+					if (xaddr <= target_address && target_address < address)
+						DwarfUtil::panic();
+					if (DEBUG_ENABLED) qDebug() << "copy";
+					xaddr = address;
+					xline = line;
+					break;
+				case DW_LNS_advance_pc:
+					address += DwarfUtil::uleb128(p, & len) * min_insn_length;
+					if (DEBUG_ENABLED) qDebug() << "advance pc to" << HEX(address);
+					p += len;
+					break;
+				case DW_LNS_advance_line:
+					line += DwarfUtil::sleb128(p, & len);
+					p += len;
+					if (DEBUG_ENABLED) qDebug() << "advance line to" << line;
+					break;
+				case DW_LNS_const_add_pc:
+					address += ((255 - op_base) / lrange) * min_insn_length;
+					if (DEBUG_ENABLED) qDebug() << "advance pc to" << HEX(address);
+					break;
+				case DW_LNS_set_file:
+					file = DwarfUtil::uleb128(p, & len);
+					p += len;
+					if (DEBUG_ENABLED) qDebug() << "set file to" << file;
+					break;
+				case DW_LNS_set_column:
+					DwarfUtil::panic();
+					break;
+				case DW_LNS_negate_stmt:
+					is_stmt = ! is_stmt;
+					if (DEBUG_ENABLED) qDebug() << "set is_stmt to " << is_stmt;
+					break;
+			}
+		}
+		return -1;
 	}
 	void rewind(void) { header = debug_line; }
 	bool next(void) { return (header += ((header != debug_line + debug_line_len) ? sizeof unit_length() + unit_length() : 0)) != debug_line + debug_line_len; }
@@ -620,6 +719,18 @@ public:
 				i ++;
 		return context;
 	}
+	std::pair<std::string, uint32_t> sourceCodeCoordinatesForAddress(uint32_t address, const struct Die compilation_unit_die)
+	{
+		if (compilation_unit_die.tag != DW_TAG_compile_unit)
+			DwarfUtil::panic();
+		Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
+		auto x = a.dataForAttribute(DW_AT_stmt_list, debug_info + compilation_unit_die.offset);
+		if (!x.first)
+			return std::pair<std::string, uint32_t>("source code unavailable", -1);
+		class DebugLine l(debug_line, debug_line_len);
+		return std::pair<std::string, uint32_t>("source code found", l.lineNumberForAddress(address, DwarfUtil::formConstant(x.first, x.second)));
+	}
+
 private:
 	uint32_t readTypeOffset(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
 	{
