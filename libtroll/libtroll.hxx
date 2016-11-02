@@ -164,6 +164,8 @@ public:
 			panic();
 		}
 	}
+	static bool isDataObject(uint32_t tag) { return tag == DW_TAG_variable; }
+	static bool isSubprogram(uint32_t tag) { return tag == DW_TAG_subprogram; }
 };
 
 struct Die
@@ -272,6 +274,13 @@ struct compilation_unit_header
 	uint8_t		address_size(){return*(uint8_t*)(data+10);}
 	compilation_unit_header(const uint8_t * data) { this->data = data; }
 	struct compilation_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
+};
+
+struct StaticObject
+{
+	const char *	name;
+	int		file, line;
+	uint32_t	die_offset;
 };
 
 class DebugLine
@@ -513,11 +522,15 @@ private:
 	
 	const uint8_t * debug_line;
 	uint32_t	debug_line_len;
+	
+	const uint8_t * debug_loc;
+	uint32_t	debug_loc_len;
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
 		  const void * debug_str, uint32_t debug_str_len,
-		  const void * debug_line, uint32_t debug_line_len)
+		  const void * debug_line, uint32_t debug_line_len,
+		  const void * debug_loc, uint32_t debug_loc_len)
 	{
 		this->debug_aranges = (const uint8_t *) debug_aranges;
 		this->debug_aranges_len = debug_aranges_len;
@@ -531,6 +544,8 @@ public:
 		this->debug_str_len = debug_str_len;
 		this->debug_line = (const uint8_t *) debug_line;
 		this->debug_line_len = debug_line_len;
+		this->debug_loc = (const uint8_t *) debug_loc;
+		this->debug_loc_len = debug_loc_len;
 	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
@@ -583,18 +598,18 @@ public:
 		return x;
 	}
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
-	std::map<uint32_t, uint32_t> abbreviations_of_compilation_unit(uint32_t compilation_unit_offset)
+	void get_abbreviations_of_compilation_unit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
 	{
 		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
 		uint32_t code, tag, has_children, name, form;
 		int len;
-		std::map<uint32_t, uint32_t> abbrevs;
+		abbreviations.clear();
 		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
 		{
-			auto x = abbrevs.find(code);
-			if (x != abbrevs.end())
+			auto x = abbreviations.find(code);
+			if (x != abbreviations.end())
 				DwarfUtil::panic("duplicate abbreviation code");
-			abbrevs.operator [](code) = debug_abbrev - this->debug_abbrev;
+			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
 			debug_abbrev += len;
 			tag = DwarfUtil::uleb128(debug_abbrev, & len);
 			debug_abbrev += len;
@@ -609,7 +624,6 @@ public:
 			}
 			while (name || form);
 		}
-		return abbrevs;
 	}
 	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
@@ -701,7 +715,8 @@ public:
 	{
 		std::vector<struct Die> context;
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address);
-		auto abbreviations = abbreviations_of_compilation_unit(cu_die_offset);
+		std::map<uint32_t, uint32_t> abbreviations;
+		get_abbreviations_of_compilation_unit(cu_die_offset, abbreviations);
 		if (cu_die_offset == -1)
 			return context;
 		cu_die_offset += /* discard the compilation unit header */ 11;
@@ -929,6 +944,39 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		l.dump();
 		while (l.next())
 			l.dump();
+	}
+private:
+	void reapStaticObjects(std::vector<struct StaticObject> & data_objects,
+	                       std::vector<struct StaticObject> & functions,
+	                       const struct Die & die,
+	                       const std::map<uint32_t, uint32_t> & abbreviations)
+	{
+		int i;
+		if (DwarfUtil::isDataObject(die.tag))
+		{
+			Abbreviation a(debug_abbrev + die.abbrev_offset);
+			auto x = a.dataForAttribute(DW_AT_location, debug_info + die.offset);
+		}
+		else if (DwarfUtil::isSubprogram(die.tag))
+		{
+			Abbreviation a(debug_abbrev + die.abbrev_offset);
+		}
+		for (i = 0; i < die.children.size(); i ++)
+			reapStaticObjects(data_objects, functions, die.children.at(i), abbreviations);
+	}
+
+public:
+	void reapStaticObjects(std::vector<struct StaticObject> & data_objects, std::vector<struct StaticObject> & functions)
+	{
+		uint32_t cu;
+		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
+		{
+			auto die_offset = cu + 11;
+			std::map<uint32_t, uint32_t> abbreviations;
+			get_abbreviations_of_compilation_unit(cu, abbreviations);
+			auto dies = debug_tree_of_die(die_offset, abbreviations);
+			reapStaticObjects(data_objects, functions, dies.at(0), abbreviations);
+		}
 	}
 };
 

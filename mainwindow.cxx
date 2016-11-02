@@ -90,17 +90,17 @@ MainWindow::MainWindow(QWidget *parent) :
 	QByteArray debug_str = debug_file.read(debug_str_len);
 	debug_file.seek(debug_line_offset);
 	QByteArray debug_line = debug_file.read(debug_line_len);
+	debug_file.seek(debug_loc_offset);
+	QByteArray debug_loc = debug_file.read(debug_loc_len);
 	
-	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length());
+	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
-	
-	auto x = dwdata->abbreviations_of_compilation_unit(0);
-	//*
-	ui->plainTextEdit->appendPlainText(QString("number of abbreviations in the first compilation unit : %1").arg(x.size()));
 	
 #if MAIN_APS
 	
 	std::vector<struct DwarfTypeNode> type_cache;
+	std::map<uint32_t, uint32_t> x;
+	dwdata->get_abbreviations_of_compilation_unit(11, x);
 	dwdata->readType(0x98, x, type_cache);
 	qDebug() << __FILE__ << __LINE__ << type_cache.size() << type_cache.at(0).die.children.size();
 	qDebug() << QString::fromStdString(dwdata->typeString(type_cache));
@@ -111,7 +111,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->treeWidget->addTopLevelItem(itemForNode(node));
 #endif
 	
-	
 	//*/
 	
 	int i;
@@ -121,27 +120,18 @@ MainWindow::MainWindow(QWidget *parent) :
 	for (i = cu = 0; cu != -1; i++, cu = dwdata->next_compilation_unit(cu))
 	{
 		die_offset = cu + 11;
-		auto abbrevs = dwdata->abbreviations_of_compilation_unit(cu);
-		dwdata->debug_tree_of_die(die_offset, abbrevs);
+		std::map<uint32_t, uint32_t> abbreviations;
+		dwdata->get_abbreviations_of_compilation_unit(cu, abbreviations);
+		dwdata->debug_tree_of_die(die_offset, abbreviations);
 	}
 	qDebug() << "all compilation units in .debug_info processed in" << t.elapsed() << "milliseconds";
 	qDebug() << "decoding of .debug_info ended at" << die_offset;
 
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_info section : %1").arg(i));
 	
-	die_offset = 11;
-	auto debug_tree = dwdata->debug_tree_of_die(die_offset, x);
-	ui->plainTextEdit->appendPlainText(QString("debug tree decoding ended at offset: %1").arg(die_offset));
-	//dump_debug_tree(debug_tree, 1);
-	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())
 		dwundwind->dump(), dwundwind->next();
-	
-	
-	
-	
-	
 	
 	auto unwind_data = dwundwind->sforthCodeForAddress(0x800f226);
 	auto context = dwdata->executionContextForAddress(0x800f226);
