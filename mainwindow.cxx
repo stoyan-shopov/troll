@@ -65,6 +65,7 @@ MainWindow::MainWindow(QWidget *parent) :
 #else
 	QFile debug_file("Qt5Guid.dll");
 #endif
+	QTime t;
 	if (!debug_file.open(QFile::ReadOnly))
 	{
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
@@ -110,13 +111,23 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	int i;
 	uint32_t cu;
-	for (i = cu = 0; cu != -1; i++, cu = dwdata->next_compilation_unit(cu));
+	t.start();
+	uint32_t die_offset;
+	for (i = cu = 0; cu != -1; i++, cu = dwdata->next_compilation_unit(cu))
+	{
+		die_offset = cu + 11;
+		auto abbrevs = dwdata->abbreviations_of_compilation_unit(cu);
+		dwdata->debug_tree_of_die(die_offset, abbrevs);
+	}
+	qDebug() << "all compilation units in .debug_info processed in" << t.elapsed() << "milliseconds";
+	qDebug() << "decoding of .debug_info ended at" << die_offset;
+
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_info section : %1").arg(i));
 	
-	uint32_t die_offset = 11;
+	die_offset = 11;
 	auto debug_tree = dwdata->debug_tree_of_die(die_offset, x);
 	ui->plainTextEdit->appendPlainText(QString("debug tree decoding ended at offset: %1").arg(die_offset));
-	dump_debug_tree(debug_tree, 1);
+	//dump_debug_tree(debug_tree, 1);
 	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())
@@ -154,8 +165,7 @@ MainWindow::MainWindow(QWidget *parent) :
 		backtrace();
 	}
 	
-	QTime t;
-	t.start();
+	t.restart();
 	dwdata->dumpLines();
 	qDebug() << ".debug_lines section processed in" << t.elapsed() << "milliseconds";
 }

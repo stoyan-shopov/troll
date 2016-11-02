@@ -7,7 +7,7 @@
 
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
-#define DEBUG_ENABLED			1
+#define DEBUG_ENABLED			0
 #define DEBUG_DIE_READ_ENABLED		0
 #define DEBUG_ADDRESS_RANGE_ENABLED	0
 
