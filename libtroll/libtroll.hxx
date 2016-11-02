@@ -7,6 +7,10 @@
 
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
+#define DEBUG_ENABLED			1
+#define DEBUG_DIE_READ_ENABLED		0
+#define DEBUG_ADDRESS_RANGE_ENABLED	0
+
 class DwarfUtil
 {
 public:
@@ -37,8 +41,10 @@ public:
 		uint8_t x;
 		int shift = * decoded_len = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
+		/*
 		if (result > 0xffffffff)
 			panic();
+			*/
 		/* handle sign */
 		if (x & 0x40)
 			/* propagate sign bit */
@@ -304,7 +310,7 @@ public:
 		uint32_t min_insn_length(minimum_instruction_length());
 		int len, x;
 		init();
-		qDebug() << "debug line for offset" << HEX(header - debug_line);
+		if (DEBUG_ENABLED) qDebug() << "debug line for offset" << HEX(header - debug_line);
 		while (p < header + sizeof(uint32_t) + unit_length())
 		{
 			if (! * p)
@@ -319,19 +325,19 @@ public:
 					default:
 						DwarfUtil::panic();
 					case DW_LNE_set_discriminator:
-						qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
+						if (DEBUG_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
 						if (len != x + 1) DwarfUtil::panic();
 						p += x;
 						break;
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
-						qDebug() << "end of sequence";
+						if (DEBUG_ENABLED) qDebug() << "end of sequence";
 						break;
 					case DW_LNE_set_address:
 						if (len != 5) DwarfUtil::panic();
 						address = * (uint32_t *) p;
 						p += sizeof address;
-						qDebug() << "extended opcode, set address to" << HEX(address);
+						if (DEBUG_ENABLED) qDebug() << "extended opcode, set address to" << HEX(address);
 						break;
 				}
 			}
@@ -341,7 +347,7 @@ public:
 				uint8_t x = * p ++ - op_base;
 				address += (x / lrange) * min_insn_length;
 				line += lbase + x % lrange;
-				qDebug() << "special opcode, set address to" << HEX(address) << "line to" << line;
+				if (DEBUG_ENABLED) qDebug() << "special opcode, set address to" << HEX(address) << "line to" << line;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -353,34 +359,34 @@ public:
 				/*
 					if (xaddr <= target_address && target_address < address)
 						DwarfUtil::panic();*/
-					qDebug() << "copy";
+					if (DEBUG_ENABLED) qDebug() << "copy";
 					xaddr = address;
 					break;
 				case DW_LNS_advance_pc:
 					address += DwarfUtil::uleb128(p, & len) * min_insn_length;
-					qDebug() << "advance pc to" << HEX(address);
+					if (DEBUG_ENABLED) qDebug() << "advance pc to" << HEX(address);
 					p += len;
 					break;
 				case DW_LNS_advance_line:
 					line += DwarfUtil::sleb128(p, & len);
 					p += len;
-					qDebug() << "advance line to" << line;
+					if (DEBUG_ENABLED) qDebug() << "advance line to" << line;
 					break;
 				case DW_LNS_const_add_pc:
 					address += ((255 - op_base) / lrange) * min_insn_length;
-					qDebug() << "advance pc to" << HEX(address);
+					if (DEBUG_ENABLED) qDebug() << "advance pc to" << HEX(address);
 					break;
 				case DW_LNS_set_file:
 					file = DwarfUtil::uleb128(p, & len);
 					p += len;
-					qDebug() << "set file to" << file;
+					if (DEBUG_ENABLED) qDebug() << "set file to" << file;
 					break;
 				case DW_LNS_set_column:
 					DwarfUtil::panic();
 					break;
 				case DW_LNS_negate_stmt:
 					is_stmt = ! is_stmt;
-					qDebug() << "set is_stmt to " << is_stmt;
+					if (DEBUG_ENABLED) qDebug() << "set is_stmt to " << is_stmt;
 					break;
 			}
 		}
@@ -512,7 +518,7 @@ public:
 		const uint8_t * p = debug_info + die_offset;
 		int len;
 		uint32_t code = DwarfUtil::uleb128(p, & len);
-		if (0) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 		p += len;
 		if (!code)
 			DwarfUtil::panic("null die requested");
@@ -546,7 +552,7 @@ public:
 				return dies;
 				
 			code = DwarfUtil::uleb128(p, & len);
-			if (0) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+			if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 			p += len;
 		}
 		die_offset = p - debug_info;
@@ -585,8 +591,8 @@ public:
 			auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
 			if (!hi_pc.first)
 				return false;
-			if (0) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second));
-			if (0) qDebug() << DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
+			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second));
+			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
 			x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second);
 			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
 		}
@@ -910,6 +916,9 @@ private:
 						insn += len;
 						i -= len;
 						result << (dwopcode & ((1 << 6) - 1)) << " " << op << " " << "DW_CFA_offset" << " ";
+						continue;
+					case 3:
+						result << (dwopcode & ((1 << 6) - 1)) << " " << "DW_CFA_restore" << " ";
 						continue;
 					default:
 					DwarfUtil::panic();

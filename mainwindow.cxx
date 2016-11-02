@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QFile>
 #include <QMessageBox>
+#include <QTime>
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
 {
@@ -59,7 +60,11 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
+#if MAIN_APS
 	QFile debug_file("main_aps.elf");
+#else
+	QFile debug_file("Qt5Guid.dll");
+#endif
 	if (!debug_file.open(QFile::ReadOnly))
 	{
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
@@ -86,6 +91,9 @@ MainWindow::MainWindow(QWidget *parent) :
 	auto x = dwdata->abbreviations_of_compilation_unit(0);
 	//*
 	ui->plainTextEdit->appendPlainText(QString("number of abbreviations in the first compilation unit : %1").arg(x.size()));
+	
+#if MAIN_APS
+	
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(0x98, x, type_cache);
 	qDebug() << __FILE__ << __LINE__ << type_cache.size() << type_cache.at(0).die.children.size();
@@ -95,6 +103,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	dwdata->dataForType(type_cache, node);
 	qDebug() << node.children.size();
 	ui->treeWidget->addTopLevelItem(itemForNode(node));
+#endif
 	
 	
 	//*/
@@ -120,29 +129,35 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	auto unwind_data = dwundwind->sforthCodeForAddress(0x800f226);
 	auto context = dwdata->executionContextForAddress(0x800f226);
-	qDebug() << context.size();
-	qDebug() << context.at(0).offset << context.at(1).offset;
-	qDebug() << QString::fromStdString(dwdata->nameOfDie(context.at(1)));
-	qDebug() << QString::fromStdString(unwind_data.first);
-	
-	target = new Target("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
-	sforth = new Sforth(ui->plainTextEditSforthConsole);
-	cortexm0 = new CortexM0(sforth, target);
-	cortexm0->primeUnwinder();
-	cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
-	auto regs = cortexm0->unwoundRegisters();
-	qDebug() << regs;
+	if (context.size())
+	{
+		qDebug() << context.size();
+		qDebug() << context.at(0).offset << context.at(1).offset;
+		qDebug() << QString::fromStdString(dwdata->nameOfDie(context.at(1)));
+		qDebug() << QString::fromStdString(unwind_data.first);
 
-	qDebug() << "next frame";
-	unwind_data = dwundwind->sforthCodeForAddress(regs.at(15));
-	qDebug() << QString::fromStdString(unwind_data.first);
-	cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
-	regs = cortexm0->unwoundRegisters();
-	qDebug() << regs;
+		target = new Target("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
+		sforth = new Sforth(ui->plainTextEditSforthConsole);
+		cortexm0 = new CortexM0(sforth, target);
+		cortexm0->primeUnwinder();
+		cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
+		auto regs = cortexm0->unwoundRegisters();
+		qDebug() << regs;
+
+		qDebug() << "next frame";
+		unwind_data = dwundwind->sforthCodeForAddress(regs.at(15));
+		qDebug() << QString::fromStdString(unwind_data.first);
+		cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
+		regs = cortexm0->unwoundRegisters();
+		qDebug() << regs;
+
+		backtrace();
+	}
 	
-	backtrace();
-	
+	QTime t;
+	t.start();
 	dwdata->dumpLines();
+	qDebug() << ".debug_lines section processed in" << t.elapsed() << "milliseconds";
 }
 
 MainWindow::~MainWindow()
