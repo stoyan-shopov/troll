@@ -168,6 +168,11 @@ MainWindow::MainWindow(QWidget *parent) :
 	dwdata->reapStaticObjects(data_objects, subprograms);
 	qDebug() << "static storage duration data reaped in" << t.elapsed() << "milliseconds";
 	qDebug() << "data objects:" << data_objects.size() << ", subprograms:" << subprograms.size();
+	t.restart();
+	for (i = 0; i < data_objects.size(); i++)
+		ui->listWidgetDataObjects->addItem(QString(data_objects.at(i).name));
+	ui->listWidgetDataObjects->sortItems();
+	qDebug() << "static object lists built in" << t.elapsed() << "milliseconds";
 }
 
 MainWindow::~MainWindow()

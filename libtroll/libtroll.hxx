@@ -145,6 +145,8 @@ public:
 			return * (uint32_t *) debug_info_bytes;
 		case DW_FORM_data1:
 			return * (uint8_t *) debug_info_bytes;
+		case DW_FORM_data2:
+			return * (uint16_t *) debug_info_bytes;
 		default:
 			panic();
 		}
@@ -437,6 +439,7 @@ public:
 						DwarfUtil::panic();
 					case DW_LNE_set_discriminator:
 						if (DEBUG_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
+						DwarfUtil::uleb128(p, & x);
 						if (len != x + 1) DwarfUtil::panic();
 						p += x;
 						break;
@@ -951,6 +954,31 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 			l.dump();
 	}
 private:
+	void fillStaticObjectDetails(const struct Die & die, struct StaticObject & x)
+	{
+		Abbreviation a(debug_abbrev + die.abbrev_offset);
+		auto t = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
+		x.file = ((t.first) ? DwarfUtil::formConstant(t.first, t.second) : -1);
+		t = a.dataForAttribute(DW_AT_decl_line, debug_info + die.offset);
+		x.line = ((t.first) ? DwarfUtil::formConstant(t.first, t.second) : -1);
+		t = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
+		if (t.first)
+		{
+			switch (t.first)
+			{
+			case DW_FORM_string:
+				x.name = (const char *) t.second;
+				break;
+			case DW_FORM_strp:
+				x.name = (const char *) (debug_str + * (uint32_t *) t.second);
+				break;
+			default:
+				DwarfUtil::panic();
+			}
+		}
+		else
+			x.name = 0;
+	}
 	void reapStaticObjects(std::vector<struct StaticObject> & data_objects,
 	                       std::vector<struct StaticObject> & subprograms,
 	                       const struct Die & die,
@@ -962,16 +990,22 @@ private:
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			auto x = a.dataForAttribute(DW_AT_location, debug_info + die.offset);
 			if (x.first && DwarfUtil::isLocationConstant(x.first, x.second))
-				data_objects.push_back(StaticObject());
+			{
+				StaticObject x;
+				fillStaticObjectDetails(die, x);
+				data_objects.push_back(x);
+			}
 		}
 		else if (DwarfUtil::isSubprogram(die.tag))
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			auto x = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
-			if (x.first)
-				subprograms.push_back(StaticObject());
-			else if (a.dataForAttribute(DW_AT_ranges, debug_info + die.offset).first)
-					subprograms.push_back(StaticObject());
+			if (x.first || a.dataForAttribute(DW_AT_ranges, debug_info + die.offset).first)
+			{
+				StaticObject x;
+				fillStaticObjectDetails(die, x);
+				subprograms.push_back(x);
+			}
 		}
 		for (i = 0; i < die.children.size(); i ++)
 			reapStaticObjects(data_objects, subprograms, die.children.at(i), abbreviations);
