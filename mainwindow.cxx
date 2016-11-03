@@ -169,9 +169,26 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "static storage duration data reaped in" << t.elapsed() << "milliseconds";
 	qDebug() << "data objects:" << data_objects.size() << ", subprograms:" << subprograms.size();
 	t.restart();
+	for (i = 0; i < subprograms.size(); i++)
+	{
+		int row(ui->tableWidgetFunctions->rowCount());
+		ui->tableWidgetFunctions->insertRow(row);
+		ui->tableWidgetFunctions->setItem(row, 0, new QTableWidgetItem(subprograms.at(i).name));
+		ui->tableWidgetFunctions->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).file)));
+		ui->tableWidgetFunctions->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).line)));
+		ui->tableWidgetFunctions->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(subprograms.at(i).die_offset, 0, 16)));
+	}
 	for (i = 0; i < data_objects.size(); i++)
-		ui->listWidgetDataObjects->addItem(QString(data_objects.at(i).name));
-	ui->listWidgetDataObjects->sortItems();
+	{
+		int row(ui->tableWidgetStaticDataObjects->rowCount());
+		ui->tableWidgetStaticDataObjects->insertRow(row);
+		ui->tableWidgetStaticDataObjects->setItem(row, 0, new QTableWidgetItem(data_objects.at(i).name));
+		ui->tableWidgetStaticDataObjects->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
+	}
+	ui->tableWidgetFunctions->sortItems(0);
+	ui->tableWidgetStaticDataObjects->sortItems(0);
 	qDebug() << "static object lists built in" << t.elapsed() << "milliseconds";
 }
 

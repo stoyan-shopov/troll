@@ -8,7 +8,7 @@
 #include "target.hxx"
 #include "cortexm0.hxx"
 
-#define MAIN_APS	1
+#define MAIN_APS	0
 
 namespace Ui {
 class MainWindow;

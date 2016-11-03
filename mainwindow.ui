@@ -94,7 +94,43 @@
    <widget class="QWidget" name="dockWidgetContents_3">
     <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
-      <widget class="QListWidget" name="listWidgetDataObjects"/>
+      <widget class="QTableWidget" name="tableWidgetStaticDataObjects"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockWidget_4">
+   <property name="windowTitle">
+    <string>functions</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_4">
+    <layout class="QVBoxLayout" name="verticalLayout_5">
+     <item>
+      <widget class="QTableWidget" name="tableWidgetFunctions">
+       <column>
+        <property name="text">
+         <string>name</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>file</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>line</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>die offset</string>
+        </property>
+       </column>
+      </widget>
      </item>
     </layout>
    </widget>

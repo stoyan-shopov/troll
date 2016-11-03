@@ -978,6 +978,7 @@ private:
 		}
 		else
 			x.name = 0;
+		x.die_offset = die.offset;
 	}
 	void reapStaticObjects(std::vector<struct StaticObject> & data_objects,
 	                       std::vector<struct StaticObject> & subprograms,
