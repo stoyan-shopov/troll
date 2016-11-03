@@ -35,6 +35,16 @@ public:
 			panic();
 		return result;
 	}
+	static uint32_t uleb128x(const uint8_t * & data)
+	{
+		uint64_t result = 0;
+		uint8_t x;
+		int shift = 0;
+		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
+		if (result > 0xffffffff)
+			panic();
+		return result;
+	}
 	static int32_t sleb128(const uint8_t * data, int * decoded_len)
 	{
 		uint64_t result = 0;
@@ -170,9 +180,9 @@ public:
 	{
 		if (location_attribute_form != DW_FORM_exprloc)
 			return false;
-		uint32_t x; int len;
-		x = uleb128(debug_info_bytes, & len);
-		return (x == 5 && debug_info_bytes[len] == DW_OP_addr) ? true : false;
+		uint32_t len;
+		len = uleb128x(debug_info_bytes);
+		return (len == 5 && * debug_info_bytes == DW_OP_addr) ? true : false;
 	}
 };
 
@@ -213,11 +223,8 @@ public:
 	{
 		const uint8_t * p = s.attributes;
 		std::pair<uint32_t, uint32_t> a;
-		int len;
-		a.first = DwarfUtil::uleb128(p, & len);
-		p += len;
-		a.second = DwarfUtil::uleb128(p, & len);
-		p += len;
+		a.first = DwarfUtil::uleb128x(p);
+		a.second = DwarfUtil::uleb128x(p);
 		if (a.first || a.second)
 			/* not the last attribute - skip to the next one */
 			s.attributes = p;
@@ -226,13 +233,10 @@ public:
 
 	Abbreviation(const uint8_t * abbreviation_data)
 	{
-		int len;
-		s.code = DwarfUtil::uleb128(abbreviation_data, & len);
-		abbreviation_data += len;
-		s.tag = DwarfUtil::uleb128(abbreviation_data, & len);
-		abbreviation_data += len;
-		s.has_children = (DwarfUtil::uleb128(abbreviation_data, & len) == DW_CHILDREN_yes);
-		s.init_attributes = s.attributes = abbreviation_data + len;
+		s.code = DwarfUtil::uleb128x(abbreviation_data);
+		s.tag = DwarfUtil::uleb128x(abbreviation_data);
+		s.has_children = (DwarfUtil::uleb128x(abbreviation_data) == DW_CHILDREN_yes);
+		s.init_attributes = s.attributes = abbreviation_data;
 	}
 	/* the first number is the attribute form, the pointer is to the data in .debug_info for the attribute searched
 	 * returns <0, 0> if the attribute with the searched name is not found */
@@ -240,9 +244,8 @@ public:
 	{
 		s.attributes = s.init_attributes;
 		std::pair<uint32_t, uint32_t> a;
-		int len;
 		/* skip the die abbreviation code */
-		debug_info_data_for_die += (DwarfUtil::uleb128(debug_info_data_for_die, & len), len);
+		DwarfUtil::uleb128x(debug_info_data_for_die);
 		while (1)
 		{
 			a = next_attribute();
@@ -308,9 +311,9 @@ private:
 	uint8_t opcode_base(void) { return * (uint8_t *) (header + 14); }
 	const uint8_t * include_directories(void)
 	{
-		int i(opcode_base()), len;
+		int i(opcode_base());
 		const uint8_t * p(header + 15);
-		while (i --) DwarfUtil::uleb128(p, & len), p += len;
+		while (i --) DwarfUtil::uleb128x(p);
 		return p;
 	}
 	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
@@ -424,8 +427,8 @@ public:
 			if (! * p)
 			{
 				/* extended opcodes */
-				len = DwarfUtil::uleb128(++ p, & x);
-				p += x;
+				p ++;
+				len = DwarfUtil::uleb128x(p);
 				if (!len)
 					DwarfUtil::panic();
 				switch (* p ++)
@@ -478,9 +481,8 @@ public:
 					xline = line;
 					break;
 				case DW_LNS_advance_pc:
-					address += DwarfUtil::uleb128(p, & len) * min_insn_length;
+					address += DwarfUtil::uleb128x(p) * min_insn_length;
 					if (DEBUG_ENABLED) qDebug() << "advance pc to" << HEX(address);
-					p += len;
 					break;
 				case DW_LNS_advance_line:
 					line += DwarfUtil::sleb128(p, & len);
@@ -492,8 +494,7 @@ public:
 					if (DEBUG_ENABLED) qDebug() << "advance pc to" << HEX(address);
 					break;
 				case DW_LNS_set_file:
-					file = DwarfUtil::uleb128(p, & len);
-					p += len;
+					file = DwarfUtil::uleb128x(p);
 					if (DEBUG_ENABLED) qDebug() << "set file to" << file;
 					break;
 				case DW_LNS_set_column:
@@ -619,16 +620,12 @@ public:
 				DwarfUtil::panic("duplicate abbreviation code");
 			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
 			debug_abbrev += len;
-			tag = DwarfUtil::uleb128(debug_abbrev, & len);
-			debug_abbrev += len;
-			has_children = DwarfUtil::uleb128(debug_abbrev, & len);
-			debug_abbrev += len;
+			tag = DwarfUtil::uleb128x(debug_abbrev);
+			has_children = DwarfUtil::uleb128x(debug_abbrev);
 			do
 			{
-				name = DwarfUtil::uleb128(debug_abbrev, & len);
-				debug_abbrev += len;
-				form = DwarfUtil::uleb128(debug_abbrev, & len);
-				debug_abbrev += len;
+				name = DwarfUtil::uleb128x(debug_abbrev);
+				form = DwarfUtil::uleb128x(debug_abbrev);
 			}
 			while (name || form);
 		}
