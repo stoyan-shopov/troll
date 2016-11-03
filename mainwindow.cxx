@@ -4,6 +4,9 @@
 #include <QFile>
 #include <QMessageBox>
 #include <QTime>
+#include <QProcess>
+#include <QRegExp>
+
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
 {
@@ -60,10 +63,90 @@ void MainWindow::backtrace()
 	qDebug() << "registers: " << cortexm0->unwoundRegisters();
 }
 
+bool MainWindow::readElfSections(void)
+{
+QRegExp rx("\\.debug_info\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+//QString elf("X:/aps-electronics.xs236-gcc/CSM05/mcu/main_aps.elf");
+QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
+QProcess readelf;
+QString output;
+bool ok1, ok2;
+
+	readelf.start("readelf", QStringList() << "-S" << elf);
+	readelf.waitForFinished();
+	qDebug() << (output = readelf.readAll());
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_info at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_info_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_info_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+	rx.setPattern("\\.debug_abbrev\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_abbrev at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_abbrev_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_abbrev_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+	rx.setPattern("\\.debug_aranges\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_aranges at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_aranges_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_aranges_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+	rx.setPattern("\\.debug_ranges\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_ranges at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_ranges_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_ranges_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+	rx.setPattern("\\.debug_frame\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_frame at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_frame_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_frame_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+	rx.setPattern("\\.debug_str\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_str at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_str_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_str_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+	rx.setPattern("\\.debug_line\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_line at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_line_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_line_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+	rx.setPattern("\\.debug_loc\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_loc at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_loc_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_loc_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
+}
+
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
 {
+	QTime startup_time;
+	startup_time.start();
+	readElfSections();
 	ui->setupUi(this);
 #if MAIN_APS
 	QFile debug_file("main_aps.elf");
@@ -77,21 +160,21 @@ MainWindow::MainWindow(QWidget *parent) :
 		exit(1);
 	}
 	debug_file.seek(debug_aranges_offset);
-	QByteArray debug_aranges = debug_file.read(debug_aranges_len);
+	debug_aranges = debug_file.read(debug_aranges_len);
 	debug_file.seek(debug_info_offset);
-	QByteArray debug_info = debug_file.read(debug_info_len);
+	debug_info = debug_file.read(debug_info_len);
 	debug_file.seek(debug_abbrev_offset);
-	QByteArray debug_abbrev = debug_file.read(debug_abbrev_len);
+	debug_abbrev = debug_file.read(debug_abbrev_len);
 	debug_file.seek(debug_frame_offset);
-	QByteArray debug_frame = debug_file.read(debug_frame_len);
+	debug_frame = debug_file.read(debug_frame_len);
 	debug_file.seek(debug_ranges_offset);
-	QByteArray debug_ranges = debug_file.read(debug_ranges_len);
+	debug_ranges = debug_file.read(debug_ranges_len);
 	debug_file.seek(debug_str_offset);
-	QByteArray debug_str = debug_file.read(debug_str_len);
+	debug_str = debug_file.read(debug_str_len);
 	debug_file.seek(debug_line_offset);
-	QByteArray debug_line = debug_file.read(debug_line_len);
+	debug_line = debug_file.read(debug_line_len);
 	debug_file.seek(debug_loc_offset);
-	QByteArray debug_loc = debug_file.read(debug_loc_len);
+	debug_loc = debug_file.read(debug_loc_len);
 	
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
@@ -190,6 +273,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->tableWidgetFunctions->sortItems(0);
 	ui->tableWidgetStaticDataObjects->sortItems(0);
 	qDebug() << "static object lists built in" << t.elapsed() << "milliseconds";
+
+	qDebug() << "debugger startup time:" << startup_time.elapsed() << "milliseconds";
 }
 
 MainWindow::~MainWindow()

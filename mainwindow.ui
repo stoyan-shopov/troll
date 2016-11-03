@@ -94,7 +94,28 @@
    <widget class="QWidget" name="dockWidgetContents_3">
     <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
-      <widget class="QTableWidget" name="tableWidgetStaticDataObjects"/>
+      <widget class="QTableWidget" name="tableWidgetStaticDataObjects">
+       <column>
+        <property name="text">
+         <string>name</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>file</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>line</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>die offset</string>
+        </property>
+       </column>
+      </widget>
      </item>
     </layout>
    </widget>
