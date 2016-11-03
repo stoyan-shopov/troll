@@ -163,6 +163,11 @@ MainWindow::MainWindow(QWidget *parent) :
 	t.restart();
 	dwdata->dumpLines();
 	qDebug() << ".debug_lines section processed in" << t.elapsed() << "milliseconds";
+	t.restart();
+	std::vector<struct StaticObject> data_objects, subprograms;
+	dwdata->reapStaticObjects(data_objects, subprograms);
+	qDebug() << "static storage duration data reaped in" << t.elapsed() << "milliseconds";
+	qDebug() << "data objects:" << data_objects.size() << ", subprograms:" << subprograms.size();
 }
 
 MainWindow::~MainWindow()

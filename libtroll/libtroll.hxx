@@ -166,6 +166,14 @@ public:
 	}
 	static bool isDataObject(uint32_t tag) { return tag == DW_TAG_variable; }
 	static bool isSubprogram(uint32_t tag) { return tag == DW_TAG_subprogram; }
+	static bool isLocationConstant(uint32_t location_attribute_form, const uint8_t * debug_info_bytes)
+	{
+		if (location_attribute_form != DW_FORM_exprloc)
+			return false;
+		uint32_t x; int len;
+		x = uleb128(debug_info_bytes, & len);
+		return (x == 5 && debug_info_bytes[len] == DW_OP_addr) ? true : false;
+	}
 };
 
 struct Die
@@ -947,7 +955,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 	}
 private:
 	void reapStaticObjects(std::vector<struct StaticObject> & data_objects,
-	                       std::vector<struct StaticObject> & functions,
+	                       std::vector<struct StaticObject> & subprograms,
 	                       const struct Die & die,
 	                       const std::map<uint32_t, uint32_t> & abbreviations)
 	{
@@ -956,17 +964,24 @@ private:
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			auto x = a.dataForAttribute(DW_AT_location, debug_info + die.offset);
+			if (x.first && DwarfUtil::isLocationConstant(x.first, x.second))
+				data_objects.push_back(StaticObject());
 		}
 		else if (DwarfUtil::isSubprogram(die.tag))
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
+			auto x = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
+			if (x.first)
+				subprograms.push_back(StaticObject());
+			else if (a.dataForAttribute(DW_AT_ranges, debug_info + die.offset).first)
+					subprograms.push_back(StaticObject());
 		}
 		for (i = 0; i < die.children.size(); i ++)
-			reapStaticObjects(data_objects, functions, die.children.at(i), abbreviations);
+			reapStaticObjects(data_objects, subprograms, die.children.at(i), abbreviations);
 	}
 
 public:
-	void reapStaticObjects(std::vector<struct StaticObject> & data_objects, std::vector<struct StaticObject> & functions)
+	void reapStaticObjects(std::vector<struct StaticObject> & data_objects, std::vector<struct StaticObject> & subprograms)
 	{
 		uint32_t cu;
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
@@ -975,7 +990,7 @@ public:
 			std::map<uint32_t, uint32_t> abbreviations;
 			get_abbreviations_of_compilation_unit(cu, abbreviations);
 			auto dies = debug_tree_of_die(die_offset, abbreviations);
-			reapStaticObjects(data_objects, functions, dies.at(0), abbreviations);
+			reapStaticObjects(data_objects, subprograms, dies.at(0), abbreviations);
 		}
 	}
 };

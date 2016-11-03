@@ -8,7 +8,7 @@
 #include "target.hxx"
 #include "cortexm0.hxx"
 
-#define MAIN_APS	1
+#define MAIN_APS	0
 
 namespace Ui {
 class MainWindow;
@@ -34,6 +34,7 @@ class MainWindow : public QMainWindow
 	const qint64 debug_ranges_offset = 0x0c0bb800, debug_ranges_len = 0x000492e0;
 	const qint64 debug_str_offset = 0x0be3ee00, debug_str_len = 0x0027c8a1;
 	const qint64 debug_line_offset = 0x0bc1a400, debug_line_len = 0x002247ee;
+	const qint64 debug_loc_offset = 0x0, debug_loc_len = 0x0;
 #endif
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
