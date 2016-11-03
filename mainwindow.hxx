@@ -47,6 +47,7 @@ class MainWindow : public QMainWindow
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node);
 	void backtrace(void);
 	bool readElfSections(void);
+	QString elf_filename;
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

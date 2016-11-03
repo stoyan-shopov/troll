@@ -79,7 +79,11 @@
    <widget class="QWidget" name="dockWidgetContents_2">
     <layout class="QVBoxLayout" name="verticalLayout_3">
      <item>
-      <widget class="QListWidget" name="listWidget"/>
+      <widget class="QListWidget" name="listWidget">
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>
@@ -95,6 +99,9 @@
     <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
       <widget class="QTableWidget" name="tableWidgetStaticDataObjects">
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
        <column>
         <property name="text">
          <string>name</string>
@@ -131,6 +138,9 @@
     <layout class="QVBoxLayout" name="verticalLayout_5">
      <item>
       <widget class="QTableWidget" name="tableWidgetFunctions">
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
        <column>
         <property name="text">
          <string>name</string>

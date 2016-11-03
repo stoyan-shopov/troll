@@ -66,13 +66,11 @@ void MainWindow::backtrace()
 bool MainWindow::readElfSections(void)
 {
 QRegExp rx("\\.debug_info\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
-//QString elf("X:/aps-electronics.xs236-gcc/CSM05/mcu/main_aps.elf");
-QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 QProcess readelf;
 QString output;
 bool ok1, ok2;
 
-	readelf.start("readelf", QStringList() << "-S" << elf);
+	readelf.start("readelf", QStringList() << "-S" << elf_filename);
 	readelf.waitForFinished();
 	qDebug() << (output = readelf.readAll());
 	if (rx.indexIn(output) != -1)
@@ -145,11 +143,13 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui(new Ui::MainWindow)
 {
 	QTime startup_time;
+	elf_filename = "X:/aps-electronics.xs236-gcc/CSM05/mcu/main_aps.elf";
+//QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	startup_time.start();
 	readElfSections();
 	ui->setupUi(this);
 #if MAIN_APS
-	QFile debug_file("main_aps.elf");
+	QFile debug_file(elf_filename);
 #else
 	QFile debug_file("Qt5Guid.dll");
 #endif
