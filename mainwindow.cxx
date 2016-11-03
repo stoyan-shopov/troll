@@ -39,11 +39,11 @@ void MainWindow::backtrace()
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
 		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
-		qDebug() << QString::fromStdString(x.first) << (signed) x.second;
+		qDebug() << x.filename << (signed) x.line;
 
 		qDebug() << cortexm0->programCounter() << QString::fromStdString(dwdata->nameOfDie(context.back()));
 		ui->listWidget->addItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0')) + QString("\t") + QString::fromStdString(dwdata->nameOfDie(context.back()))
-				+ QString("\t%1").arg(x.second));
+				+ QString("\t%1").arg(x.line));
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
@@ -218,7 +218,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	auto unwind_data = dwundwind->sforthCodeForAddress(0x800f226);
 	auto context = dwdata->executionContextForAddress(0x800f226);
-	if (context.size())
+	if (0 || context.size())
 	{
 		qDebug() << context.size();
 		qDebug() << context.at(0).offset << context.at(1).offset;

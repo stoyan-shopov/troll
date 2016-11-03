@@ -1,12 +1,14 @@
 #include "libtroll.hxx"
 
+#define TYPE_DEBUG_ENABLED	0
+
 /* the first node in the vector is the head of the type graph
  * returns the position in the vector at which the new node is placed */
 int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache)
 {
 	int index;
 	uint32_t saved_die_offset(die_offset);
-	qDebug() << "reading type die at offset" << die_offset;
+	if (TYPE_DEBUG_ENABLED) qDebug() << "reading type die at offset" << die_offset;
 	if (die_offset == 76)
 	{
 		die_offset = 76;
@@ -26,17 +28,17 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		uint32_t cu_offset(compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset));
                 i = readType(readTypeOffset(t.first, t.second, cu_offset), abbreviations, type_cache);
                 type_cache.at(index).next = i;
-                qDebug() << "read type die at index " << i;
+                if (TYPE_DEBUG_ENABLED) qDebug() << "read type die at index " << i;
         }
 	if (type_cache.at(index).die.children.size())
 	{
                 int i, x, y;
-		qDebug() << "aggregate type, child count" << type_cache.at(index).die.children.size();
+		if (TYPE_DEBUG_ENABLED) qDebug() << "aggregate type, child count" << type_cache.at(index).die.children.size();
                 x = readType(type_cache.at(index).die.children.at(0).offset, abbreviations, type_cache);
                 type_cache.at(index).childlist = x;
                 for (i = 1; i < type_cache.at(index).die.children.size(); i ++)
 		{
-			qDebug() << "reading type child" << i << ", offset is" << type_cache.at(index).die.children.at(i).offset;
+			if (TYPE_DEBUG_ENABLED) qDebug() << "reading type child" << i << ", offset is" << type_cache.at(index).die.children.at(i).offset;
                         //* x = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache), x = & type_cache.at(* x).sibling;
                         y = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache);
                         type_cache.at(x).sibling = y;
