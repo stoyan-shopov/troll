@@ -8,7 +8,7 @@
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
 #define DEBUG_ENABLED			0
-#define DEBUG_LINE_PROGRAMS_ENABLED	0
+#define DEBUG_LINE_PROGRAMS_ENABLED	1
 #define DEBUG_DIE_READ_ENABLED		0
 #define DEBUG_ADDRESS_RANGE_ENABLED	0
 #define UNWIND_DEBUG_ENABLED		0
@@ -334,7 +334,7 @@ private:
 		auto p = include_directories();
 		size_t x;
 		while ((x = strlen(p)))
-			p += x;
+			p += x + 1;
 		return p + 1;
 	}
 	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
@@ -355,6 +355,21 @@ public:
 		if (DEBUG_LINE_PROGRAMS_ENABLED)
 		{
 			qDebug() << "debug line for offset" << HEX(header - debug_line);
+			qDebug() << "include directories table:";
+			auto x = include_directories();
+			size_t l;
+			while ((l = strlen(x)))
+				qDebug() << QString(x), x += l + 1;
+			qDebug() << "file names table:";
+			x = file_names();
+			while ((l = strlen(x)))
+			{
+				qDebug() << QString(x), x += l + 1;
+				const uint8_t * p((uint8_t *) x);
+				/* skip directory index, file time and file size */
+				DwarfUtil::uleb128x(p), DwarfUtil::uleb128x(p), DwarfUtil::uleb128x(p);
+				x = (char *) p;
+			}
 		}
 		while (p < header + sizeof(uint32_t) + unit_length())
 		{
