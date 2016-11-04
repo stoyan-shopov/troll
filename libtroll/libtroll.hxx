@@ -356,19 +356,18 @@ public:
 		{
 			qDebug() << "debug line for offset" << HEX(header - debug_line);
 			qDebug() << "include directories table:";
-			auto x = include_directories();
+			union { const char * s; const uint8_t * p; } x;
+			x.s = include_directories();
 			size_t l;
-			while ((l = strlen(x)))
-				qDebug() << QString(x), x += l + 1;
+			while ((l = strlen(x.s)))
+				qDebug() << QString(x.s), x.s += l + 1;
 			qDebug() << "file names table:";
-			x = file_names();
-			while ((l = strlen(x)))
+			x.s = file_names();
+			while ((l = strlen(x.s)))
 			{
-				qDebug() << QString(x), x += l + 1;
-				const uint8_t * p((uint8_t *) x);
+				qDebug() << QString(x.s), x.s += l + 1;
 				/* skip directory index, file time and file size */
-				DwarfUtil::uleb128x(p), DwarfUtil::uleb128x(p), DwarfUtil::uleb128x(p);
-				x = (char *) p;
+				DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p);
 			}
 		}
 		while (p < header + sizeof(uint32_t) + unit_length())
@@ -452,7 +451,7 @@ public:
 		}
 	}
 	/* returns -1 if no line number was found */
-	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset)
+	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset, uint32_t file_number)
 	{
 		if (version() != 2) DwarfUtil::panic();
 		header = debug_line + statememnt_list_offset;
@@ -484,7 +483,7 @@ public:
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
 						if (xaddr <= target_address && target_address < address)
-							return xline;
+							return file_number = file, xline;
 						init();
 						if (DEBUG_ENABLED) qDebug() << "end of sequence";
 						break;
@@ -503,7 +502,7 @@ public:
 				address += (x / lrange) * min_insn_length;
 				line += lbase + x % lrange;
 				if (xaddr <= target_address && target_address < address)
-					return xline;
+					return file_number = file, xline;
 				xaddr = address;
 				xline = line;
 				if (DEBUG_ENABLED) qDebug() << "special opcode, set address to" << HEX(address) << "line to" << line;
@@ -547,13 +546,40 @@ public:
 					break;
 			}
 		}
-		return -1;
+		return file_number = 0, -1;
 	}
 	/* returns 0 if the file is not found in the file name table of the current line number program */
 	uint32_t fileNumber(const char * filename)
 	{
 		
 	}
+	void stringsForFileNumber(uint32_t file_number, const char * file_name, const char * directory_name)
+	{
+		file_name = "<<< unknown file >>>";
+		directory_name = "<<< unknown directory >>>";
+		if (!file_name)
+			return;
+		size_t l;
+		union { const char * s; const uint8_t * p; } f;
+		f.s = file_names();
+		int i, j(0);
+		file_number --;
+		for (i = 0; i < file_number; i ++)
+		{
+			if (!(l = strlen(f.s)))
+				return;
+			f.s += l + 1;
+			/* skip directory index, file time and file size */
+			DwarfUtil::uleb128x(f.p), DwarfUtil::uleb128x(f.p), DwarfUtil::uleb128x(f.p);
+		}
+		file_name = f.s, f.s += strlen(f.s) + 1, i = DwarfUtil::uleb128x(f.p);
+		f.s = include_directories();
+		while (j != i && (l = strlen(f.s)))
+			f.s += l + 1, j ++;
+		if (i = j)
+			directory_name = f.s;
+	}
+
 #if XXX
 	void addressesForFile(uint32_t file_number, std::map<uint32_t, std::vector<struct lineAddress> > & line_addresses)
 	{
@@ -888,6 +914,7 @@ public:
 	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, const struct Die compilation_unit_die)
 	{
 		SourceCodeCoordinates s;
+		uint32_t file_number;
 		if (compilation_unit_die.tag != DW_TAG_compile_unit)
 			DwarfUtil::panic();
 		Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
@@ -895,7 +922,8 @@ public:
 		if (!x.first)
 			return s;
 		class DebugLine l(debug_line, debug_line_len);
-		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x.first, x.second));
+		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x.first, x.second), file_number);
+		l.stringsForFileNumber(file_number, s.filename, s.directoryname);
 		return s;
 	}
 
