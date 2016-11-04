@@ -326,7 +326,7 @@ private:
 	{
 		int i(opcode_base());
 		const uint8_t * p(header + 15);
-		while (i --) DwarfUtil::uleb128x(p);
+		while (-- i) DwarfUtil::uleb128x(p);
 		return (const char *) p;
 	}
 	const char * file_names(void)
@@ -451,7 +451,7 @@ public:
 		}
 	}
 	/* returns -1 if no line number was found */
-	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset, uint32_t file_number)
+	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset, uint32_t & file_number)
 	{
 		if (version() != 2) DwarfUtil::panic();
 		header = debug_line + statememnt_list_offset;
@@ -553,7 +553,7 @@ public:
 	{
 		
 	}
-	void stringsForFileNumber(uint32_t file_number, const char * file_name, const char * directory_name)
+	void stringsForFileNumber(uint32_t file_number, const char * & file_name, const char * & directory_name)
 	{
 		file_name = "<<< unknown file >>>";
 		directory_name = "<<< unknown directory >>>";
@@ -572,11 +572,11 @@ public:
 			/* skip directory index, file time and file size */
 			DwarfUtil::uleb128x(f.p), DwarfUtil::uleb128x(f.p), DwarfUtil::uleb128x(f.p);
 		}
-		file_name = f.s, f.s += strlen(f.s) + 1, i = DwarfUtil::uleb128x(f.p);
+		file_name = f.s, f.s += strlen(f.s) + 1, i = DwarfUtil::uleb128x(f.p) - 1;
 		f.s = include_directories();
 		while (j != i && (l = strlen(f.s)))
 			f.s += l + 1, j ++;
-		if (i = j)
+		if (i == j)
 			directory_name = f.s;
 	}
 

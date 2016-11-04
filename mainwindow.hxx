@@ -55,6 +55,8 @@ public:
 private slots:
 	void on_lineEditSforthCommand_returnPressed();
 	
+	void on_tableWidgetBacktrace_itemSelectionChanged();
+	
 private:
 	Ui::MainWindow *ui;
 };

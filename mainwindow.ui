@@ -79,10 +79,38 @@
    <widget class="QWidget" name="dockWidgetContents_2">
     <layout class="QVBoxLayout" name="verticalLayout_3">
      <item>
-      <widget class="QListWidget" name="listWidget">
+      <widget class="QTableWidget" name="tableWidgetBacktrace">
        <property name="alternatingRowColors">
         <bool>true</bool>
        </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectRows</enum>
+       </property>
+       <column>
+        <property name="text">
+         <string>address</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>subprogram</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>file name</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>line number</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>directory</string>
+        </property>
+       </column>
       </widget>
      </item>
     </layout>

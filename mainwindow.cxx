@@ -32,9 +32,10 @@ void MainWindow::backtrace()
 	cortexm0->primeUnwinder();
 	uint32_t last_pc;
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
+	int row;
 	
 	qDebug() << "backtrace:";
-	ui->listWidget->clear();
+	ui->tableWidgetBacktrace->clear();
 	while (context.size())
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
@@ -42,8 +43,12 @@ void MainWindow::backtrace()
 		qDebug() << x.filename << (signed) x.line;
 
 		qDebug() << cortexm0->programCounter() << QString::fromStdString(dwdata->nameOfDie(context.back()));
-		ui->listWidget->addItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0')) + QString("\t") + QString::fromStdString(dwdata->nameOfDie(context.back()))
-				+ QString("\t%1").arg(x.line));
+		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
+		ui->tableWidgetBacktrace->setItem(row, 0, new QTableWidgetItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0'))));
+		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(dwdata->nameOfDie(context.back()))));
+		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.filename)));
+		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
+		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.directoryname)));
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
@@ -53,7 +58,8 @@ void MainWindow::backtrace()
 			if (!context.empty())
 			{
 				qDebug() << "architecture-specific unwinding performed";
-				ui->listWidget->addItem("\tarchitecture-specific unwinding performed");
+				ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
+				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("\tarchitecture-specific unwinding performed"));
 			}
 		}
 		if (last_pc == cortexm0->programCounter())
@@ -286,4 +292,13 @@ void MainWindow::on_lineEditSforthCommand_returnPressed()
 {
 	sforth->evaluate(ui->lineEditSforthCommand->text() + '\n');
 	ui->lineEditSforthCommand->clear();
+}
+
+void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
+{
+QFile src;
+	int row(ui->tableWidgetBacktrace->currentRow());
+	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
+	ui->plainTextEdit->clear();
+	ui->plainTextEdit->appendPlainText(src.open(QFile::ReadOnly) ? src.readAll() : QString("cannot open source code file") + src.fileName());
 }
