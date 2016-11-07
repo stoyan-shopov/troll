@@ -6,6 +6,7 @@
 #include <QTime>
 #include <QProcess>
 #include <QRegExp>
+#include <QMap>
 
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
@@ -298,8 +299,9 @@ void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 {
 QFile src;
 QString t;
-QTextBlockFormat f;
+QTextBlockFormat f, dis;
 QTime x;
+int i, l;
 	int row(ui->tableWidgetBacktrace->currentRow());
 	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
 	ui->plainTextEdit->clear();
@@ -319,12 +321,27 @@ QTime x;
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
 	//c.select(QTextCursor::BlockUnderCursor);
 	f.setBackground(QBrush(Qt::cyan));
+	dis.setBackground(QBrush(Qt::lightGray));
 	c.setBlockFormat(f);
-	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
 	std::vector<struct DebugLine::lineAddress> line_addresses;
 	x.start();
 	dwdata->addressesForFile(ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), line_addresses);
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
 	qDebug() << "addresses for file count: " << line_addresses.size();
+	
+	std::map<uint32_t, uint32_t> lines;
+	for (i = 0; i < line_addresses.size(); i ++)
+		lines[line_addresses.at(i).line] ++;
+	c.movePosition(QTextCursor::Start);
+	i = 0;
+	while (!c.atEnd())
+	{
+		i ++;
+		if (lines[i])
+			c.setBlockFormat(dis);
+		c.movePosition(QTextCursor::NextBlock);
+	}
+	
+	ui->plainTextEdit->setTextCursor(c);
 }
