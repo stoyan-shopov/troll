@@ -392,6 +392,7 @@ public:
 						break;
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
+						init();
 						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "end of sequence";
 						break;
 					case DW_LNE_set_address:
@@ -505,6 +506,7 @@ public:
 						if (len != 1) DwarfUtil::panic();
 						if (prev->address <= target_address && target_address < current->address)
 							return file_number = prev->file, prev->line;
+						init();
 						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "end of sequence";
 						break;
 					case DW_LNE_set_address:
@@ -573,6 +575,10 @@ public:
 		}
 		return file_number = 0, -1;
 	}
+
+	void addressesForFile(uint32_t file_number, std::vector<struct lineAddress> & line_addresses)
+	{
+	}
 	/* returns 0 if the file is not found in the file name table of the current line number program */
 	uint32_t fileNumber(const char * filename)
 	{
@@ -604,12 +610,6 @@ public:
 		if (i == j)
 			directory_name = f.s;
 	}
-
-#if 0
-	void addressesForFile(uint32_t file_number, std::vector<struct lineAddress> & line_addresses)
-	{
-	}
-#endif
 
 	void rewind(void) { header = debug_line; }
 	bool next(void) { return (header += ((header != debug_line + debug_line_len) ? sizeof unit_length() + unit_length() : 0)) != debug_line + debug_line_len; }
