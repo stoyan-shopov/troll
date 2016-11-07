@@ -578,10 +578,148 @@ public:
 
 	void addressesForFile(uint32_t file_number, std::vector<struct lineAddress> & line_addresses)
 	{
+		if (version() != 2) DwarfUtil::panic();
+		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
+		int lbase(line_base());
+		uint32_t min_insn_length(minimum_instruction_length());
+		int len, x;
+		init();
+		struct lineAddress line_data;
+		if (DEBUG_LINE_PROGRAMS_ENABLED)
+		{
+			qDebug() << "debug line for offset" << HEX(header - debug_line);
+			qDebug() << "include directories table:";
+			union { const char * s; const uint8_t * p; } x;
+			x.s = include_directories();
+			size_t l;
+			while ((l = strlen(x.s)))
+				qDebug() << QString(x.s), x.s += l + 1;
+			qDebug() << "file names table:";
+			x.s = file_names();
+			while ((l = strlen(x.s)))
+			{
+				qDebug() << QString(x.s), x.s += l + 1;
+				/* skip directory index, file time and file size */
+				DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p);
+			}
+		}
+		while (p < header + sizeof(uint32_t) + unit_length())
+		{
+			if (! * p)
+			{
+				/* extended opcodes */
+				len = DwarfUtil::uleb128(++ p, & x);
+				p += x;
+				if (!len)
+					DwarfUtil::panic();
+				switch (* p ++)
+				{
+					default:
+						DwarfUtil::panic();
+					case DW_LNE_set_discriminator:
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
+						if (len != x + 1) DwarfUtil::panic();
+						p += x;
+						break;
+					case DW_LNE_end_sequence:
+						if (len != 1) DwarfUtil::panic();
+						if (current->file == file_number)
+						{
+							line_data.address = prev->address;
+							line_data.line = prev->line;
+							line_data.address_span = current->address;
+							line_addresses.push_back(line_data);
+						}
+						init();
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "end of sequence";
+						break;
+					case DW_LNE_set_address:
+						if (len != 5) DwarfUtil::panic();
+						current->address = * (uint32_t *) p;
+						p += sizeof current->address;
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "extended opcode, set address to" << HEX(current->address);
+						break;
+				}
+			}
+			else if (* p >= op_base)
+			{
+				/* special opcodes */
+				uint8_t x = * p ++ - op_base;
+				swap();
+				* current = * prev;
+				current->address += (x / lrange) * min_insn_length;
+				current->line += lbase + x % lrange;
+				if (prev->file == file_number)
+				{
+					line_data.address = prev->address;
+					line_data.line = prev->line;
+					line_data.address_span = current->address;
+					line_addresses.push_back(line_data);
+				}
+				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
+			}
+			/* standard opcodes */
+			else switch (* p ++)
+			{
+				default:
+					DwarfUtil::panic();
+					break;
+				case DW_LNS_copy:
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
+					swap();
+					* current = * prev;
+					if (prev->file == file_number)
+					{
+						line_data.address = prev->address;
+						line_data.line = prev->line;
+						line_data.address_span = current->address;
+						line_addresses.push_back(line_data);
+					}
+					break;
+				case DW_LNS_advance_pc:
+					current->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					p += len;
+					break;
+				case DW_LNS_advance_line:
+					current->line += DwarfUtil::sleb128(p, & len);
+					p += len;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance line to" << current->line;
+					break;
+				case DW_LNS_const_add_pc:
+					current->address += ((255 - op_base) / lrange) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					break;
+				case DW_LNS_set_file:
+					current->file = DwarfUtil::uleb128(p, & len);
+					p += len;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current->file;
+					break;
+				case DW_LNS_set_column:
+					DwarfUtil::panic();
+					break;
+				case DW_LNS_negate_stmt:
+					current->is_stmt = ! current->is_stmt;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set is_stmt to " << current->is_stmt;
+					break;
+			}
+		}
 	}
 	/* returns 0 if the file is not found in the file name table of the current line number program */
 	uint32_t fileNumber(const char * filename)
 	{
+		int i(0), len;
+		union { const char * s; const uint8_t * p; } x;
+		x.s = file_names();
+		while ((len = strlen(x.s)))
+		{
+			if (!strcmp(filename, x.s))
+				return i + 1;
+			x.s += len + 1, i ++;
+			/* skip directory index, file time and file size */
+			DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p);
+		}
+		return 0;
 		
 	}
 	void stringsForFileNumber(uint32_t file_number, const char * & file_name, const char * & directory_name)
@@ -1057,6 +1195,18 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		while (l.next())
 			l.dump();
 	}
+	void addressesForFile(const char * filename, std::vector<struct DebugLine::lineAddress> & line_addresses)
+	{
+		class DebugLine l(debug_line, debug_line_len);
+		do
+		{
+			auto x(l.fileNumber(filename));
+			if (x)
+				l.addressesForFile(x, line_addresses);
+		}
+		while (l.next());
+	}
+
 private:
 	void fillStaticObjectDetails(const struct Die & die, struct StaticObject & x)
 	{

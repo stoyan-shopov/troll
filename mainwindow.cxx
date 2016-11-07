@@ -299,6 +299,7 @@ void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 QFile src;
 QString t;
 QTextBlockFormat f;
+QTime x;
 	int row(ui->tableWidgetBacktrace->currentRow());
 	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
 	ui->plainTextEdit->clear();
@@ -321,4 +322,9 @@ QTextBlockFormat f;
 	c.setBlockFormat(f);
 	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
+	std::vector<struct DebugLine::lineAddress> line_addresses;
+	x.start();
+	dwdata->addressesForFile(ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), line_addresses);
+	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
+	qDebug() << "addresses for file count: " << line_addresses.size();
 }
