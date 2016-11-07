@@ -297,8 +297,28 @@ void MainWindow::on_lineEditSforthCommand_returnPressed()
 void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 {
 QFile src;
+QString t;
+QTextBlockFormat f;
 	int row(ui->tableWidgetBacktrace->currentRow());
 	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
 	ui->plainTextEdit->clear();
-	ui->plainTextEdit->appendPlainText(src.open(QFile::ReadOnly) ? src.readAll() : QString("cannot open source code file") + src.fileName());
+	if (src.open(QFile::ReadOnly))
+	{
+		int i(1);
+		while (!src.atEnd())
+			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine();
+	}
+	else
+		t = QString("cannot open source code file ") + src.fileName();
+	t.replace('\t', '        ');
+	ui->plainTextEdit->appendPlainText(t);
+	//return;
+	QTextCursor c(ui->plainTextEdit->textCursor());
+	c.movePosition(QTextCursor::Start);
+	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
+	//c.select(QTextCursor::BlockUnderCursor);
+	f.setBackground(QBrush(Qt::cyan));
+	c.setBlockFormat(f);
+	ui->plainTextEdit->setTextCursor(c);
+	ui->plainTextEdit->centerCursor();
 }

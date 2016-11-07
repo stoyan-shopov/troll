@@ -22,7 +22,11 @@
      <widget class="QPlainTextEdit" name="plainTextEditSforthConsole"/>
     </item>
     <item>
-     <widget class="QPlainTextEdit" name="plainTextEdit"/>
+     <widget class="QPlainTextEdit" name="plainTextEdit">
+      <property name="styleSheet">
+       <string notr="true">font: 12pt &quot;Fixedsys&quot;;</string>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>
