@@ -626,7 +626,7 @@ public:
 						if (current->file == file_number)
 						{
 							line_data.address = prev->address;
-							line_data.line = prev->line;
+							line_data.line = current->line;
 							line_data.address_span = current->address;
 							line_addresses.push_back(line_data);
 						}
