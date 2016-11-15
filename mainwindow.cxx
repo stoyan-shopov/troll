@@ -341,7 +341,7 @@ int i, l;
 	}
 	else
 		t = QString("cannot open source code file ") + src.fileName();
-	t.replace('\t', '        ');
+	t.replace('\t', "        ");
 	ui->plainTextEdit->appendPlainText(t);
 	//return;
 	QTextCursor c(ui->plainTextEdit->textCursor());
@@ -363,7 +363,8 @@ int i, l;
 		i ++;
 		if (lines[i])
 			c.setBlockFormat(dis);
-		c.movePosition(QTextCursor::NextBlock);
+		if (!c.movePosition(QTextCursor::NextBlock))
+			break;
 	}
 	c.movePosition(QTextCursor::Start);
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);

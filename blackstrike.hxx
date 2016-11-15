@@ -17,7 +17,7 @@ private slots:
 	void blackstrikeError(QSerialPort::SerialPortError error) { if (error != QSerialPort::NoError) *(int*)0=0; }
 public:
 	Blackstrike(QSerialPort * port) { this->port = port; connect(port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError))); }
-	virtual uint32_t readWord(uint32_t address) { Util::panic(); }
+	virtual uint32_t readWord(uint32_t address);
 	virtual uint32_t readRegister(uint32_t register_number);
 };
 

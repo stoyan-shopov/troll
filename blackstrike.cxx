@@ -4,7 +4,6 @@
 void Blackstrike::readAllRegisters()
 {
 QString s;
-//QRegExp rx("<<<start>>>(.*)<<<end>>>");
 QRegExp rx("<<<start>>>(.*)<<<end>>>");
 int pos;
 	registers.clear();
@@ -34,10 +33,45 @@ int pos;
 		qDebug() << "read value" << registers.back();
 		pos += rx.matchedLength();
 	}
-	Util::panic();
+}
+
+uint32_t Blackstrike::readWord(uint32_t address)
+{
+QString s;
+QRegExp rx("<<<start>>>(.*)<<<end>>>");
+bool ok;
+uint32_t x;
+	registers.clear();
+	port->write(QString("$%1 ").arg(address, 0, 16).toLocal8Bit());
+	port->write(".( <<<start>>>) t@ u. .( <<<end>>>)cr\n");
+	do
+	{
+		if (!port->waitForReadyRead(2000))
+			Util::panic();
+		s += port->readAll();
+	}
+	while (!s.contains("<<<end>>>"));
+	qDebug() << s;
+	s.replace('\n', "");
+	if (rx.indexIn(s) == -1)
+		Util::panic();
+	qDebug() << "string recognized: " << rx.cap();
+	s = rx.cap(1);
+	rx.setPattern("\\s*(\\S+)");
+	if (rx.indexIn(s) == -1)
+		Util::panic();
+	x = rx.cap(1).toUInt(& ok, 16);
+	if (!ok)
+		Util::panic();
+	qDebug() << "read value" << x;
+	return x;
 }
 
 uint32_t Blackstrike::readRegister(uint32_t register_number)
 {
-	readAllRegisters();
+	if (register_number >= registers.size())
+		readAllRegisters();
+	if (register_number >= registers.size())
+		Util::panic();
+	return registers.at(register_number);
 }
