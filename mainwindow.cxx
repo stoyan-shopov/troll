@@ -233,7 +233,7 @@ MainWindow::MainWindow(QWidget *parent) :
 		qDebug() << QString::fromStdString(dwdata->nameOfDie(context.at(1)));
 		qDebug() << QString::fromStdString(unwind_data.first);
 
-		target = new Target("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
+		target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 		sforth = new Sforth(ui->plainTextEditSforthConsole);
 		cortexm0 = new CortexM0(sforth, target);
 		cortexm0->primeUnwinder();

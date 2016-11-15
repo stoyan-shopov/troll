@@ -5,7 +5,7 @@
 #include <QTreeWidget>
 #include "libtroll.hxx"
 #include "sforth.hxx"
-#include "target.hxx"
+#include "target-corefile.hxx"
 #include "cortexm0.hxx"
 #include <QSerialPort>
 
