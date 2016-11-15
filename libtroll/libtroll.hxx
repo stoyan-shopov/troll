@@ -871,6 +871,8 @@ public:
 			while (name || form);
 		}
 	}
+	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
+	 * 		is because of the dwarf die flattenned tree representation */
 	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
 		std::vector<struct Die> dies;
@@ -903,10 +905,6 @@ public:
 			}
 			dies.push_back(die);
 			
-			/*
-			if (a.tag() == DW_TAG_compile_unit)
-				return dies;
-				*/
 			if (depth == 0)
 				return dies;
 				
@@ -957,6 +955,7 @@ public:
 		}
 		return false;
 	}
+	/*! \todo	!!! this is *gross* inefficient - read and process only immediate die children instead !!! */
 	std::vector<struct Die> executionContextForAddress(uint32_t address)
 	{
 		std::vector<struct Die> context;
