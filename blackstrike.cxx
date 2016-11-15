@@ -43,7 +43,7 @@ bool ok;
 uint32_t x;
 	registers.clear();
 	port->write(QString("$%1 ").arg(address, 0, 16).toLocal8Bit());
-	port->write(".( <<<start>>>) t@ u. .( <<<end>>>)cr\n");
+	port->write("base @ >r hex .( <<<start>>>) t@ u. .( <<<end>>>) r> base ! cr\n");
 	do
 	{
 		if (!port->waitForReadyRead(2000))
