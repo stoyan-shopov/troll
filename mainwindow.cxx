@@ -309,10 +309,11 @@ class Target * t;
 		{
 			blackstrike_port.setPortName(ports.at(i).portName());
 			t = new Blackstrike(& blackstrike_port);
-			if (blackstrike_port.open(QSerialPort::ReadOnly))
+			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
 				QMessageBox::information(0, "blackstrike port opened", "opened blackstrike port " + blackstrike_port.portName());
 				cortexm0->setTargetController(target = t);
+				backtrace();
 				return;
 			}
 			else
