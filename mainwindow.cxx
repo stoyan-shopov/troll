@@ -317,13 +317,7 @@ int i, l;
 	ui->plainTextEdit->appendPlainText(t);
 	//return;
 	QTextCursor c(ui->plainTextEdit->textCursor());
-	c.movePosition(QTextCursor::Start);
-	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
-	//c.select(QTextCursor::BlockUnderCursor);
-	f.setBackground(QBrush(Qt::cyan));
-	dis.setBackground(QBrush(Qt::lightGray));
-	c.setBlockFormat(f);
-	ui->plainTextEdit->centerCursor();
+
 	std::vector<struct DebugLine::lineAddress> line_addresses;
 	x.start();
 	dwdata->addressesForFile(ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), line_addresses);
@@ -334,6 +328,7 @@ int i, l;
 	for (i = 0; i < line_addresses.size(); i ++)
 		lines[line_addresses.at(i).line] ++;
 	c.movePosition(QTextCursor::Start);
+	dis.setBackground(QBrush(Qt::lightGray));
 	i = 0;
 	while (!c.atEnd())
 	{
@@ -342,6 +337,11 @@ int i, l;
 			c.setBlockFormat(dis);
 		c.movePosition(QTextCursor::NextBlock);
 	}
-	
+	c.movePosition(QTextCursor::Start);
+	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
+	//c.select(QTextCursor::BlockUnderCursor);
+	f.setBackground(QBrush(Qt::cyan));
+	c.setBlockFormat(f);
 	ui->plainTextEdit->setTextCursor(c);
+	ui->plainTextEdit->centerCursor();
 }
