@@ -6,6 +6,7 @@
 #include "libtroll.hxx"
 #include "sforth.hxx"
 #include "target-corefile.hxx"
+#include "blackstrike.hxx"
 #include "cortexm0.hxx"
 #include <QSerialPort>
 

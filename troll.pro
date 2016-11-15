@@ -23,7 +23,8 @@ SOURCES +=\
     sforth.cxx \
     cortexm0.cxx \
     cortexm0-sfext.c \
-    target-corefile.cxx
+    target-corefile.cxx \
+    blackstrike.cxx
 
 HEADERS  += mainwindow.hxx \
     libtroll/dwarf.h \
@@ -32,7 +33,8 @@ HEADERS  += mainwindow.hxx \
     cortexm0.hxx \
     util.hxx \
     target.hxx \
-    target-corefile.hxx
+    target-corefile.hxx \
+    blackstrike.hxx
 
 FORMS    += mainwindow.ui
 

@@ -34,6 +34,11 @@ CortexM0::CortexM0(Sforth * sforth_engine, Target *target_controller)
 	sforth->evaluate(f.readAll() + '\n');
 }
 
+void CortexM0::setTargetController(Target *target_controller)
+{
+	target = target_controller;
+}
+
 void CortexM0::primeUnwinder()
 {
 int i;

@@ -302,16 +302,21 @@ void MainWindow::blackstrikeConnect(QAction *a)
 {
 auto ports = QSerialPortInfo::availablePorts();
 int i;
+class Target * t;
 	for (i = 0; i < ports.size(); i ++)
 	{
 		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == 0x1d50)
 		{
 			blackstrike_port.setPortName(ports.at(i).portName());
+			t = new Blackstrike(& blackstrike_port);
 			if (blackstrike_port.open(QSerialPort::ReadOnly))
 			{
 				QMessageBox::information(0, "blackstrike port opened", "opened blackstrike port " + blackstrike_port.portName());
+				cortexm0->setTargetController(target = t);
 				return;
 			}
+			else
+				delete t;
 		}
 	}
 	QMessageBox::warning(0, "blackstrike port not found", "cannot find blackstrike gdbserver port ");

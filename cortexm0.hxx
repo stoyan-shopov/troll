@@ -12,6 +12,7 @@ private:
 	void readRegisters(void);
 public:
 	CortexM0(Sforth * sforth_engine, class Target * target_controller);
+	void setTargetController(class Target * target_controller);
 	void primeUnwinder(void);
 	bool unwindFrame(const QString & unwind_code, uint32_t start_address, uint32_t unwind_address);
 	std::vector<uint32_t> unwoundRegisters(void) { return registers; }
