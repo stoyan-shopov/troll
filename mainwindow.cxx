@@ -37,7 +37,8 @@ void MainWindow::backtrace()
 	int row;
 	
 	qDebug() << "backtrace:";
-	ui->tableWidgetBacktrace->clear();
+	while (ui->tableWidgetBacktrace->rowCount())
+		ui->tableWidgetBacktrace->removeRow(0);
 	while (context.size())
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
