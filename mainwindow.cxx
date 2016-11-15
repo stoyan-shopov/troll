@@ -7,6 +7,7 @@
 #include <QProcess>
 #include <QRegExp>
 #include <QMap>
+#include <QSerialPortInfo>
 
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
@@ -282,6 +283,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "static object lists built in" << t.elapsed() << "milliseconds";
 
 	qDebug() << "debugger startup time:" << startup_time.elapsed() << "milliseconds";
+
+	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
 }
 
 MainWindow::~MainWindow()
@@ -293,6 +296,25 @@ void MainWindow::on_lineEditSforthCommand_returnPressed()
 {
 	sforth->evaluate(ui->lineEditSforthCommand->text() + '\n');
 	ui->lineEditSforthCommand->clear();
+}
+
+void MainWindow::blackstrikeConnect(QAction *a)
+{
+auto ports = QSerialPortInfo::availablePorts();
+int i;
+	for (i = 0; i < ports.size(); i ++)
+	{
+		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == 0x1d50)
+		{
+			blackstrike_port.setPortName(ports.at(i).portName());
+			if (blackstrike_port.open(QSerialPort::ReadOnly))
+			{
+				QMessageBox::information(0, "blackstrike port opened", "opened blackstrike port " + blackstrike_port.portName());
+				return;
+			}
+		}
+	}
+	QMessageBox::warning(0, "blackstrike port not found", "cannot find blackstrike gdbserver port ");
 }
 
 void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
@@ -344,4 +366,10 @@ int i, l;
 	c.setBlockFormat(f);
 	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
+}
+
+void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
+{
+	if (error != QSerialPort::NoError)
+		Util::panic();
 }

@@ -7,6 +7,7 @@
 #include "sforth.hxx"
 #include "target.hxx"
 #include "cortexm0.hxx"
+#include <QSerialPort>
 
 #define MAIN_APS	1
 
@@ -54,11 +55,14 @@ public:
 	
 private slots:
 	void on_lineEditSforthCommand_returnPressed();
+	void blackstrikeConnect(QAction * a);
 	
 	void on_tableWidgetBacktrace_itemSelectionChanged();
+	void blackstrikeError(QSerialPort::SerialPortError error);
 	
 private:
 	Ui::MainWindow *ui;
+	QSerialPort	blackstrike_port;
 };
 
 #endif // MAINWINDOW_HXX
