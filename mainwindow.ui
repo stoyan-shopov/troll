@@ -51,6 +51,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionBlackstrikeConnect"/>
+   <addaction name="actionSingle_step"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -216,27 +217,18 @@
     <string>connect to blackstrike</string>
    </property>
   </action>
+  <action name="actionSingle_step">
+   <property name="text">
+    <string>single step</string>
+   </property>
+   <property name="toolTip">
+    <string>single step the target</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources/>
- <connections>
-  <connection>
-   <sender>mainToolBar</sender>
-   <signal>actionTriggered(QAction*)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>blackstrikeConnect(QAction*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>45</x>
-     <y>34</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>43</x>
-     <y>55</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
  <slots>
   <slot>blackstrikeConnect(QAction*)</slot>
  </slots>

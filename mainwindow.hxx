@@ -56,10 +56,12 @@ public:
 	
 private slots:
 	void on_lineEditSforthCommand_returnPressed();
-	void blackstrikeConnect(QAction * a);
-	
 	void on_tableWidgetBacktrace_itemSelectionChanged();
 	void blackstrikeError(QSerialPort::SerialPortError error);
+	
+	void on_actionSingle_step_triggered();
+	
+	void on_actionBlackstrikeConnect_triggered();
 	
 protected:
 	void closeEvent(QCloseEvent * e);

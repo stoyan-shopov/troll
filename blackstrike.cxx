@@ -42,14 +42,15 @@ QString s;
 QRegExp rx("<<<start>>>(.*)<<<end>>>");
 bool ok;
 uint32_t x;
-	registers.clear();
+
 	port->write(QString("$%1 ").arg(address, 0, 16).toLocal8Bit());
 	port->write("base @ >r hex .( <<<start>>>) t@ u. .( <<<end>>>) r> base ! cr\n");
 	do
 	{
-		if (!port->waitForReadyRead(2000))
+		if (port->bytesAvailable())
+			s += port->readAll();
+		else if (!port->waitForReadyRead(2000))
 			Util::panic();
-		s += port->readAll();
 	}
 	while (!s.contains("<<<end>>>"));
 	qDebug() << s;
@@ -75,4 +76,37 @@ uint32_t Blackstrike::readRegister(uint32_t register_number)
 	if (register_number >= registers.size())
 		Util::panic();
 	return registers.at(register_number);
+}
+
+uint32_t Blackstrike::singleStep(void)
+{
+QString s;
+QRegExp rx("<<<start>>>(.*)<<<end>>>");
+bool ok;
+uint32_t x;
+
+	registers.clear();
+	port->write("base @ >r hex .( <<<start>>>) step u. .( <<<end>>>) r> base ! cr\n");
+	do
+	{
+		if (port->bytesAvailable())
+			s += port->readAll();
+		else if (!port->waitForReadyRead(2000))
+			Util::panic();
+	}
+	while (!s.contains("<<<end>>>"));
+
+	s.replace('\n', "");
+	if (rx.indexIn(s) == -1)
+		Util::panic();
+	qDebug() << "string recognized: " << rx.cap();
+	s = rx.cap(1);
+	rx.setPattern("\\s*(\\S+)");
+	if (rx.indexIn(s) == -1)
+		Util::panic();
+	x = rx.cap(1).toUInt(& ok, 16);
+	if (!ok)
+		Util::panic();
+	qDebug() << "target halt reason: " << x;
+	return x;
 }

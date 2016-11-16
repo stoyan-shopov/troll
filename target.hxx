@@ -10,6 +10,7 @@ class Target : public QObject
 public:
 	virtual uint32_t readWord(uint32_t address) = 0;
 	virtual uint32_t readRegister(uint32_t register_number) = 0;
+	virtual uint32_t singleStep(void) = 0;
 };
 
 #endif // TARGET_H

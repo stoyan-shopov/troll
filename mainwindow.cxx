@@ -314,31 +314,6 @@ void MainWindow::on_lineEditSforthCommand_returnPressed()
 	ui->lineEditSforthCommand->clear();
 }
 
-void MainWindow::blackstrikeConnect(QAction *a)
-{
-auto ports = QSerialPortInfo::availablePorts();
-int i;
-class Target * t;
-	for (i = 0; i < ports.size(); i ++)
-	{
-		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == 0x1d50)
-		{
-			blackstrike_port.setPortName(ports.at(i).portName());
-			t = new Blackstrike(& blackstrike_port);
-			if (blackstrike_port.open(QSerialPort::ReadWrite))
-			{
-				QMessageBox::information(0, "blackstrike port opened", "opened blackstrike port " + blackstrike_port.portName());
-				cortexm0->setTargetController(target = t);
-				backtrace();
-				return;
-			}
-			else
-				delete t;
-		}
-	}
-	QMessageBox::warning(0, "blackstrike port not found", "cannot find blackstrike gdbserver port ");
-}
-
 void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 {
 QFile src;
@@ -405,4 +380,35 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
 	s.setValue("main-splitter/state", ui->splitterMain->saveState());
 	QMainWindow::closeEvent(e);
+}
+
+void MainWindow::on_actionSingle_step_triggered()
+{
+	target->singleStep();
+	backtrace();
+}
+
+void MainWindow::on_actionBlackstrikeConnect_triggered()
+{
+auto ports = QSerialPortInfo::availablePorts();
+int i;
+class Target * t;
+	for (i = 0; i < ports.size(); i ++)
+	{
+		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == 0x1d50)
+		{
+			blackstrike_port.setPortName(ports.at(i).portName());
+			t = new Blackstrike(& blackstrike_port);
+			if (blackstrike_port.open(QSerialPort::ReadWrite))
+			{
+				QMessageBox::information(0, "blackstrike port opened", "opened blackstrike port " + blackstrike_port.portName());
+				cortexm0->setTargetController(target = t);
+				backtrace();
+				return;
+			}
+			else
+				delete t;
+		}
+	}
+	QMessageBox::warning(0, "blackstrike port not found", "cannot find blackstrike gdbserver port ");
 }
