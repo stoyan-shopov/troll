@@ -11,9 +11,10 @@ int pos;
 	port->write(".( <<<start>>>)cr ?regs .( <<<end>>>)cr\n");
 	do
 	{
-		if (!port->waitForReadyRead(2000))
+		if (port->bytesAvailable())
+			s += port->readAll();
+		else if (!port->waitForReadyRead(2000))
 			Util::panic();
-		s += port->readAll();
 	}
 	while (!s.contains("<<<end>>>"));
 	qDebug() << s;

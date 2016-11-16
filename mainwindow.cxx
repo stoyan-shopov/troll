@@ -8,6 +8,7 @@
 #include <QRegExp>
 #include <QMap>
 #include <QSerialPortInfo>
+#include <QSettings>
 
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
@@ -37,8 +38,9 @@ void MainWindow::backtrace()
 	int row;
 	
 	qDebug() << "backtrace:";
-	while (ui->tableWidgetBacktrace->rowCount())
-		ui->tableWidgetBacktrace->removeRow(0);
+	ui->tableWidgetBacktrace->blockSignals(true);
+	ui->tableWidgetBacktrace->setRowCount(0);
+	ui->tableWidgetBacktrace->blockSignals(false);
 	while (context.size())
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
@@ -70,6 +72,7 @@ void MainWindow::backtrace()
 		last_pc = cortexm0->programCounter();
 	}
 	qDebug() << "registers: " << cortexm0->unwoundRegisters();
+	ui->tableWidgetBacktrace->selectRow(0);
 }
 
 bool MainWindow::readElfSections(void)
@@ -151,12 +154,24 @@ MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
 {
+	QCoreApplication::setOrganizationName("shopov instruments");
+	QCoreApplication::setApplicationName("troll");
+	QSettings s("troll.rc", QSettings::IniFormat);
+
+	setStyleSheet("QSplitter::handle:horizontal { width: 2px; }  /*QSplitter::handle:vertical { height: 20px; }*/ "
+	              "QSplitter::handle { border: 1px solid blue; background-color: white; } "
+	              );
+	
 	QTime startup_time;
 	elf_filename = "X:/aps-electronics.xs236-gcc/CSM05/mcu/main_aps.elf";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	startup_time.start();
 	readElfSections();
 	ui->setupUi(this);
+	restoreGeometry(s.value("window-geometry").toByteArray());
+	restoreState(s.value("window-state").toByteArray());
+	ui->splitterMain->restoreGeometry(s.value("main-splitter/geometry").toByteArray());
+	ui->splitterMain->restoreState(s.value("main-splitter/state").toByteArray());
 #if MAIN_APS
 	QFile debug_file(elf_filename);
 #else
@@ -380,4 +395,14 @@ void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
 {
 	if (error != QSerialPort::NoError)
 		Util::panic();
+}
+
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+QSettings s("troll.rc", QSettings::IniFormat);
+	s.setValue("window-geometry", saveGeometry());
+	s.setValue("window-state", saveState());
+	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
+	s.setValue("main-splitter/state", ui->splitterMain->saveState());
+	QMainWindow::closeEvent(e);
 }

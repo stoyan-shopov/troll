@@ -61,6 +61,9 @@ private slots:
 	void on_tableWidgetBacktrace_itemSelectionChanged();
 	void blackstrikeError(QSerialPort::SerialPortError error);
 	
+protected:
+	void closeEvent(QCloseEvent * e);
+	
 private:
 	Ui::MainWindow *ui;
 	QSerialPort	blackstrike_port;

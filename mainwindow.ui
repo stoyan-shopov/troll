@@ -19,13 +19,16 @@
      <widget class="QLineEdit" name="lineEditSforthCommand"/>
     </item>
     <item>
-     <widget class="QPlainTextEdit" name="plainTextEditSforthConsole"/>
-    </item>
-    <item>
-     <widget class="QPlainTextEdit" name="plainTextEdit">
-      <property name="styleSheet">
-       <string notr="true">font: 12pt &quot;Fixedsys&quot;;</string>
+     <widget class="QSplitter" name="splitterMain">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
       </property>
+      <widget class="QPlainTextEdit" name="plainTextEditSforthConsole"/>
+      <widget class="QPlainTextEdit" name="plainTextEdit">
+       <property name="styleSheet">
+        <string notr="true">font: 12pt &quot;Fixedsys&quot;;</string>
+       </property>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -88,6 +91,9 @@
       <widget class="QTableWidget" name="tableWidgetBacktrace">
        <property name="alternatingRowColors">
         <bool>true</bool>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SingleSelection</enum>
        </property>
        <property name="selectionBehavior">
         <enum>QAbstractItemView::SelectRows</enum>
