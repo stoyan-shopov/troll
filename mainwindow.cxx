@@ -320,21 +320,24 @@ QFile src;
 QString t;
 QTextBlockFormat f, dis;
 QTime x;
-int i, l;
+int i, l, cursor_position_for_line(0);
 	int row(ui->tableWidgetBacktrace->currentRow());
 	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
 	ui->plainTextEdit->clear();
 	if (src.open(QFile::ReadOnly))
 	{
 		int i(1);
+		l = ui->tableWidgetBacktrace->item(row, 3)->text().toInt();
 		while (!src.atEnd())
-			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine();
+		{
+			if (i == l)
+				cursor_position_for_line = t.length() - l + 1;
+			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ");
+		}
 	}
 	else
 		t = QString("cannot open source code file ") + src.fileName();
-	t.replace('\t', "        ");
 	ui->plainTextEdit->appendPlainText(t);
-	//return;
 	QTextCursor c(ui->plainTextEdit->textCursor());
 
 	std::vector<struct DebugLine::lineAddress> line_addresses;
@@ -347,6 +350,7 @@ int i, l;
 	std::map<uint32_t, uint32_t> lines;
 	for (i = 0; i < line_addresses.size(); i ++)
 		lines[line_addresses.at(i).line] ++;
+#if 0
 	c.movePosition(QTextCursor::Start);
 	dis.setBackground(QBrush(Qt::lightGray));
 	i = 0;
@@ -358,9 +362,14 @@ int i, l;
 		if (!c.movePosition(QTextCursor::NextBlock))
 			break;
 	}
+#endif
 	c.movePosition(QTextCursor::Start);
+#if 0
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
-	//c.select(QTextCursor::BlockUnderCursor);
+	qDebug() << "line" << l << "computed position" << cursor_position_for_line << "real position" << c.position() << "delta" << cursor_position_for_line - c.position();
+#else
+	c.setPosition(cursor_position_for_line);
+#endif
 	f.setBackground(QBrush(Qt::cyan));
 	c.setBlockFormat(f);
 	ui->plainTextEdit->setTextCursor(c);
