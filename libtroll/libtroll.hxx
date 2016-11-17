@@ -407,11 +407,11 @@ public:
 			{
 				/* special opcodes */
 				uint8_t x = * p ++ - op_base;
-				swap();
-				* current = * prev;
 				current->address += (x / lrange) * min_insn_length;
 				current->line += lbase + x % lrange;
 				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
+				swap();
+				* current = * prev;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -521,13 +521,13 @@ public:
 			{
 				/* special opcodes */
 				uint8_t x = * p ++ - op_base;
-				swap();
-				* current = * prev;
 				current->address += (x / lrange) * min_insn_length;
 				current->line += lbase + x % lrange;
 				if (prev->address <= target_address && target_address < current->address)
 					return file_number = prev->file, prev->line;
 				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
+				swap();
+				* current = * prev;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -540,10 +540,10 @@ public:
 					if (xaddr <= target_address && target_address < address)
 						DwarfUtil::panic();*/
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
-					swap();
-					* current = * prev;
 					if (prev->address <= target_address && target_address < current->address)
 						return file_number = prev->file, prev->line;
+					swap();
+					* current = * prev;
 					break;
 				case DW_LNS_advance_pc:
 					current->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
@@ -645,8 +645,6 @@ public:
 			{
 				/* special opcodes */
 				uint8_t x = * p ++ - op_base;
-				swap();
-				* current = * prev;
 				current->address += (x / lrange) * min_insn_length;
 				current->line += lbase + x % lrange;
 				if (prev->file == file_number)
@@ -657,6 +655,8 @@ public:
 					line_addresses.push_back(line_data);
 				}
 				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
+				swap();
+				* current = * prev;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -666,8 +666,6 @@ public:
 					break;
 				case DW_LNS_copy:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
-					swap();
-					* current = * prev;
 					if (prev->file == file_number)
 					{
 						line_data.address = prev->address;
@@ -675,6 +673,8 @@ public:
 						line_data.address_span = current->address;
 						line_addresses.push_back(line_data);
 					}
+					swap();
+					* current = * prev;
 					break;
 				case DW_LNS_advance_pc:
 					current->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
