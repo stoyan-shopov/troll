@@ -979,6 +979,21 @@ public:
 				i ++;
 		return context;
 	}
+	std::vector<struct Die> localDataObjectsForContext(const std::vector<struct Die> & context)
+	{
+	std::vector<struct Die> locals;
+	int i, j, tag;
+		for (i = context.size() - 1; i >= 0; i --)
+			if ((tag = context.at(i).tag == DW_TAG_subprogram) || tag == DW_TAG_lexical_block)
+				for (j = 0; j < context.at(i).children.size(); j ++)
+					switch (context.at(i).children.at(j).tag)
+					{
+						case DW_TAG_variable:
+						case DW_TAG_formal_parameter:
+							locals.push_back(context.at(i).children.at(j));
+					}
+		return locals;
+	}
 	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, const struct Die compilation_unit_die)
 	{
 		SourceCodeCoordinates s;

@@ -366,6 +366,13 @@ int i, l;
 	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
+	x.restart();
+	ui->listWidgetLocalVariables->clear();
+	auto locals = dwdata->localDataObjectsForContext(dwdata->executionContextForAddress(
+				ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16)
+			));
+	for (i = 0; i < locals.size(); ui->listWidgetLocalVariables->addItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i ++)))));
+	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
 }
 
 void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
