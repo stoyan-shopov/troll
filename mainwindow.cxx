@@ -342,6 +342,7 @@ int i, l;
 	dwdata->addressesForFile(ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), line_addresses);
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
 	qDebug() << "addresses for file count: " << line_addresses.size();
+	x.restart();
 	
 	std::map<uint32_t, uint32_t> lines;
 	for (i = 0; i < line_addresses.size(); i ++)
@@ -364,6 +365,7 @@ int i, l;
 	c.setBlockFormat(f);
 	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
+	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 }
 
 void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
