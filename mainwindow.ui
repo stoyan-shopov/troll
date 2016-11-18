@@ -144,6 +144,9 @@
        <property name="selectionBehavior">
         <enum>QAbstractItemView::SelectRows</enum>
        </property>
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
        <column>
         <property name="text">
          <string>address</string>
@@ -208,6 +211,9 @@
        <property name="alternatingRowColors">
         <bool>true</bool>
        </property>
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
        <column>
         <property name="text">
          <string>name</string>
@@ -319,9 +325,17 @@
        <property name="selectionBehavior">
         <enum>QAbstractItemView::SelectRows</enum>
        </property>
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
        <column>
         <property name="text">
          <string>name</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>byte size</string>
         </property>
        </column>
        <column>
