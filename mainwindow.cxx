@@ -378,11 +378,12 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	ui->plainTextEdit->centerCursor();
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	x.restart();
-	ui->listWidgetLocalVariables->clear();
+	ui->tableWidgetLocalVariables->setRowCount(0);
 	auto context = dwdata->executionContextForAddress(pc);
 	auto locals = dwdata->localDataObjectsForContext(context);
-	for (i = 0; i < locals.size(); ui->listWidgetLocalVariables->addItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i ++))
-			+ dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
+	for (i = 0; i < locals.size(); ui->tableWidgetLocalVariables->insertRow(row = ui->tableWidgetLocalVariables->rowCount()),
+			ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i))))),
+			ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i ++), context.at(0), pc)))));
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
 }
 

@@ -336,11 +336,11 @@ struct DwarfExpression
 			switch (* dwarf_expression ++)
 			{
 				case DW_OP_addr:
-					x << * ((uint32_t *) dwarf_expression ++) << "DW_OP_addr ";
+					x << * ((uint32_t *) dwarf_expression ++) << " DW_OP_addr ";
 					expression_len -= sizeof(uint32_t);
 					break;
 				case DW_OP_fbreg:
-					x << DwarfUtil::sleb128(dwarf_expression, & len) << "DW_OP_fbreg ";
+					x << DwarfUtil::sleb128(dwarf_expression, & len) << " DW_OP_fbreg ";
 					dwarf_expression += len, expression_len -= len;
 					break;
 			{
@@ -387,7 +387,7 @@ struct DwarfExpression
 				case DW_OP_GNU_entry_value:
 				{
 					int i(DwarfUtil::uleb128(dwarf_expression, & len));
-					x << "DW_OP_GNU_entry_value " << sforthCode(dwarf_expression += len, i) << " ";
+					x << "DW_OP_GNU_entry_value " << sforthCode(dwarf_expression += len, i) << " DW_OP_GNU_entry_value-end ";
 					dwarf_expression += i;
 					expression_len -= len + i;
 					break;
