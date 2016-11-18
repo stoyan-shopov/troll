@@ -378,8 +378,47 @@ struct DwarfExpression
 				case DW_OP_reg30: register_number = 30; if (0)
 				case DW_OP_reg31: register_number = 31; if (0)
 				case DW_OP_regx: register_number = DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
-					x << register_number << " DW_OP_regx ";																																	
-					break;																																	
+					x << register_number << " DW_OP_regx ";
+					break;
+			}
+			{
+				int register_number;
+				case DW_OP_breg0: register_number = 0; if (0)
+				case DW_OP_breg1: register_number = 1; if (0)
+				case DW_OP_breg2: register_number = 2; if (0)
+				case DW_OP_breg3: register_number = 3; if (0)
+				case DW_OP_breg4: register_number = 4; if (0)
+				case DW_OP_breg5: register_number = 5; if (0)
+				case DW_OP_breg6: register_number = 6; if (0)
+				case DW_OP_breg7: register_number = 7; if (0)
+				case DW_OP_breg8: register_number = 8; if (0)
+				case DW_OP_breg9: register_number = 9; if (0)
+				case DW_OP_breg10: register_number = 10; if (0)
+				case DW_OP_breg11: register_number = 11; if (0)
+				case DW_OP_breg12: register_number = 12; if (0)
+				case DW_OP_breg13: register_number = 13; if (0)
+				case DW_OP_breg14: register_number = 14; if (0)
+				case DW_OP_breg15: register_number = 15; if (0)
+				case DW_OP_breg16: register_number = 16; if (0)
+				case DW_OP_breg17: register_number = 17; if (0)
+				case DW_OP_breg18: register_number = 18; if (0)
+				case DW_OP_breg19: register_number = 19; if (0)
+				case DW_OP_breg20: register_number = 20; if (0)
+				case DW_OP_breg21: register_number = 21; if (0)
+				case DW_OP_breg22: register_number = 22; if (0)
+				case DW_OP_breg23: register_number = 23; if (0)
+				case DW_OP_breg24: register_number = 24; if (0)
+				case DW_OP_breg25: register_number = 25; if (0)
+				case DW_OP_breg26: register_number = 26; if (0)
+				case DW_OP_breg27: register_number = 27; if (0)
+				case DW_OP_breg28: register_number = 28; if (0)
+				case DW_OP_breg29: register_number = 29; if (0)
+				case DW_OP_breg30: register_number = 30; if (0)
+				case DW_OP_breg31: register_number = 31; if (0)
+				case DW_OP_bregx: register_number = DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					x << register_number << " " << DwarfUtil::sleb128(dwarf_expression, & len) << " DW_OP_bregx ";
+					dwarf_expression += len, expression_len -= len;
+					break;
 			}
 				case DW_OP_stack_value:
 					x << "DW_OP_stack_value ";
