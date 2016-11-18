@@ -25,6 +25,9 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 	if (t.first)
 	{
                 int i;
+		/*! \todo	this is braindamaged; whoever passes the abbreviation cache to this function
+		 *		should already have information about the containing compilation unit - maybe
+		 *		just pass that as an additional parameter */
 		uint32_t cu_offset(compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset));
                 i = readType(readTypeOffset(t.first, t.second, cu_offset), abbreviations, type_cache);
                 type_cache.at(index).next = i;

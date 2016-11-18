@@ -321,7 +321,9 @@ QString t;
 QTextBlockFormat f, dis;
 QTime x;
 int i, l, cursor_position_for_line(0);
-	int row(ui->tableWidgetBacktrace->currentRow());
+int row(ui->tableWidgetBacktrace->currentRow());
+uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
+
 	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
 	ui->plainTextEdit->clear();
 	if (src.open(QFile::ReadOnly))
@@ -377,10 +379,10 @@ int i, l, cursor_position_for_line(0);
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	x.restart();
 	ui->listWidgetLocalVariables->clear();
-	auto locals = dwdata->localDataObjectsForContext(dwdata->executionContextForAddress(
-				ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16)
-			));
-	for (i = 0; i < locals.size(); ui->listWidgetLocalVariables->addItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i ++)))));
+	auto context = dwdata->executionContextForAddress(pc);
+	auto locals = dwdata->localDataObjectsForContext(context);
+	for (i = 0; i < locals.size(); ui->listWidgetLocalVariables->addItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i ++))
+			+ dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
 }
 

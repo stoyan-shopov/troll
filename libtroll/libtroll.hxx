@@ -307,6 +307,99 @@ struct SourceCodeCoordinates
 	SourceCodeCoordinates(void) { filename = "<<< unknown filename >>>", directoryname = 0, address = line = -1; }
 };
 
+struct LocationList
+{
+	static const uint8_t * locationExpressionForAddress(const uint8_t * debug_loc, uint32_t debug_loc_offset,
+		uint32_t compilation_unit_base_address, uint32_t address_for_location)
+	{
+		const uint32_t * p((const uint32_t *)(debug_loc + debug_loc_offset));
+		while (* p || p[1])
+		{
+			if (* p == 0xffffffff)
+				compilation_unit_base_address = 1[p], p += 2;
+			else if (p[0] + compilation_unit_base_address <= address_for_location && address_for_location < p[1] + compilation_unit_base_address)
+				return (const uint8_t *) (p + 2);
+			p += 2;
+			p = (const uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2);
+		}
+		return 0;
+	}
+};
+struct DwarfExpression
+{
+	static std::string sforthCode(const uint8_t * dwarf_expression, uint32_t expression_len)
+	{
+		std::stringstream x;
+		int len;
+		while (expression_len --)
+		{
+			switch (* dwarf_expression ++)
+			{
+				case DW_OP_addr:
+					x << * ((uint32_t *) dwarf_expression ++) << "DW_OP_addr ";
+					expression_len -= sizeof(uint32_t);
+					break;
+				case DW_OP_fbreg:
+					x << DwarfUtil::sleb128(dwarf_expression, & len) << "DW_OP_fbreg ";
+					dwarf_expression += len, expression_len -= len;
+					break;
+			{
+				int register_number;
+				case DW_OP_reg0: register_number = 0; if (0)
+				case DW_OP_reg1: register_number = 1; if (0)
+				case DW_OP_reg2: register_number = 2; if (0)
+				case DW_OP_reg3: register_number = 3; if (0)
+				case DW_OP_reg4: register_number = 4; if (0)
+				case DW_OP_reg5: register_number = 5; if (0)
+				case DW_OP_reg6: register_number = 6; if (0)
+				case DW_OP_reg7: register_number = 7; if (0)
+				case DW_OP_reg8: register_number = 8; if (0)
+				case DW_OP_reg9: register_number = 9; if (0)
+				case DW_OP_reg10: register_number = 10; if (0)
+				case DW_OP_reg11: register_number = 11; if (0)
+				case DW_OP_reg12: register_number = 12; if (0)
+				case DW_OP_reg13: register_number = 13; if (0)
+				case DW_OP_reg14: register_number = 14; if (0)
+				case DW_OP_reg15: register_number = 15; if (0)
+				case DW_OP_reg16: register_number = 16; if (0)
+				case DW_OP_reg17: register_number = 17; if (0)
+				case DW_OP_reg18: register_number = 18; if (0)
+				case DW_OP_reg19: register_number = 19; if (0)
+				case DW_OP_reg20: register_number = 20; if (0)
+				case DW_OP_reg21: register_number = 21; if (0)
+				case DW_OP_reg22: register_number = 22; if (0)
+				case DW_OP_reg23: register_number = 23; if (0)
+				case DW_OP_reg24: register_number = 24; if (0)
+				case DW_OP_reg25: register_number = 25; if (0)
+				case DW_OP_reg26: register_number = 26; if (0)
+				case DW_OP_reg27: register_number = 27; if (0)
+				case DW_OP_reg28: register_number = 28; if (0)
+				case DW_OP_reg29: register_number = 29; if (0)
+				case DW_OP_reg30: register_number = 30; if (0)
+				case DW_OP_reg31: register_number = 31; if (0)
+				case DW_OP_regx: register_number = DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					x << register_number << " DW_OP_regx ";																																	
+					break;																																	
+			}
+				case DW_OP_stack_value:
+					x << "DW_OP_stack_value ";
+					break;
+				case DW_OP_GNU_entry_value:
+				{
+					int i(DwarfUtil::uleb128(dwarf_expression, & len));
+					x << "DW_OP_GNU_entry_value " << sforthCode(dwarf_expression += len, i) << " ";
+					dwarf_expression += i;
+					expression_len -= len + i;
+					break;
+				}
+				default:
+					DwarfUtil::panic();
+			}
+		}
+		return x.str();
+	}
+};
+
 class DebugLine
 {
 private:
@@ -1292,6 +1385,31 @@ public:
 			auto dies = debug_tree_of_die(die_offset, abbreviations);
 			reapStaticObjects(data_objects, subprograms, dies.at(0), abbreviations);
 		}
+	}
+	std::string locationSforthCode(const struct Die & die, const struct Die & compilation_unit_die, uint32_t address_for_location)
+	{
+		Abbreviation a(debug_abbrev + die.abbrev_offset);
+		auto x(a.dataForAttribute(DW_AT_location, debug_info + die.offset));
+		if (!x.first)
+			return "";
+		qDebug() << "processing die offset" << die.offset;
+		switch (x.first)
+		{
+			case DW_FORM_exprloc:
+			{
+				int len(DwarfUtil::uleb128x(x.second));
+				return DwarfExpression::sforthCode(x.second, len);
+			}
+			case DW_FORM_sec_offset:
+			qDebug() << "location list offset:" << * (uint32_t *) x.second;
+				auto l = LocationList::locationExpressionForAddress(debug_loc, * (uint32_t *) x.second,
+					compilation_unit_base_address(compilation_unit_die), address_for_location);
+				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l) : "";
+				
+				break;
+		}
+
+		DwarfUtil::panic();
 	}
 };
 
