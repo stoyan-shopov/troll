@@ -16,7 +16,7 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		*/
 	if (recursion_detector.operator [](saved_die_offset))
 	{
-		qDebug() << "!!! type chain recursion detected";
+		if (TYPE_DEBUG_ENABLED) qDebug() << "!!! type chain recursion detected";
 		return recursion_detector.operator [](saved_die_offset);
 	}
 	if (die_offset == 76)
@@ -58,6 +58,6 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
                         x = y;
                 }
 	}
-	qDebug() << "done" << QString("$%1").arg(saved_die_offset, 0, 16);
+	if (TYPE_DEBUG_ENABLED) qDebug() << "done" << QString("$%1").arg(saved_die_offset, 0, 16);
 	return index;
 }
