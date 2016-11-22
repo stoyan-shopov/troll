@@ -379,11 +379,19 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	x.restart();
 	ui->tableWidgetLocalVariables->setRowCount(0);
-	auto context = dwdata->executionContextForAddress(pc);
+	std::map<uint32_t, uint32_t> abbreviations;
+	auto context = dwdata->executionContextForAddress(pc, abbreviations);
 	auto locals = dwdata->localDataObjectsForContext(context);
-	for (i = 0; i < locals.size(); ui->tableWidgetLocalVariables->insertRow(row = ui->tableWidgetLocalVariables->rowCount()),
-			ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i))))),
-			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i ++), context.at(0), pc)))));
+	for (i = 0; i < locals.size(); i ++)
+	{
+		ui->tableWidgetLocalVariables->insertRow(row = ui->tableWidgetLocalVariables->rowCount());
+		ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i)))));
+		std::vector<DwarfTypeNode> type_cache;
+		dwdata->readType(locals.at(i).offset, abbreviations, type_cache);
+		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
+		ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
+		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(locals.at(i ++).offset, 0, 16)));
+	}
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
 }
 

@@ -1088,11 +1088,11 @@ public:
 		return false;
 	}
 	/*! \todo	!!! this is *gross* inefficient - read and process only immediate die children instead !!! */
-	std::vector<struct Die> executionContextForAddress(uint32_t address)
+	std::vector<struct Die> executionContextForAddress(uint32_t address, std::map<uint32_t, uint32_t> & abbreviations)
 	{
 		std::vector<struct Die> context;
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address);
-		std::map<uint32_t, uint32_t> abbreviations;
+		abbreviations.clear();
 		get_abbreviations_of_compilation_unit(cu_die_offset, abbreviations);
 		if (cu_die_offset == -1)
 			return context;
@@ -1111,6 +1111,8 @@ public:
 				i ++;
 		return context;
 	}
+	/*! \todo	!!! this is *gross* inefficient - read and process only immediate die children instead !!! */
+	std::vector<struct Die> executionContextForAddress(uint32_t address) { std::map<uint32_t, uint32_t> abbreviations; return executionContextForAddress(address, abbreviations); }
 	std::vector<struct Die> localDataObjectsForContext(const std::vector<struct Die> & context)
 	{
 	std::vector<struct Die> locals;
@@ -1197,7 +1199,10 @@ public:
 		return index;
 	}
 #endif
-int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache);
+private:
+std::map<uint32_t, uint32_t> recursion_detector;
+public:
+int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
 	std::string typeString(const std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0)
 	{
 		std::string type_string;
