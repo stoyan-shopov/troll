@@ -340,10 +340,17 @@ QTextBlockFormat f, dis;
 QTime x;
 int i, l, cursor_position_for_line(0);
 int row(ui->tableWidgetBacktrace->currentRow());
+updateRegisterView(row);
+ui->plainTextEdit->clear();
+ui->tableWidgetLocalVariables->setRowCount(0);
+if (!ui->tableWidgetBacktrace->item(row, 0))
+{
+	ui->plainTextEdit->appendPlainText("singularity; context undefined");
+	return;
+}
 uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
 
 	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
-	ui->plainTextEdit->clear();
 	if (src.open(QFile::ReadOnly))
 	{
 		int i(1);
@@ -396,7 +403,6 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	ui->plainTextEdit->centerCursor();
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	x.restart();
-	ui->tableWidgetLocalVariables->setRowCount(0);
 	std::map<uint32_t, uint32_t> abbreviations;
 	auto context = dwdata->executionContextForAddress(pc, abbreviations);
 	auto locals = dwdata->localDataObjectsForContext(context);
@@ -410,7 +416,6 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
 	}
-	updateRegisterView(ui->tableWidgetBacktrace->currentRow());
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
 }
 

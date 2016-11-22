@@ -1,6 +1,6 @@
 #include "libtroll.hxx"
 
-#define TYPE_DEBUG_ENABLED	1
+#define TYPE_DEBUG_ENABLED	0
 /* the first node in the vector is the head of the type graph
  * returns the position in the vector at which the new node is placed */
 int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector)
