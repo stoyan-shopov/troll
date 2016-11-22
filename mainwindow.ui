@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>727</width>
-    <height>522</height>
+    <width>869</width>
+    <height>654</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -53,7 +53,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>727</width>
+     <width>869</width>
      <height>20</height>
     </rect>
    </property>
@@ -175,6 +175,11 @@
        <column>
         <property name="text">
          <string>die offset</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>frame base</string>
         </property>
        </column>
       </widget>
@@ -346,6 +351,47 @@
        <column>
         <property name="text">
          <string>die offset</string>
+        </property>
+       </column>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockWidgetRegisters">
+   <property name="windowTitle">
+    <string>registers</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_6">
+    <layout class="QVBoxLayout" name="verticalLayout_7">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QTableWidget" name="tableWidgetRegisters">
+       <column>
+        <property name="text">
+         <string>register</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>value</string>
         </property>
        </column>
       </widget>

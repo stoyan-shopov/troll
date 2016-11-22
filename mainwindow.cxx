@@ -33,6 +33,8 @@ int i;
 void MainWindow::backtrace()
 {
 	cortexm0->primeUnwinder();
+	register_cache->clear();
+	register_cache->pushFrame(cortexm0->getRegisters());
 	uint32_t last_pc;
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
 	int row;
@@ -54,11 +56,13 @@ void MainWindow::backtrace()
 		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.filename)));
 		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
 		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.directoryname)));
+		ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context))));
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
-			context = dwdata->executionContextForAddress(cortexm0->programCounter());
+			context = dwdata->executionContextForAddress(cortexm0->programCounter()), register_cache->pushFrame(cortexm0->getRegisters());
 		if (context.empty() && cortexm0->architecturalUnwind())
 		{
+			register_cache->pushFrame(cortexm0->getRegisters());
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 			if (!context.empty())
 			{
@@ -71,7 +75,7 @@ void MainWindow::backtrace()
 			break;
 		last_pc = cortexm0->programCounter();
 	}
-	qDebug() << "registers: " << cortexm0->unwoundRegisters();
+	qDebug() << "registers: " << cortexm0->getRegisters();
 	ui->tableWidgetBacktrace->selectRow(0);
 }
 
@@ -147,6 +151,19 @@ bool ok1, ok2;
 		debug_loc_offset = rx.cap(1).toInt(&ok1, 16);
 		debug_loc_len = rx.cap(2).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
+	}
+}
+
+void MainWindow::updateRegisterView(int frame_number)
+{
+	ui->tableWidgetRegisters->setRowCount(0);
+	auto x = register_cache->registerFrame(frame_number);
+	int row;
+	for (int i(0); i < x.size(); i ++)
+	{
+		ui->tableWidgetRegisters->insertRow(row = ui->tableWidgetRegisters->rowCount());
+		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r%1").arg(i)));
+		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem(QString("$%1").arg(x.at(i), 0, 16)));
 	}
 }
 
@@ -252,16 +269,17 @@ MainWindow::MainWindow(QWidget *parent) :
 		target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 		sforth = new Sforth(ui->plainTextEditSforthConsole);
 		cortexm0 = new CortexM0(sforth, target);
+		register_cache = new RegisterCache(cortexm0->cfaRegisterNumber());
 		cortexm0->primeUnwinder();
 		cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
-		auto regs = cortexm0->unwoundRegisters();
+		auto regs = cortexm0->getRegisters();
 		qDebug() << regs;
 
 		qDebug() << "next frame";
 		unwind_data = dwundwind->sforthCodeForAddress(regs.at(15));
 		qDebug() << QString::fromStdString(unwind_data.first);
 		cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
-		regs = cortexm0->unwoundRegisters();
+		regs = cortexm0->getRegisters();
 		qDebug() << regs;
 
 		backtrace();
@@ -392,6 +410,7 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
 	}
+	updateRegisterView(ui->tableWidgetBacktrace->currentRow());
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
 }
 

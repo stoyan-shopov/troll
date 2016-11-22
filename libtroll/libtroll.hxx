@@ -431,6 +431,9 @@ struct DwarfExpression
 					expression_len -= len + i;
 					break;
 				}
+				case DW_OP_call_frame_cfa:
+					x << "DW_OP_call_frame_cfa ";
+					break;
 				default:
 					DwarfUtil::panic();
 			}
@@ -1128,6 +1131,14 @@ public:
 					}
 		return locals;
 	}
+	std::string sforthCodeFrameBaseForContext(const std::vector<struct Die> & context)
+	{
+		int i;
+		std::string frame_base;
+		for (i = context.size() - 1; i >= 0 && frame_base.empty(); frame_base = locationSforthCode(context.at(i --), context.at(0), -1, DW_AT_frame_base));
+		qDebug() << QString::fromStdString(frame_base);
+		return frame_base;
+	}
 	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, const struct Die compilation_unit_die)
 	{
 		SourceCodeCoordinates s;
@@ -1430,10 +1441,10 @@ public:
 			reapStaticObjects(data_objects, subprograms, dies.at(0), abbreviations);
 		}
 	}
-	std::string locationSforthCode(const struct Die & die, const struct Die & compilation_unit_die, uint32_t address_for_location)
+	std::string locationSforthCode(const struct Die & die, const struct Die & compilation_unit_die, uint32_t address_for_location = -1, uint32_t location_attribute = DW_AT_location)
 	{
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
-		auto x(a.dataForAttribute(DW_AT_location, debug_info + die.offset));
+		auto x(a.dataForAttribute(location_attribute, debug_info + die.offset));
 		if (!x.first)
 			return "";
 		qDebug() << "processing die offset" << die.offset;

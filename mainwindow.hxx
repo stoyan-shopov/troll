@@ -8,6 +8,7 @@
 #include "target-corefile.hxx"
 #include "blackstrike.hxx"
 #include "cortexm0.hxx"
+#include "registercache.hxx"
 #include <QSerialPort>
 
 #define MAIN_APS	1
@@ -44,12 +45,14 @@ class MainWindow : public QMainWindow
 	DwarfData * dwdata;
 	Sforth	* sforth;
 	Target	* target;
+	RegisterCache	* register_cache;
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node);
 	void backtrace(void);
 	bool readElfSections(void);
 	QString elf_filename;
+	void updateRegisterView(int frame_number);
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

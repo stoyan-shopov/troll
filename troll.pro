@@ -25,7 +25,8 @@ SOURCES +=\
     cortexm0.cxx \
     cortexm0-sfext.c \
     target-corefile.cxx \
-    blackstrike.cxx
+    blackstrike.cxx \
+    registercache.cxx
 
 HEADERS  += mainwindow.hxx \
     libtroll/dwarf.h \
@@ -35,7 +36,8 @@ HEADERS  += mainwindow.hxx \
     util.hxx \
     target.hxx \
     target-corefile.hxx \
-    blackstrike.hxx
+    blackstrike.hxx \
+    registercache.hxx
 
 FORMS    += mainwindow.ui
 
