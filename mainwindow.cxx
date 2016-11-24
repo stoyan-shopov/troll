@@ -180,7 +180,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	QTime startup_time;
-	elf_filename = "X:/aps-electronics.xs236-gcc/CSM05/mcu/main_aps.elf";
+	elf_filename = "X:/aps-electronics.xs236-gcc/XS236.elf";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	startup_time.start();
 	readElfSections();
@@ -220,11 +220,11 @@ MainWindow::MainWindow(QWidget *parent) :
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
 	
-#if MAIN_APS
+#if 0
 	
 	std::vector<struct DwarfTypeNode> type_cache;
 	std::map<uint32_t, uint32_t> x;
-	dwdata->get_abbreviations_of_compilation_unit(11, x);
+	dwdata->get_abbreviations_of_compilation_unit(0, x);
 	dwdata->readType(0x98, x, type_cache);
 	qDebug() << __FILE__ << __LINE__ << type_cache.size() << type_cache.at(0).die.children.size();
 	qDebug() << QString::fromStdString(dwdata->typeString(type_cache));
