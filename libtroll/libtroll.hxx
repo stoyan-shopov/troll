@@ -274,7 +274,7 @@ public:
 
 struct debug_arange
 {
-	const uint8_t	* data;
+	const uint8_t	* data, * init_data;
 	uint32_t	unit_length(){return*(uint32_t*)(data+0);}
 	uint16_t	version(){return*(uint16_t*)(data+4);}
 	uint32_t	compilation_unit_debug_info_offset(){return*(uint32_t*)(data+6);}
@@ -285,9 +285,10 @@ struct debug_arange
 		uint32_t	start_address;
 		uint32_t	length;
 	};
-	struct compilation_unit_range *ranges(void){return (struct compilation_unit_range *) (data+16);}
-	debug_arange(const uint8_t * data) { this->data = data; }
+	struct compilation_unit_range * ranges(void) const {return (struct compilation_unit_range *) (data+16);}
+	debug_arange(const uint8_t * data) { this->data = init_data = data; }
 	struct debug_arange & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
+	void rewind(void) { this->data = init_data; }
 };
 
 struct compilation_unit_header
@@ -920,12 +921,16 @@ private:
 	
 	const uint8_t * debug_loc;
 	uint32_t	debug_loc_len;
+
+	struct debug_arange arange;
+	/* cached for performance reasons */
+	const uint8_t	* last_searched_arange;
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
 		  const void * debug_str, uint32_t debug_str_len,
 		  const void * debug_line, uint32_t debug_line_len,
-		  const void * debug_loc, uint32_t debug_loc_len)
+		  const void * debug_loc, uint32_t debug_loc_len) : arange((const uint8_t *) debug_aranges)
 	{
 		this->debug_aranges = (const uint8_t *) debug_aranges;
 		this->debug_aranges_len = debug_aranges_len;
@@ -941,6 +946,8 @@ public:
 		this->debug_line_len = debug_line_len;
 		this->debug_loc = (const uint8_t *) debug_loc;
 		this->debug_loc_len = debug_loc_len;
+
+		last_searched_arange = arange.data;
 	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
@@ -953,25 +960,36 @@ public:
 		return -1;
 	}
 
+	bool isAddressInCompilationUnitRange(uint32_t address, const struct debug_arange & arange)
+	{
+		int i = 0;
+		const struct debug_arange::compilation_unit_range * r;
+		do
+		{
+			r = arange.ranges() + i;
+			if (r->start_address <= address && address < r->start_address + r->length)
+				return true;
+			i ++;
+		}
+		while (r->length || r->start_address);
+		return false;
+	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t	get_compilation_unit_debug_info_offset_for_address(uint32_t address)
 	{
-		int i;
-		struct debug_arange arange(debug_aranges);
+		struct debug_arange last(last_searched_arange);
+		if (isAddressInCompilationUnitRange(address, last))
+			return last.compilation_unit_debug_info_offset();
+		arange.rewind();
 		while (arange.data < debug_aranges + debug_aranges_len)
 		{
-			struct debug_arange::compilation_unit_range r;
 			if (arange.address_size() != 4)
 				DwarfUtil::panic();
-			i = 0;
-			do
+			if (isAddressInCompilationUnitRange(address, arange))
 			{
-				r = arange.ranges()[i];
-				if (r.start_address <= address && address < r.start_address + r.length)
-					return arange.compilation_unit_debug_info_offset();
-				i ++;
+				last_searched_arange = arange.data;
+				return arange.compilation_unit_debug_info_offset();
 			}
-			while (r.length || r.start_address);
 			arange.next();
 		}
 		return -1;
@@ -979,7 +997,7 @@ public:
 	int compilation_unit_count(void)
 	{
 		int i;
-		struct debug_arange arange(debug_aranges);
+		arange.rewind();
 		for (i = 0; arange.data < debug_aranges + debug_aranges_len; arange.next(), i++)
 			if (arange.address_size() != 4)
 				DwarfUtil::panic();
