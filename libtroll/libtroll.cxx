@@ -10,18 +10,10 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		recursion_detector.clear();
 	uint32_t saved_die_offset(die_offset);
 	if (TYPE_DEBUG_ENABLED) qDebug() << "reading type die at offset" << QString("$%1").arg(die_offset, 0, 16);
-	/*
-	if (recursion_detector.find(die_offset) != recursion_detector.end())
-		DwarfUtil::panic("type chain recursion detected");
-		*/
 	if (recursion_detector.operator [](saved_die_offset))
 	{
 		if (TYPE_DEBUG_ENABLED) qDebug() << "!!! type chain recursion detected";
 		return recursion_detector.operator [](saved_die_offset);
-	}
-	if (die_offset == 76)
-	{
-		die_offset = 76;
 	}
 	auto type = debug_tree_of_die(die_offset, abbreviations);
 	if (type.size() != 1)
@@ -29,7 +21,6 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 	struct DwarfTypeNode node(type.at(0));
 	type_cache.push_back(node);
 	recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
-	//struct DwarfTypeNode * pnode = & type_cache.at(index);
 	struct Abbreviation a(debug_abbrev + type.at(0).abbrev_offset);
 	auto t = a.dataForAttribute(DW_AT_type, debug_info + type_cache.at(index).die.offset);
 	if (t.first)
