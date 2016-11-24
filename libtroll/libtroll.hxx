@@ -1317,7 +1317,18 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
 		if (!x.first)
-			return "<<< no name >>>";
+		{
+			auto x = a.dataForAttribute(DW_AT_abstract_origin, debug_info + die.offset);
+			if (x.first)
+			{
+				auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
+				std::map<uint32_t, uint32_t> abbreviations;
+				get_abbreviations_of_compilation_unit(i, abbreviations);
+				auto referred_die_offset = DwarfUtil::formReference(x.first, x.second, i);
+				return nameOfDie(debug_tree_of_die(referred_die_offset, abbreviations).at(0));
+			}
+			else return "<<< no name >>>";
+		}
 		return DwarfUtil::formString(x.first, x.second, debug_str);
 	}
 	void dumpLines(void)
