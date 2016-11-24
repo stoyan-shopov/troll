@@ -928,6 +928,9 @@ private:
 	/* cached for performance reasons */
 	const uint8_t	* last_searched_arange;
 	const struct compilation_unit_header * last_searched_compilation_unit;
+	std::map<uint32_t, uint32_t> last_abbreviations_fetched;
+	uint32_t last_abbreviations_fetched_debug_info_offset;
+	
 	struct
 	{
 		unsigned dies_read;
@@ -935,6 +938,8 @@ private:
 		unsigned compilation_unit_arange_misses;
 		unsigned compilation_unit_header_hits;
 		unsigned compilation_unit_header_misses;
+		unsigned abbreviation_hits;
+		unsigned abbreviation_misses;
 	}
 	stats;
 public:
@@ -962,6 +967,7 @@ public:
 		last_searched_compilation_unit = (const struct compilation_unit_header *) debug_info;
 		last_searched_arange = arange.data;
 		memset(& stats, 0, sizeof stats);
+		last_abbreviations_fetched_debug_info_offset = -1;
 	}
 	void dumpStats(void)
 	{
@@ -970,6 +976,8 @@ public:
 		qDebug() << "compilation unit address range search misses:" << stats.compilation_unit_arange_misses;
 		qDebug() << "compilation unit die search hits:" << stats.compilation_unit_header_hits;
 		qDebug() << "compilation unit die search misses:" << stats.compilation_unit_header_misses;
+		qDebug() << "abbreviation fetch hits:" << stats.abbreviation_hits;
+		qDebug() << "abbreviation fetch misses:" << stats.abbreviation_misses;
 	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
@@ -1048,6 +1056,13 @@ public:
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
 	void get_abbreviations_of_compilation_unit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
 	{
+		if (compilation_unit_offset == last_abbreviations_fetched_debug_info_offset)
+		{
+			if (STATS_ENABLED) stats.abbreviation_hits ++;
+			abbreviations = last_abbreviations_fetched;
+			return;
+		}
+		if (STATS_ENABLED) stats.abbreviation_misses ++;
 		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
 		uint32_t code, tag, has_children, name, form;
 		int len;
@@ -1067,6 +1082,8 @@ public:
 				form = DwarfUtil::uleb128x(debug_abbrev);
 			}
 			while (name || form);
+			last_abbreviations_fetched_debug_info_offset = compilation_unit_offset;
+			last_abbreviations_fetched = abbreviations;
 		}
 	}
 	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
