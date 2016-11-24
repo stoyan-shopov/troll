@@ -153,6 +153,16 @@ public:
 			panic();
 		}
 	}
+	static uint32_t formReference(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
+	{
+		switch (attribute_form)
+		{
+		case DW_FORM_ref4:
+			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
+		default:
+			panic();
+		}
+	}
 	static std::string formString(uint32_t attribute_form, const uint8_t * debug_info_bytes, const uint8_t * debug_str)
 	{
 		switch (attribute_form)

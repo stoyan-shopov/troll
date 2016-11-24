@@ -19,9 +19,17 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 	if (type.size() != 1)
 		DwarfUtil::panic();
 	struct DwarfTypeNode node(type.at(0));
+	struct Abbreviation a(debug_abbrev + node.die.abbrev_offset);
+	auto x = a.dataForAttribute(DW_AT_abstract_origin, debug_info + node.die.offset);
+	if (x.first)
+		return readType(DwarfUtil::formReference(x.first, x.second,
+		/*! \todo	this is braindamaged; whoever passes the abbreviation cache to this function
+		 *		should already have information about the containing compilation unit - maybe
+		 *		just pass that as an additional parameter */
+			compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset)
+			), abbreviations, type_cache, false);
 	type_cache.push_back(node);
 	recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
-	struct Abbreviation a(debug_abbrev + type.at(0).abbrev_offset);
 	auto t = a.dataForAttribute(DW_AT_type, debug_info + type_cache.at(index).die.offset);
 	if (t.first)
 	{
