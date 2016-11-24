@@ -13,6 +13,8 @@
 #define DEBUG_ADDRESS_RANGE_ENABLED	0
 #define UNWIND_DEBUG_ENABLED		0
 
+#define STATS_ENABLED			1
+
 class DwarfUtil
 {
 public:
@@ -294,7 +296,7 @@ struct debug_arange
 struct compilation_unit_header
 {
 	const uint8_t		* data;
-	uint32_t	unit_length(){return*(uint32_t*)(data+0);}
+	uint32_t	unit_length() const{return*(uint32_t*)(data+0);}
 	uint16_t	version(){return*(uint16_t*)(data+4);}
 	uint32_t	debug_abbrev_offset(){return*(uint32_t*)(data+6);}
 	uint8_t		address_size(){return*(uint8_t*)(data+10);}
@@ -925,6 +927,16 @@ private:
 	struct debug_arange arange;
 	/* cached for performance reasons */
 	const uint8_t	* last_searched_arange;
+	const struct compilation_unit_header * last_searched_compilation_unit;
+	struct
+	{
+		unsigned dies_read;
+		unsigned compilation_unit_arange_hits;
+		unsigned compilation_unit_arange_misses;
+		unsigned compilation_unit_header_hits;
+		unsigned compilation_unit_header_misses;
+	}
+	stats;
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
@@ -947,15 +959,34 @@ public:
 		this->debug_loc = (const uint8_t *) debug_loc;
 		this->debug_loc_len = debug_loc_len;
 
+		last_searched_compilation_unit = (const struct compilation_unit_header *) debug_info;
 		last_searched_arange = arange.data;
+		memset(& stats, 0, sizeof stats);
+	}
+	void dumpStats(void)
+	{
+		qDebug() << "total dies read:" << stats.dies_read;
+		qDebug() << "compilation unit address range search hits:" << stats.compilation_unit_arange_hits;
+		qDebug() << "compilation unit address range search misses:" << stats.compilation_unit_arange_misses;
+		qDebug() << "compilation unit die search hits:" << stats.compilation_unit_header_hits;
+		qDebug() << "compilation unit die search misses:" << stats.compilation_unit_header_misses;
 	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
 	{
+		if (last_searched_compilation_unit->data - debug_info <= debug_info_offset && debug_info_offset < last_searched_compilation_unit->data - debug_info + last_searched_compilation_unit->unit_length())
+		{
+			if (STATS_ENABLED) stats.compilation_unit_header_hits ++;
+			return last_searched_compilation_unit->data - debug_info;
+		}
+		if (STATS_ENABLED) stats.compilation_unit_header_misses ++;
 		compilation_unit_header h(debug_info);
 		while (h.data - debug_info < debug_info_len)
 			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
+			{
+				last_searched_compilation_unit = & h;
 				return h.data - debug_info;
+			}
 			else h.next();
 		return -1;
 	}
@@ -979,7 +1010,11 @@ public:
 	{
 		struct debug_arange last(last_searched_arange);
 		if (isAddressInCompilationUnitRange(address, last))
+		{
+			if (STATS_ENABLED) stats.compilation_unit_arange_hits ++;
 			return last.compilation_unit_debug_info_offset();
+		}
+		if (STATS_ENABLED) stats.compilation_unit_arange_misses ++;
 		arange.rewind();
 		while (arange.data < debug_aranges + debug_aranges_len)
 		{
@@ -1038,6 +1073,7 @@ public:
 	 * 		is because of the dwarf die flattenned tree representation */
 	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
+		if (STATS_ENABLED) stats.dies_read ++;
 		std::vector<struct Die> dies;
 		const uint8_t * p = debug_info + die_offset;
 		int len;

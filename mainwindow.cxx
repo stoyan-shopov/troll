@@ -432,6 +432,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("window-state", saveState());
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
 	s.setValue("main-splitter/state", ui->splitterMain->saveState());
+	dwdata->dumpStats();
 	QMainWindow::closeEvent(e);
 }
 
