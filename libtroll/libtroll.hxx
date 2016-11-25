@@ -943,12 +943,19 @@ public:
 			/* skip directory index, file time and file size */
 			DwarfUtil::uleb128x(f.p), DwarfUtil::uleb128x(f.p), DwarfUtil::uleb128x(f.p);
 		}
-		file_name = f.s, f.s += strlen(f.s) + 1, i = DwarfUtil::uleb128x(f.p) - 1;
-		f.s = include_directories();
-		while (j != i && (l = strlen(f.s)))
-			f.s += l + 1, j ++;
-		if (i == j)
-			directory_name = f.s;
+		file_name = f.s, f.s += strlen(f.s) + 1, i = DwarfUtil::uleb128x(f.p);
+		if (!i)
+			/* use the default compilation directory */
+			directory_name = "" ;
+		else
+		{
+			i --;
+			f.s = include_directories();
+			while (j != i && (l = strlen(f.s)))
+				f.s += l + 1, j ++;
+			if (i == j)
+				directory_name = f.s;
+		}
 	}
 
 	void rewind(void) { header = debug_line; }
