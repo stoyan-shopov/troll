@@ -1346,7 +1346,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		{
 			case DW_TAG_structure_type:
 				int j;
-				type_string = "struct " + nameOfDie(die) + " ";
+				type_string = "struct " + std::string(nameOfDie(die)) + " ";
 				if (!short_type_print)
 				{
 					type_string += "{\n";
@@ -1365,7 +1365,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 				break;
 			case DW_TAG_typedef:
 				if (!short_type_print) type_string += "typedef ";
-				type_string += nameOfDie(die) + " ";
+				type_string += std::string(nameOfDie(die)) + " ";
 				if (!short_type_print)
 					type_string += typeString(type, short_type_print, type.at(node_number).next);
 				break;
@@ -1465,7 +1465,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		}
 	}
 
-	std::string nameOfDie(const struct Die & die)
+	const char * nameOfDie(const struct Die & die)
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
@@ -1522,6 +1522,7 @@ private:
 		}
 		else
 			x.name = 0;
+		x.name = nameOfDie(die);
 		x.die_offset = die.offset;
 	}
 	void reapStaticObjects(std::vector<struct StaticObject> & data_objects,
@@ -1562,7 +1563,7 @@ public:
 		uint32_t cu;
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
 		{
-			auto die_offset = cu + 11;
+			auto die_offset = cu + /* skip compilation unit header */ 11;
 			std::map<uint32_t, uint32_t> abbreviations;
 			get_abbreviations_of_compilation_unit(cu, abbreviations);
 			auto dies = debug_tree_of_die(die_offset, abbreviations);

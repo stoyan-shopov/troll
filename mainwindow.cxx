@@ -50,10 +50,10 @@ void MainWindow::backtrace()
 		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
 		qDebug() << x.file_name << (signed) x.line;
 
-		qDebug() << cortexm0->programCounter() << QString::fromStdString(dwdata->nameOfDie(context.back()));
+		qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(context.back()));
 		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 		ui->tableWidgetBacktrace->setItem(row, 0, new QTableWidgetItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0'))));
-		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(dwdata->nameOfDie(context.back()))));
+		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString(dwdata->nameOfDie(context.back()))));
 		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.file_name)));
 		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
 		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.compilation_directory_name) + "/" + QString::fromStdString(x.directory_name)));
@@ -394,7 +394,7 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	for (i = 0; i < locals.size(); i ++)
 	{
 		ui->tableWidgetLocalVariables->insertRow(row = ui->tableWidgetLocalVariables->rowCount());
-		ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(dwdata->nameOfDie(locals.at(i)))));
+		ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(QString(dwdata->nameOfDie(locals.at(i)))));
 		std::vector<DwarfTypeNode> type_cache;
 		dwdata->readType(locals.at(i).offset, abbreviations, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
