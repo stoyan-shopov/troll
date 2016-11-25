@@ -433,6 +433,43 @@ struct DwarfExpression
 					dwarf_expression += len, expression_len -= len;
 					break;
 			}
+			{
+				int literal;
+				case DW_OP_lit0: literal = 0; if (0)
+				case DW_OP_lit1: literal = 1; if (0)
+				case DW_OP_lit2: literal = 2; if (0)
+				case DW_OP_lit3: literal = 3; if (0)
+				case DW_OP_lit4: literal = 4; if (0)
+				case DW_OP_lit5: literal = 5; if (0)
+				case DW_OP_lit6: literal = 6; if (0)
+				case DW_OP_lit7: literal = 7; if (0)
+				case DW_OP_lit8: literal = 8; if (0)
+				case DW_OP_lit9: literal = 9; if (0)
+				case DW_OP_lit10: literal = 10; if (0)
+				case DW_OP_lit11: literal = 11; if (0)
+				case DW_OP_lit12: literal = 12; if (0)
+				case DW_OP_lit13: literal = 13; if (0)
+				case DW_OP_lit14: literal = 14; if (0)
+				case DW_OP_lit15: literal = 15; if (0)
+				case DW_OP_lit16: literal = 16; if (0)
+				case DW_OP_lit17: literal = 17; if (0)
+				case DW_OP_lit18: literal = 18; if (0)
+				case DW_OP_lit19: literal = 19; if (0)
+				case DW_OP_lit20: literal = 20; if (0)
+				case DW_OP_lit21: literal = 21; if (0)
+				case DW_OP_lit22: literal = 22; if (0)
+				case DW_OP_lit23: literal = 23; if (0)
+				case DW_OP_lit24: literal = 24; if (0)
+				case DW_OP_lit25: literal = 25; if (0)
+				case DW_OP_lit26: literal = 26; if (0)
+				case DW_OP_lit27: literal = 27; if (0)
+				case DW_OP_lit28: literal = 28; if (0)
+				case DW_OP_lit29: literal = 29; if (0)
+				case DW_OP_lit30: literal = 30; if (0)
+				case DW_OP_lit31: literal = 31;
+					x << literal << " ";
+					break;
+			}
 				case DW_OP_stack_value:
 					x << "DW_OP_stack_value ";
 					break;
@@ -446,6 +483,9 @@ struct DwarfExpression
 				}
 				case DW_OP_call_frame_cfa:
 					x << "DW_OP_call_frame_cfa ";
+					break;
+				case DW_OP_mul:
+					x << "DW_OP_mul ";
 					break;
 				default:
 					DwarfUtil::panic();
