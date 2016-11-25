@@ -47,15 +47,15 @@ void MainWindow::backtrace()
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
 		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
-		qDebug() << x.filename << (signed) x.line;
+		qDebug() << x.file_name << (signed) x.line;
 
 		qDebug() << cortexm0->programCounter() << QString::fromStdString(dwdata->nameOfDie(context.back()));
 		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 		ui->tableWidgetBacktrace->setItem(row, 0, new QTableWidgetItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0'))));
 		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(dwdata->nameOfDie(context.back()))));
-		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.filename)));
+		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.file_name)));
 		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
-		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.directoryname)));
+		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.compilation_directory_name) + "/" + QString::fromStdString(x.directory_name)));
 		ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context))));
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
@@ -350,7 +350,7 @@ if (!ui->tableWidgetBacktrace->item(row, 0))
 }
 uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
 
-	src.setFileName(QString("X:/aps-electronics.xs236-gcc/") + ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
+	src.setFileName(ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
 	if (src.open(QFile::ReadOnly))
 	{
 		int i(1);

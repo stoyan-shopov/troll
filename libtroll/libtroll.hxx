@@ -165,7 +165,7 @@ public:
 			panic();
 		}
 	}
-	static std::string formString(uint32_t attribute_form, const uint8_t * debug_info_bytes, const uint8_t * debug_str)
+	static const char * formString(uint32_t attribute_form, const uint8_t * debug_info_bytes, const uint8_t * debug_str)
 	{
 		switch (attribute_form)
 		{
@@ -313,11 +313,12 @@ struct StaticObject
 
 struct SourceCodeCoordinates
 {
-	const char	* filename;
-	const char	* directoryname;
+	const char	* file_name;
+	const char	* directory_name;
+	const char	* compilation_directory_name;
 	uint32_t	address;
 	uint32_t	line;
-	SourceCodeCoordinates(void) { filename = "<<< unknown filename >>>", directoryname = 0, address = line = -1; }
+	SourceCodeCoordinates(void) { file_name = "<<< unknown filename >>>", directory_name = compilation_directory_name = 0, address = line = -1; }
 };
 
 struct LocationList
@@ -1272,7 +1273,10 @@ public:
 			return s;
 		class DebugLine l(debug_line, debug_line_len);
 		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x.first, x.second), file_number);
-		l.stringsForFileNumber(file_number, s.filename, s.directoryname);
+		l.stringsForFileNumber(file_number, s.file_name, s.directory_name);
+		x = a.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
+		if (x.first)
+			s.compilation_directory_name = DwarfUtil::formString(x.first, x.second, debug_str);
 		return s;
 	}
 
