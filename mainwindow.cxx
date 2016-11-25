@@ -182,6 +182,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 	setStyleSheet("QSplitter::handle:horizontal { width: 2px; }  /*QSplitter::handle:vertical { height: 20px; }*/ "
 	              "QSplitter::handle { border: 1px solid blue; background-color: white; } "
+		      "QTableWidget::item{ selection-background-color: teal}"
 	              );
 	
 	QTime startup_time;
@@ -400,6 +401,8 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
 	}
+	ui->tableWidgetLocalVariables->resizeColumnsToContents();
+	ui->tableWidgetLocalVariables->resizeRowsToContents();
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
 }
 
