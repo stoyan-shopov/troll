@@ -358,8 +358,8 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		while (!src.atEnd())
 		{
 			if (i == l)
-				cursor_position_for_line = t.length() - l + 1;
-			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ");
+				cursor_position_for_line = t.length();
+			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace("\r", "");
 		}
 	}
 	else
