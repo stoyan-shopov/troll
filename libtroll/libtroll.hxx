@@ -350,8 +350,8 @@ struct DwarfExpression
 			switch (* dwarf_expression ++)
 			{
 				case DW_OP_addr:
-					x << * ((uint32_t *) dwarf_expression ++) << " DW_OP_addr ";
-					expression_len -= sizeof(uint32_t);
+					x << * ((uint32_t *) dwarf_expression) << " DW_OP_addr ";
+					dwarf_expression += sizeof(uint32_t), expression_len -= sizeof(uint32_t);
 					break;
 				case DW_OP_fbreg:
 					x << DwarfUtil::sleb128(dwarf_expression, & len) << " DW_OP_fbreg ";
@@ -487,6 +487,19 @@ struct DwarfExpression
 					break;
 				case DW_OP_mul:
 					x << "DW_OP_mul ";
+					break;
+				case DW_OP_and:
+					x << "DW_OP_and ";
+					break;
+				case DW_OP_shl:
+					x << "DW_OP_shl ";
+					break;
+				case DW_OP_ne:
+					x << "DW_OP_ne ";
+					break;
+				case DW_OP_const2u:
+					x << * ((uint16_t *) dwarf_expression) << " ";
+					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
 					break;
 				default:
 					DwarfUtil::panic();

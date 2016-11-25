@@ -67,6 +67,9 @@
    </attribute>
    <addaction name="actionBlackstrikeConnect"/>
    <addaction name="actionSingle_step"/>
+   <addaction name="actionExplore"/>
+   <addaction name="actionShell"/>
+   <addaction name="actionEdit"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -403,6 +406,9 @@
    <property name="text">
     <string>connect to blackstrike</string>
    </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;attempt to detect and connect to&lt;/p&gt;&lt;p&gt;a blackstrike debug probe&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
   </action>
   <action name="actionSingle_step">
    <property name="text">
@@ -410,6 +416,30 @@
    </property>
    <property name="toolTip">
     <string>single step the target</string>
+   </property>
+  </action>
+  <action name="actionExplore">
+   <property name="text">
+    <string>explore</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;open a file manager in the directory&lt;/p&gt;&lt;p&gt;containing the source code file&lt;/p&gt;&lt;p&gt;currently displayed&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionShell">
+   <property name="text">
+    <string>shell</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;open a shell in the directory&lt;/p&gt;&lt;p&gt;containing the source code file&lt;/p&gt;&lt;p&gt;currently displayed&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionEdit">
+   <property name="text">
+    <string>edit</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;edit the source code file currently displayed&lt;/p&gt;&lt;p&gt;with the system editor&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
  </widget>

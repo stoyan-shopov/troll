@@ -66,6 +66,9 @@ private slots:
 	
 	void on_actionBlackstrikeConnect_triggered();
 	
+	void on_actionShell_triggered();
+	void on_actionExplore_triggered();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	

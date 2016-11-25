@@ -9,6 +9,7 @@
 #include <QMap>
 #include <QSerialPortInfo>
 #include <QSettings>
+#include <QDir>
 
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
@@ -68,7 +69,7 @@ void MainWindow::backtrace()
 			{
 				qDebug() << "architecture-specific unwinding performed";
 				ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
-				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("\tarchitecture-specific unwinding performed"));
+				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("architecture-specific unwinding performed"));
 			}
 		}
 		if (last_pc == cortexm0->programCounter())
@@ -76,6 +77,8 @@ void MainWindow::backtrace()
 		last_pc = cortexm0->programCounter();
 	}
 	qDebug() << "registers: " << cortexm0->getRegisters();
+	ui->tableWidgetBacktrace->resizeColumnsToContents();
+	ui->tableWidgetBacktrace->resizeRowsToContents();
 	ui->tableWidgetBacktrace->selectRow(0);
 }
 
@@ -165,6 +168,8 @@ void MainWindow::updateRegisterView(int frame_number)
 		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r%1").arg(i)));
 		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem(QString("$%1").arg(x.at(i), 0, 16)));
 	}
+	ui->tableWidgetRegisters->resizeColumnsToContents();
+	ui->tableWidgetRegisters->resizeRowsToContents();
 }
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -180,7 +185,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	QTime startup_time;
-	elf_filename = "X:/aps-electronics.xs236-gcc/XS236.elf";
+	elf_filename = "X:/blackstrike-github/src/blackmagic";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	startup_time.start();
 	readElfSections();
@@ -257,33 +262,12 @@ MainWindow::MainWindow(QWidget *parent) :
 	while (!dwundwind->at_end())
 		dwundwind->dump(), dwundwind->next();
 	
-	auto unwind_data = dwundwind->sforthCodeForAddress(0x800f226);
-	auto context = dwdata->executionContextForAddress(0x800f226);
-	if (0 || context.size())
-	{
-		qDebug() << context.size();
-		qDebug() << context.at(0).offset << context.at(1).offset;
-		qDebug() << QString::fromStdString(dwdata->nameOfDie(context.at(1)));
-		qDebug() << QString::fromStdString(unwind_data.first);
-
-		target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
-		sforth = new Sforth(ui->plainTextEditSforthConsole);
-		cortexm0 = new CortexM0(sforth, target);
-		register_cache = new RegisterCache(cortexm0->cfaRegisterNumber());
-		cortexm0->primeUnwinder();
-		cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, 0x800f226);
-		auto regs = cortexm0->getRegisters();
-		qDebug() << regs;
-
-		qDebug() << "next frame";
-		unwind_data = dwundwind->sforthCodeForAddress(regs.at(15));
-		qDebug() << QString::fromStdString(unwind_data.first);
-		cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, regs.at(15));
-		regs = cortexm0->getRegisters();
-		qDebug() << regs;
-
-		backtrace();
-	}
+	target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
+	sforth = new Sforth(ui->plainTextEditSforthConsole);
+	cortexm0 = new CortexM0(sforth, target);
+	register_cache = new RegisterCache(cortexm0->cfaRegisterNumber());
+	cortexm0->primeUnwinder();
+	backtrace();
 	
 	t.restart();
 	dwdata->dumpLines();
@@ -359,7 +343,7 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		{
 			if (i == l)
 				cursor_position_for_line = t.length();
-			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace("\r", "");
+			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
 		}
 	}
 	else
@@ -465,4 +449,31 @@ class Target * t;
 		}
 	}
 	QMessageBox::warning(0, "blackstrike port not found", "cannot find blackstrike gdbserver port ");
+}
+
+void MainWindow::on_actionShell_triggered()
+{
+	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
+	{
+		int row = ui->tableWidgetBacktrace->selectionModel()->selectedRows().at(0).row();
+		QDir dir(ui->tableWidgetBacktrace->item(row, 4)->text());
+		if (dir.exists())
+			QProcess::startDetached("cmd", QStringList(), dir.canonicalPath());
+	}
+}
+
+void MainWindow::on_actionExplore_triggered()
+{
+	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
+	{
+		int row = ui->tableWidgetBacktrace->selectionModel()->selectedRows().at(0).row();
+		QDir dir(ui->tableWidgetBacktrace->item(row, 4)->text());
+		qDebug() << dir.canonicalPath();
+		qDebug() << dir.canonicalPath().replace('/', '\\').replace("\\\\", "\\");
+		qDebug() << "x\\y\\z\\";
+		qDebug() << '\\';
+		qDebug() << "\\";
+		if (dir.exists())
+			QProcess::startDetached("explorer", QStringList() << QString("/root,") + dir.canonicalPath().replace('/', '\\') << "/select", dir.canonicalPath());
+	}
 }
