@@ -70,6 +70,8 @@ private slots:
 	void on_actionShell_triggered();
 	void on_actionExplore_triggered();
 	
+	void on_tableWidgetStaticDataObjects_itemSelectionChanged();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	

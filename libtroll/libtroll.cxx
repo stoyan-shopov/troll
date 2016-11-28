@@ -48,6 +48,17 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		if (TYPE_DEBUG_ENABLED) qDebug() << "aggregate type, child count" << type_cache.at(index).die.children.size();
                 x = readType(type_cache.at(index).die.children.at(0).offset, abbreviations, type_cache, false);
                 type_cache.at(index).childlist = x;
+		if (type_cache.at(x).die.tag == DW_TAG_subrange_type)
+		{
+			Abbreviation a(debug_abbrev + type_cache.at(x).die.abbrev_offset);
+			auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + type_cache.at(x).die.offset);
+			if (subrange.first == 0)
+				/*! \todo	at least some versions of gcc are known to omit the upper bound attribute is 0;
+				 *		maybe have the option to store a zero here */
+				type_cache.at(index).array_dimensions.push_back(-1);
+			else
+				type_cache.at(index).array_dimensions.push_back(DwarfUtil::formConstant(subrange.first, subrange.second) + 1);
+		}
                 for (i = 1; i < type_cache.at(index).die.children.size(); i ++)
 		{
 			if (TYPE_DEBUG_ENABLED) qDebug() << "reading type child" << i << ", offset is" << type_cache.at(index).die.children.at(i).offset;

@@ -219,6 +219,7 @@ struct DwarfTypeNode
 	int		next;
 	int		sibling;
 	int		childlist;
+	std::vector<uint32_t>	array_dimensions;
         DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = sibling = childlist = -1; }
 };
 
@@ -1449,6 +1450,9 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 					type_string += "[]";
 			}
 				break;
+			case DW_TAG_subroutine_type:
+				type_string = "!!! handle subroutine types !!!";
+				break;
 			default:
 				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag;
 				DwarfUtil::panic();
@@ -1467,6 +1471,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 	struct DataNode
 	{
 		std::vector<std::string> data;
+		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
 	void dataForType(const std::vector<struct DwarfTypeNode> & type, struct DataNode & node, bool short_type_print = true, int type_node_number = 0)
@@ -1476,23 +1481,29 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 		switch (die.tag)
 		{
 			case DW_TAG_structure_type:
+			case DW_TAG_union_type:
 				int j;
 				for (j = type.at(type_node_number).childlist; j != -1; j = type.at(j).sibling)
 					node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, j);
-			break;
-			case DW_TAG_member:
 				break;
+			case DW_TAG_pointer_type:
+				break;
+			case DW_TAG_member:
 			case DW_TAG_volatile_type:
+			case DW_TAG_const_type:
+				dataForType(type, node, short_type_print, type.at(type_node_number).next);
 				break;
 			case DW_TAG_typedef:
 				break;
 			case DW_TAG_base_type:
-			
 				break;
 			case DW_TAG_array_type:
+				if (type.at(type_node_number).array_dimensions.size())
+					node.array_dimensions = type.at(type_node_number).array_dimensions;
+				node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, type.at(type_node_number).next);
 				break;
 			default:
-				qDebug() << "unhandled tag" <<  type.at(type_node_number).die.tag;
+				qDebug() << "unhandled tag" << type.at(type_node_number).die.tag;
 				DwarfUtil::panic();
 		}
 	}

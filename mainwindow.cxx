@@ -27,7 +27,10 @@ QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node)
 {
 auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)));
 int i;
-	for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i ++ ))));
+	if (node.array_dimensions.size())
+		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0))), i ++);
+	else
+		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i ++ ))));
 	return n;
 }
 
@@ -535,4 +538,19 @@ void MainWindow::on_actionExplore_triggered()
 		if (dir.exists())
 			QProcess::startDetached("explorer", QStringList() << QString("/root,") + dir.canonicalPath().replace('/', '\\') << "/select", dir.canonicalPath());
 	}
+}
+
+void MainWindow::on_tableWidgetStaticDataObjects_itemSelectionChanged()
+{
+int row(ui->tableWidgetStaticDataObjects->currentRow());
+uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 4)->text().replace('$', "0x").toUInt(0, 0);
+	std::vector<struct DwarfTypeNode> type_cache;
+	std::map<uint32_t, uint32_t> abbreviations;
+	dwdata->get_abbreviations_of_compilation_unit(dwdata->compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
+	dwdata->readType(die_offset, abbreviations, type_cache);
+	
+	struct DwarfData::DataNode node;
+	dwdata->dataForType(type_cache, node, true, 1);
+	ui->treeWidget->clear();
+	ui->treeWidget->addTopLevelItem(itemForNode(node));
 }
