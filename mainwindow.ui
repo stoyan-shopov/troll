@@ -284,6 +284,9 @@
        <property name="alternatingRowColors">
         <bool>true</bool>
        </property>
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
        <column>
         <property name="text">
          <string>name</string>
@@ -395,6 +398,9 @@
      </property>
      <item>
       <widget class="QTableWidget" name="tableWidgetRegisters">
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
        <column>
         <property name="text">
          <string>register</string>

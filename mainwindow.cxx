@@ -321,7 +321,11 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetStaticDataObjects->setItem(row, 4, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
 	}
 	ui->tableWidgetFunctions->sortItems(0);
+	ui->tableWidgetFunctions->resizeColumnsToContents();
+	ui->tableWidgetFunctions->resizeRowsToContents();
 	ui->tableWidgetStaticDataObjects->sortItems(0);
+	ui->tableWidgetStaticDataObjects->resizeColumnsToContents();
+	ui->tableWidgetStaticDataObjects->resizeRowsToContents();
 	profiling.static_storage_duration_display_view_build_time = t.elapsed();
 	qDebug() << "static object lists built in" << profiling.static_storage_duration_display_view_build_time << "milliseconds";
 
