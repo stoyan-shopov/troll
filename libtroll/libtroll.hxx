@@ -1340,6 +1340,8 @@ public:
 int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
 	std::string typeString(const std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0)
 	{
+		if (node_number == -1)
+			return "void ";
 		std::string type_string;
 		const struct Die & die(type.at(node_number).die);
 
