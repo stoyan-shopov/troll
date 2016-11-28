@@ -1344,9 +1344,13 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 
 		switch (die.tag)
 		{
+			case DW_TAG_union_type:
+				type_string = "union"; if (0)
 			case DW_TAG_structure_type:
+				type_string = "struct";
+			{
 				int j;
-				type_string = "struct " + std::string(nameOfDie(die)) + " ";
+				type_string += " " + std::string(nameOfDie(die)) + " ";
 				if (!short_type_print)
 				{
 					type_string += "{\n";
@@ -1354,6 +1358,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 						type_string += typeString(type, short_type_print, j);
 					type_string += "\n};";
 				}
+			}
 			break;
 			case DW_TAG_member:
 				type_string = typeString(type, short_type_print, type.at(node_number).next) + nameOfDie(die);
@@ -1363,11 +1368,17 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 			case DW_TAG_volatile_type:
 				type_string = "volatile " + typeString(type, short_type_print, type.at(node_number).next);
 				break;
+			case DW_TAG_const_type:
+				type_string = "const " + typeString(type, short_type_print, type.at(node_number).next);
+				break;
 			case DW_TAG_typedef:
 				if (!short_type_print) type_string += "typedef ";
 				type_string += std::string(nameOfDie(die)) + " ";
 				if (!short_type_print)
 					type_string += typeString(type, short_type_print, type.at(node_number).next);
+				break;
+			case DW_TAG_pointer_type:
+				type_string = "* " + typeString(type, short_type_print, type.at(node_number).next);
 				break;
 			case DW_TAG_base_type:
 			{
@@ -1381,6 +1392,12 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 					default:
 						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x.first, x.second);
 						DwarfUtil::panic();
+					case DW_ATE_boolean:
+						type_string = "bool ";
+						break;
+					case DW_ATE_unsigned_char:
+						type_string = "unsigned char ";
+						break;
 					case DW_ATE_unsigned:
 						switch (DwarfUtil::formConstant(size.first, size.second))
 						{
@@ -1397,6 +1414,21 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 								break;
 						}
 						break;
+					case DW_ATE_signed:
+						switch (DwarfUtil::formConstant(size.first, size.second))
+						{
+							default:
+								DwarfUtil::panic();
+							case 1:
+								type_string = "signed char ";
+								break;
+							case 2:
+								type_string = "signed short ";
+								break;
+							case 4:
+								type_string = "signed int ";
+								break;
+						}
 				}
 			}
 				break;

@@ -53,7 +53,7 @@ class MainWindow : public QMainWindow
 	bool readElfSections(void);
 	QString elf_filename;
 	void updateRegisterView(int frame_number);
-	void typeStringForDieOffset(uint32_t die_offset);
+	std::string typeStringForDieOffset(uint32_t die_offset);
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

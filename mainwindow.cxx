@@ -179,6 +179,15 @@ void MainWindow::updateRegisterView(int frame_number)
 	ui->tableWidgetRegisters->resizeRowsToContents();
 }
 
+std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
+{
+	std::vector<struct DwarfTypeNode> type_cache;
+	std::map<uint32_t, uint32_t> abbreviations;
+	dwdata->get_abbreviations_of_compilation_unit(dwdata->compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
+	dwdata->readType(die_offset, abbreviations, type_cache);
+	return dwdata->typeString(type_cache, true, 1);
+}
+
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
@@ -306,6 +315,7 @@ MainWindow::MainWindow(QWidget *parent) :
 		int row(ui->tableWidgetStaticDataObjects->rowCount());
 		ui->tableWidgetStaticDataObjects->insertRow(row);
 		ui->tableWidgetStaticDataObjects->setItem(row, 0, new QTableWidgetItem(data_objects.at(i).name));
+		ui->tableWidgetStaticDataObjects->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(typeStringForDieOffset(data_objects.at(i).die_offset))));
 		ui->tableWidgetStaticDataObjects->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
 		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
 		ui->tableWidgetStaticDataObjects->setItem(row, 4, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
@@ -444,6 +454,11 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("window-state", saveState());
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
 	s.setValue("main-splitter/state", ui->splitterMain->saveState());
+	qDebug() << "";
+	qDebug() << "";
+	qDebug() << "";
+	qDebug() << "<<< profiling stats >>>";
+	qDebug() << "";
 	dwdata->dumpStats();
 	qDebug() << "frontend profiling stats (all times in milliseconds):";
 	qDebug() << "time for reading all debug sections from disk:" << profiling.debug_sections_disk_read_time;
