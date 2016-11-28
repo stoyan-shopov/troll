@@ -53,6 +53,7 @@ class MainWindow : public QMainWindow
 	bool readElfSections(void);
 	QString elf_filename;
 	void updateRegisterView(int frame_number);
+	void typeStringForDieOffset(uint32_t die_offset);
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
@@ -75,6 +76,22 @@ protected:
 private:
 	Ui::MainWindow *ui;
 	QSerialPort	blackstrike_port;
+	/* all times are in milliseconds */
+	struct
+	{
+		unsigned	debug_sections_disk_read_time;
+		unsigned	all_compilation_units_processing_time;
+		unsigned	debug_lines_processing_time;
+		unsigned	static_storage_duration_data_reap_time;
+		unsigned	static_storage_duration_display_view_build_time;
+		unsigned	debugger_startup_time;
+		unsigned	max_backtrace_generation_time;
+		unsigned	max_context_view_generation_time;
+		unsigned	max_addresses_for_file_retrieval_time;
+		unsigned	max_source_code_view_build_time;
+		unsigned	max_local_data_objects_view_build_time;
+	}
+	profiling;
 };
 
 #endif // MAINWINDOW_HXX

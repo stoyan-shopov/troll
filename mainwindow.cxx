@@ -33,6 +33,8 @@ int i;
 
 void MainWindow::backtrace()
 {
+	QTime t;
+	t.start();
 	cortexm0->primeUnwinder();
 	register_cache->clear();
 	register_cache->pushFrame(cortexm0->getRegisters());
@@ -80,6 +82,8 @@ void MainWindow::backtrace()
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
 	ui->tableWidgetBacktrace->selectRow(0);
+	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
+		profiling.max_backtrace_generation_time = t.elapsed();
 }
 
 bool MainWindow::readElfSections(void)
@@ -89,8 +93,10 @@ QProcess readelf;
 QString output;
 bool ok1, ok2;
 
-	readelf.start("readelf", QStringList() << "-S" << elf_filename);
+	readelf.start("readelf.exe", QStringList() << "-S" << elf_filename);
 	readelf.waitForFinished();
+	if (readelf.error() != QProcess::UnknownError)
+		Util::panic();
 	qDebug() << (output = readelf.readAll());
 	if (rx.indexIn(output) != -1)
 	{
@@ -155,6 +161,7 @@ bool ok1, ok2;
 		debug_loc_len = rx.cap(2).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
+	return true;
 }
 
 void MainWindow::updateRegisterView(int frame_number)
@@ -176,20 +183,20 @@ MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
 {
+	QTime startup_time;
+	startup_time.start();
 	QCoreApplication::setOrganizationName("shopov instruments");
 	QCoreApplication::setApplicationName("troll");
 	QSettings s("troll.rc", QSettings::IniFormat);
+	memset(& profiling, 0, sizeof profiling);
 
 	setStyleSheet("QSplitter::handle:horizontal { width: 2px; }  /*QSplitter::handle:vertical { height: 20px; }*/ "
 	              "QSplitter::handle { border: 1px solid blue; background-color: white; } "
 		      "QTableWidget::item{ selection-background-color: teal}"
 	              );
 	
-	QTime startup_time;
 	elf_filename = "X:/blackstrike-github/src/blackmagic";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
-	startup_time.start();
-	readElfSections();
 	ui->setupUi(this);
 	restoreGeometry(s.value("window-geometry").toByteArray());
 	restoreState(s.value("window-state").toByteArray());
@@ -201,6 +208,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	QFile debug_file("Qt5Guid.dll");
 #endif
 	QTime t;
+	t.start();
+	readElfSections();
 	if (!debug_file.open(QFile::ReadOnly))
 	{
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
@@ -222,6 +231,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	debug_line = debug_file.read(debug_line_len);
 	debug_file.seek(debug_loc_offset);
 	debug_loc = debug_file.read(debug_loc_len);
+	profiling.debug_sections_disk_read_time = t.elapsed();
 	
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
@@ -245,7 +255,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	int i;
 	uint32_t cu;
-	t.start();
+	t.restart();
 	uint32_t die_offset;
 	for (i = cu = 0; cu != -1; i++, cu = dwdata->next_compilation_unit(cu))
 	{
@@ -254,7 +264,8 @@ MainWindow::MainWindow(QWidget *parent) :
 		dwdata->get_abbreviations_of_compilation_unit(cu, abbreviations);
 		dwdata->debug_tree_of_die(die_offset, abbreviations);
 	}
-	qDebug() << "all compilation units in .debug_info processed in" << t.elapsed() << "milliseconds";
+	profiling.all_compilation_units_processing_time = t.elapsed();
+	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
 	qDebug() << "decoding of .debug_info ended at" << die_offset;
 
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_info section : %1").arg(i));
@@ -272,11 +283,13 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	t.restart();
 	dwdata->dumpLines();
-	qDebug() << ".debug_lines section processed in" << t.elapsed() << "milliseconds";
+	profiling.debug_lines_processing_time = t.elapsed();
+	qDebug() << ".debug_lines section processed in" << profiling.debug_lines_processing_time << "milliseconds";
 	t.restart();
 	std::vector<struct StaticObject> data_objects, subprograms;
 	dwdata->reapStaticObjects(data_objects, subprograms);
-	qDebug() << "static storage duration data reaped in" << t.elapsed() << "milliseconds";
+	profiling.static_storage_duration_data_reap_time = t.elapsed();
+	qDebug() << "static storage duration data reaped in" << profiling.static_storage_duration_data_reap_time << "milliseconds";
 	qDebug() << "data objects:" << data_objects.size() << ", subprograms:" << subprograms.size();
 	t.restart();
 	for (i = 0; i < subprograms.size(); i++)
@@ -293,15 +306,17 @@ MainWindow::MainWindow(QWidget *parent) :
 		int row(ui->tableWidgetStaticDataObjects->rowCount());
 		ui->tableWidgetStaticDataObjects->insertRow(row);
 		ui->tableWidgetStaticDataObjects->setItem(row, 0, new QTableWidgetItem(data_objects.at(i).name));
-		ui->tableWidgetStaticDataObjects->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
-		ui->tableWidgetStaticDataObjects->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
-		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 4, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
 	}
 	ui->tableWidgetFunctions->sortItems(0);
 	ui->tableWidgetStaticDataObjects->sortItems(0);
-	qDebug() << "static object lists built in" << t.elapsed() << "milliseconds";
+	profiling.static_storage_duration_display_view_build_time = t.elapsed();
+	qDebug() << "static object lists built in" << profiling.static_storage_duration_display_view_build_time << "milliseconds";
 
-	qDebug() << "debugger startup time:" << startup_time.elapsed() << "milliseconds";
+	profiling.debugger_startup_time = startup_time.elapsed();
+	qDebug() << "debugger startup time:" << profiling.debugger_startup_time << "milliseconds";
 
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
 }
@@ -319,6 +334,8 @@ void MainWindow::on_lineEditSforthCommand_returnPressed()
 
 void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 {
+QTime stime;
+stime.start();
 QFile src;
 QString t;
 QTextBlockFormat f, dis;
@@ -355,6 +372,8 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	std::vector<struct DebugLine::lineAddress> line_addresses;
 	x.start();
 	dwdata->addressesForFile(ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), line_addresses);
+	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
+		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
 	qDebug() << "addresses for file count: " << line_addresses.size();
 	x.restart();
@@ -386,6 +405,8 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	c.setBlockFormat(f);
 	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
+	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_source_code_view_build_time)
+		profiling.max_source_code_view_build_time = x.elapsed();
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	x.restart();
 	std::map<uint32_t, uint32_t> abbreviations;
@@ -403,7 +424,11 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	}
 	ui->tableWidgetLocalVariables->resizeColumnsToContents();
 	ui->tableWidgetLocalVariables->resizeRowsToContents();
+	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_local_data_objects_view_build_time)
+		profiling.max_local_data_objects_view_build_time = x.elapsed();
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
+	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
+		profiling.max_context_view_generation_time = stime.elapsed();
 }
 
 void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
@@ -420,6 +445,18 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
 	s.setValue("main-splitter/state", ui->splitterMain->saveState());
 	dwdata->dumpStats();
+	qDebug() << "frontend profiling stats (all times in milliseconds):";
+	qDebug() << "time for reading all debug sections from disk:" << profiling.debug_sections_disk_read_time;
+	qDebug() << "time for processing all of the .debug_info data:" << profiling.all_compilation_units_processing_time;
+	qDebug() << "time for processing the whole .debug_lines section:" << profiling.debug_lines_processing_time;
+	qDebug() << "time for gathering data on all static storage duration data and subprograms:" << profiling.static_storage_duration_data_reap_time;
+	qDebug() << "time for building the static storage duration data and subprograms views:" << profiling.static_storage_duration_display_view_build_time;
+	qDebug() << "!!! total debugger startup time:" << profiling.debugger_startup_time;
+	qDebug() << "maximim time for retrieving line and addresses for a source code file:" << profiling.max_addresses_for_file_retrieval_time;
+	qDebug() << "maximim time for building a source code view:" << profiling.max_source_code_view_build_time;
+	qDebug() << "maximim time for building a local data view:" << profiling.max_local_data_objects_view_build_time;
+	qDebug() << "maximim time for generating a backtrace:" << profiling.max_backtrace_generation_time;
+	qDebug() << "maximim time for generating a context view:" << profiling.max_context_view_generation_time;
 	QMainWindow::closeEvent(e);
 }
 
