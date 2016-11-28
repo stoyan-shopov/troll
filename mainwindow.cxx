@@ -205,6 +205,30 @@ MainWindow::MainWindow(QWidget *parent) :
 	setStyleSheet("QSplitter::handle:horizontal { width: 2px; }  /*QSplitter::handle:vertical { height: 20px; }*/ "
 	              "QSplitter::handle { border: 1px solid blue; background-color: white; } "
 		      "QTableWidget::item{ selection-background-color: teal}"
+ 
+"QTreeView::branch:has-siblings:!adjoins-item {"
+    "border-image: url(:/resources/images/stylesheet-vline.png) 0;"
+"}"
+
+"QTreeView::branch:has-siblings:adjoins-item {"
+    "border-image: url(:/resources/images/stylesheet-branch-more.png) 0;"
+"}"
+
+"QTreeView::branch:!has-children:!has-siblings:adjoins-item {"
+    "border-image: url(:/resources/images/stylesheet-branch-end.png) 0;"
+"}"
+
+"QTreeView::branch:has-children:!has-siblings:closed,"
+"QTreeView::branch:closed:has-children:has-siblings {"
+        "border-image: none;"
+        "image: url(:/resources/images/stylesheet-branch-closed.png);"
+"}"
+
+"QTreeView::branch:open:has-children:!has-siblings,"
+"QTreeView::branch:open:has-children:has-siblings  {"
+        "border-image: none;"
+        "image: url(:/resources/images/stylesheet-branch-open.png);"
+"}"
 	              );
 	
 	elf_filename = "X:/blackstrike-github/src/blackmagic";
@@ -553,4 +577,5 @@ uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 4)->text().rep
 	dwdata->dataForType(type_cache, node, true, 1);
 	ui->treeWidget->clear();
 	ui->treeWidget->addTopLevelItem(itemForNode(node));
+	ui->treeWidget->expandAll();
 }

@@ -2,4 +2,11 @@
     <qresource prefix="/sforth">
         <file>unwinder.fs</file>
     </qresource>
+    <qresource prefix="/">
+        <file>resources/images/stylesheet-branch-closed.png</file>
+        <file>resources/images/stylesheet-branch-end.png</file>
+        <file>resources/images/stylesheet-branch-more.png</file>
+        <file>resources/images/stylesheet-branch-open.png</file>
+        <file>resources/images/stylesheet-vline.png</file>
+    </qresource>
 </RCC>
