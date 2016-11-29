@@ -74,6 +74,8 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 
 bool DwarfData::isPointerType(const std::vector<DwarfTypeNode> &type, int node_number)
 {
+	if (node_number == -1)
+		return false;
 	switch (type.at(node_number).die.tag)
 	{
 		case DW_TAG_pointer_type:
@@ -84,6 +86,8 @@ bool DwarfData::isPointerType(const std::vector<DwarfTypeNode> &type, int node_n
 
 bool DwarfData::isArrayType(const std::vector<DwarfTypeNode> &type, int node_number)
 {
+	if (node_number == -1)
+		return false;
 	switch (type.at(node_number).die.tag)
 	{
 		case DW_TAG_array_type:
@@ -94,6 +98,8 @@ bool DwarfData::isArrayType(const std::vector<DwarfTypeNode> &type, int node_num
 
 bool DwarfData::isSubroutineType(const std::vector<DwarfTypeNode> &type, int node_number)
 {
+	if (node_number == -1)
+		return false;
 	switch (type.at(node_number).die.tag)
 	{
 		case DW_TAG_subroutine_type:
