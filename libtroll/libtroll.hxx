@@ -1347,6 +1347,8 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 
 		switch (die.tag)
 		{
+			case DW_TAG_enumeration_type:
+				type_string = "enum"; if (0)
 			case DW_TAG_union_type:
 				type_string = "union"; if (0)
 			case DW_TAG_structure_type:
@@ -1498,6 +1500,8 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 			case DW_TAG_typedef:
 				break;
 			case DW_TAG_base_type:
+				break;
+			case DW_TAG_enumeration_type:
 				break;
 			case DW_TAG_array_type:
 				if (type.at(type_node_number).array_dimensions.size())
