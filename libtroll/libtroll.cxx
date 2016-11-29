@@ -71,3 +71,33 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 	if (TYPE_DEBUG_ENABLED) qDebug() << "done" << QString("$%1").arg(saved_die_offset, 0, 16);
 	return index;
 }
+
+bool DwarfData::isPointerType(const std::vector<DwarfTypeNode> &type, int node_number)
+{
+	switch (type.at(node_number).die.tag)
+	{
+		case DW_TAG_pointer_type:
+			return true;
+	}
+	return false;
+}
+
+bool DwarfData::isArrayType(const std::vector<DwarfTypeNode> &type, int node_number)
+{
+	switch (type.at(node_number).die.tag)
+	{
+		case DW_TAG_array_type:
+			return true;
+	}
+	return false;
+}
+
+bool DwarfData::isSubroutineType(const std::vector<DwarfTypeNode> &type, int node_number)
+{
+	switch (type.at(node_number).die.tag)
+	{
+		case DW_TAG_subroutine_type:
+			return true;
+	}
+	return false;
+}
