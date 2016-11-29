@@ -1365,6 +1365,7 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 				}
 			}
 			break;
+			case DW_TAG_formal_parameter:
 			case DW_TAG_member:
 				type_string = typeString(type, short_type_print, type.at(node_number).next) + nameOfDie(die);
 				if (!short_type_print)
@@ -1455,7 +1456,19 @@ int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, 
 			}
 				break;
 			case DW_TAG_subroutine_type:
-				type_string = "!!! handle subroutine types !!!";
+				int i;
+				type_string = typeString(type, short_type_print, type.at(node_number).next) + " (";
+				i = type.at(node_number).childlist;
+				if (i == -1)
+					type_string += "void";
+				else do
+				{
+					if (type.at(i).die.tag == DW_TAG_formal_parameter)
+						type_string += typeString(type, short_type_print, i) + ", ";
+					i = type.at(i).sibling;
+				}
+				while (i != -1);
+				type_string += ") ";
 				break;
 			default:
 				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag;
