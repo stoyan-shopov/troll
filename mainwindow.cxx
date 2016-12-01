@@ -25,7 +25,7 @@ int i;
 
 QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node)
 {
-auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)));
+auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize));
 int i;
 	if (node.array_dimensions.size())
 		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0))), i ++);
@@ -578,4 +578,5 @@ uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 4)->text().rep
 	ui->treeWidget->clear();
 	ui->treeWidget->addTopLevelItem(itemForNode(node));
 	ui->treeWidget->expandAll();
+	ui->treeWidget->resizeColumnToContents(0);
 }

@@ -104,7 +104,12 @@
        </property>
        <column>
         <property name="text">
-         <string notr="true">1</string>
+         <string notr="true">type</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>size</string>
         </property>
        </column>
       </widget>

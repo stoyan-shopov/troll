@@ -1540,6 +1540,7 @@ if (is_prefix_printed)
 	struct DataNode
 	{
 		std::vector<std::string> data;
+		uint32_t bytesize;
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
@@ -1547,6 +1548,7 @@ if (is_prefix_printed)
 	{
 		struct Die die(type.at(type_node_number).die);
 		node.data.push_back(typeString(type, short_type_print, type_node_number));
+		node.bytesize = sizeOf(type, type_node_number);
 		switch (die.tag)
 		{
 			case DW_TAG_structure_type:
