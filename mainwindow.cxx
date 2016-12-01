@@ -25,7 +25,7 @@ int i;
 
 QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node)
 {
-auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize));
+auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << QString("%1").arg(node.data_member_location));
 int i;
 	if (node.array_dimensions.size())
 		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0))), i ++);

@@ -112,6 +112,11 @@
          <string>size</string>
         </property>
        </column>
+       <column>
+        <property name="text">
+         <string>member location</string>
+        </property>
+       </column>
       </widget>
      </item>
     </layout>

@@ -1541,14 +1541,17 @@ if (is_prefix_printed)
 	{
 		std::vector<std::string> data;
 		uint32_t bytesize;
+		uint32_t data_member_location;
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
 	void dataForType(const std::vector<struct DwarfTypeNode> & type, struct DataNode & node, bool short_type_print = true, int type_node_number = 0)
 	{
 		struct Die die(type.at(type_node_number).die);
+		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		node.data.push_back(typeString(type, short_type_print, type_node_number));
 		node.bytesize = sizeOf(type, type_node_number);
+		node.data_member_location = 0;
 		switch (die.tag)
 		{
 			case DW_TAG_structure_type:
@@ -1560,6 +1563,13 @@ if (is_prefix_printed)
 			case DW_TAG_pointer_type:
 				break;
 			case DW_TAG_member:
+				dataForType(type, node, short_type_print, type.at(type_node_number).next);
+				{
+					auto x = a.dataForAttribute(DW_AT_data_member_location, debug_info + die.offset);
+					if (x.first)
+						node.data_member_location = DwarfUtil::formConstant(x.first, x.second);
+				}
+				break;
 			case DW_TAG_volatile_type:
 			case DW_TAG_const_type:
 				dataForType(type, node, short_type_print, type.at(type_node_number).next);
