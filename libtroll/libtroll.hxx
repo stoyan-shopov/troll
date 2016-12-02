@@ -1603,9 +1603,8 @@ if (is_prefix_printed)
 				break;
 			case DW_TAG_volatile_type:
 			case DW_TAG_const_type:
-				dataForType(type, node, short_type_print, type.at(type_node_number).next);
-				break;
 			case DW_TAG_typedef:
+				dataForType(type, node, short_type_print, type.at(type_node_number).next);
 				break;
 			case DW_TAG_base_type:
 				break;
