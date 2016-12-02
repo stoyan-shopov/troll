@@ -258,6 +258,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	restoreState(s.value("window-state").toByteArray());
 	ui->splitterMain->restoreGeometry(s.value("main-splitter/geometry").toByteArray());
 	ui->splitterMain->restoreState(s.value("main-splitter/state").toByteArray());
+	ui->actionHack_mode->setChecked(s.value("hack-mode", true).toBool());
+	on_actionHack_mode_triggered();
 #if MAIN_APS
 	QFile debug_file(elf_filename);
 #else
@@ -506,6 +508,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("window-state", saveState());
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
 	s.setValue("main-splitter/state", ui->splitterMain->saveState());
+	s.setValue("hack-mode", ui->actionHack_mode->isChecked());
 	qDebug() << "";
 	qDebug() << "";
 	qDebug() << "";
@@ -602,4 +605,20 @@ uint32_t address = ui->tableWidgetStaticDataObjects->item(row, 2)->text().replac
 	ui->treeWidgetDataObjects->expandAll();
 	ui->treeWidgetDataObjects->resizeColumnToContents(0);
 	dumpData(address, node.bytesize);
+}
+
+void MainWindow::on_actionHack_mode_triggered()
+{
+bool hack_mode(ui->actionHack_mode->isChecked());
+	ui->tableWidgetBacktrace->setColumnHidden(4, !hack_mode);
+	ui->tableWidgetBacktrace->setColumnHidden(5, !hack_mode);
+	ui->tableWidgetBacktrace->setColumnHidden(6, !hack_mode);
+	
+	ui->tableWidgetStaticDataObjects->setColumnHidden(3, !hack_mode);
+	ui->tableWidgetStaticDataObjects->setColumnHidden(4, !hack_mode);
+	ui->tableWidgetStaticDataObjects->setColumnHidden(5, !hack_mode);
+	
+	ui->treeWidgetDataObjects->setColumnHidden(1, !hack_mode);
+	ui->treeWidgetDataObjects->setColumnHidden(3, !hack_mode);
+	ui->treeWidgetDataObjects->setColumnHidden(4, !hack_mode);
 }

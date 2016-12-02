@@ -73,6 +73,8 @@ private slots:
 	
 	void on_tableWidgetStaticDataObjects_itemSelectionChanged();
 	
+	void on_actionHack_mode_triggered();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	
