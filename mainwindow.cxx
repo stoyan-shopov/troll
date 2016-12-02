@@ -343,9 +343,10 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetStaticDataObjects->insertRow(row);
 		ui->tableWidgetStaticDataObjects->setItem(row, 0, new QTableWidgetItem(data_objects.at(i).name));
 		ui->tableWidgetStaticDataObjects->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(typeStringForDieOffset(data_objects.at(i).die_offset))));
-		ui->tableWidgetStaticDataObjects->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
-		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
-		ui->tableWidgetStaticDataObjects->setItem(row, 4, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 2, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).address, 0, 16)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 4, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
+		ui->tableWidgetStaticDataObjects->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
 	}
 	ui->tableWidgetFunctions->sortItems(0);
 	ui->tableWidgetFunctions->resizeColumnsToContents();
@@ -567,7 +568,7 @@ void MainWindow::on_actionExplore_triggered()
 void MainWindow::on_tableWidgetStaticDataObjects_itemSelectionChanged()
 {
 int row(ui->tableWidgetStaticDataObjects->currentRow());
-uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 4)->text().replace('$', "0x").toUInt(0, 0);
+uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 5)->text().replace('$', "0x").toUInt(0, 0);
 	std::vector<struct DwarfTypeNode> type_cache;
 	std::map<uint32_t, uint32_t> abbreviations;
 	dwdata->get_abbreviations_of_compilation_unit(dwdata->compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);

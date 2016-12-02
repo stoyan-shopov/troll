@@ -192,7 +192,7 @@ public:
 	}
 	static bool isDataObject(uint32_t tag) { return tag == DW_TAG_variable; }
 	static bool isSubprogram(uint32_t tag) { return tag == DW_TAG_subprogram; }
-	static bool isLocationConstant(uint32_t location_attribute_form, const uint8_t * debug_info_bytes)
+	static bool isLocationConstant(uint32_t location_attribute_form, const uint8_t * debug_info_bytes, uint32_t & address)
 	{
 		switch (location_attribute_form)
 		{
@@ -206,7 +206,11 @@ public:
 			case DW_FORM_block:
 			case DW_FORM_exprloc:
 				len = DwarfUtil::uleb128x(debug_info_bytes);
-				return (len == 5 && * debug_info_bytes == DW_OP_addr) ? true : false;
+				if (len == 5 && * debug_info_bytes == DW_OP_addr)
+				{
+					address = * (uint32_t *) (debug_info_bytes + 1);
+					return true;
+				}
 		}
 		return false;
 	}
@@ -320,6 +324,7 @@ struct StaticObject
 	const char *	name;
 	int		file, line;
 	uint32_t	die_offset;
+	uint32_t	address;
 };
 
 struct SourceCodeCoordinates
@@ -1686,11 +1691,13 @@ private:
 		if (DwarfUtil::isDataObject(die.tag))
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
+			uint32_t address;
 			auto x = a.dataForAttribute(DW_AT_location, debug_info + die.offset);
-			if (x.first && DwarfUtil::isLocationConstant(x.first, x.second))
+			if (x.first && DwarfUtil::isLocationConstant(x.first, x.second, address))
 			{
 				StaticObject x;
 				fillStaticObjectDetails(die, x);
+				x.address = address;
 				data_objects.push_back(x);
 			}
 		}

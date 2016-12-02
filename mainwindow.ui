@@ -250,6 +250,11 @@
        </column>
        <column>
         <property name="text">
+         <string>address</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
          <string>file</string>
         </property>
        </column>
