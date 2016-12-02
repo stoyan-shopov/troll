@@ -48,7 +48,7 @@ class MainWindow : public QMainWindow
 	RegisterCache	* register_cache;
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
-	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node);
+	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0);
 	void backtrace(void);
 	bool readElfSections(void);
 	QString elf_filename;

@@ -1564,6 +1564,10 @@ if (is_prefix_printed)
 		std::vector<std::string> data;
 		uint32_t bytesize;
 		uint32_t data_member_location;
+		struct
+		{
+			uint32_t is_pointer	: 1;
+		};
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
@@ -1574,6 +1578,7 @@ if (is_prefix_printed)
 		node.data.push_back(typeString(type, short_type_print, type_node_number));
 		node.bytesize = sizeOf(type, type_node_number);
 		node.data_member_location = 0;
+		node.is_pointer = 0;
 		switch (die.tag)
 		{
 			case DW_TAG_structure_type:
@@ -1583,6 +1588,7 @@ if (is_prefix_printed)
 					node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, j);
 				break;
 			case DW_TAG_pointer_type:
+				node.is_pointer = 1;
 				break;
 			case DW_TAG_member:
 				dataForType(type, node, short_type_print, type.at(type_node_number).next);

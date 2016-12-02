@@ -23,14 +23,28 @@ int i;
 	}
 }
 
-QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node)
+QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const QByteArray & data, int data_pos)
 {
-auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << QString("%1").arg(node.data_member_location));
+auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << "???" << QString("%1").arg(node.data_member_location));
 int i;
+	if (!node.children.size())
+	{
+		if (data_pos + node.bytesize <= data.size()) switch (node.bytesize)
+		{
+		uint32_t x;
+			case 1: x = * (uint8_t *) (data.data() + data_pos); if (0)
+			case 2: x = * (uint16_t *) (data.data() + data_pos); if (0)
+			case 4: x = * (uint32_t *) (data.data() + data_pos);
+				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : QString("%1").arg(x));
+				break;
+			default:
+				Util::panic();
+		}
+	}
 	if (node.array_dimensions.size())
-		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0))), i ++);
+		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0), data, data_pos + i * node.children.at(0).bytesize)), i ++);
 	else
-		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i ++ ))));
+		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i), data, data_pos + node.children.at(i).data_member_location)), i ++);
 	return n;
 }
 
@@ -575,6 +589,7 @@ void MainWindow::on_tableWidgetStaticDataObjects_itemSelectionChanged()
 {
 int row(ui->tableWidgetStaticDataObjects->currentRow());
 uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 5)->text().replace('$', "0x").toUInt(0, 0);
+uint32_t address = ui->tableWidgetStaticDataObjects->item(row, 2)->text().replace('$', "0x").toUInt(0, 0);
 	std::vector<struct DwarfTypeNode> type_cache;
 	std::map<uint32_t, uint32_t> abbreviations;
 	dwdata->get_abbreviations_of_compilation_unit(dwdata->compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
@@ -583,8 +598,8 @@ uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 5)->text().rep
 	struct DwarfData::DataNode node;
 	dwdata->dataForType(type_cache, node, true, 1);
 	ui->treeWidgetDataObjects->clear();
-	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node));
+	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, target->readBytes(address, node.bytesize)));
 	ui->treeWidgetDataObjects->expandAll();
 	ui->treeWidgetDataObjects->resizeColumnToContents(0);
-	dumpData(ui->tableWidgetStaticDataObjects->item(row, 2)->text().replace('$', "0x").toUInt(0, 0), node.bytesize);
+	dumpData(address, node.bytesize);
 }

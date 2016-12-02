@@ -114,6 +114,11 @@
        </column>
        <column>
         <property name="text">
+         <string>value</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
          <string>member location</string>
         </property>
        </column>
