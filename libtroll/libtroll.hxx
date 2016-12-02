@@ -1544,6 +1544,13 @@ if (is_prefix_printed)
 		auto x = a.dataForAttribute(DW_AT_byte_size, debug_info + type.at(node_number).die.offset);
 		if (x.first)
 			return DwarfUtil::formConstant(x.first, x.second);
+		if (type.at(node_number).array_dimensions.size())
+		{
+			int i;
+			uint32_t n = 1;
+			for (i = 0; i < type.at(node_number).array_dimensions.size(); n *= type.at(node_number).array_dimensions.at(i ++));
+			return n * sizeOf(type, type.at(node_number).next);
+		}
 		return sizeOf(type, type.at(node_number).next);
 	}
 	
