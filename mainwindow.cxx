@@ -578,13 +578,8 @@ void MainWindow::on_actionExplore_triggered()
 	{
 		int row = ui->tableWidgetBacktrace->selectionModel()->selectedRows().at(0).row();
 		QDir dir(ui->tableWidgetBacktrace->item(row, 4)->text());
-		qDebug() << dir.canonicalPath();
-		qDebug() << dir.canonicalPath().replace('/', '\\').replace("\\\\", "\\");
-		qDebug() << "x\\y\\z\\";
-		qDebug() << '\\';
-		qDebug() << "\\";
 		if (dir.exists())
-			QProcess::startDetached("explorer", QStringList() << QString("/root,") + dir.canonicalPath().replace('/', '\\') << "/select", dir.canonicalPath());
+			QProcess::startDetached("explorer", QStringList() << QString("/select,") + QDir::toNativeSeparators(dir.canonicalPath()) + "\\" + QFileInfo(ui->tableWidgetBacktrace->item(row, 2)->text()).fileName(), dir.canonicalPath());
 	}
 }
 
