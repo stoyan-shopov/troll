@@ -1576,8 +1576,17 @@ if (is_prefix_printed)
 				dataForType(type, node, short_type_print, type.at(type_node_number).next);
 				{
 					auto x = a.dataForAttribute(DW_AT_data_member_location, debug_info + die.offset);
-					if (x.first)
+					if (x.first) switch (x.first)
+					{
+					case DW_FORM_block1:
+						/* special case for dwarf-2 debug information */
+						x.second ++;
+						if (* x.second == DW_OP_plus_uconst)
+							node.data_member_location = DwarfUtil::uleb128x(x.second);
+						break;
+					default:
 						node.data_member_location = DwarfUtil::formConstant(x.first, x.second);
+					}
 				}
 				break;
 			case DW_TAG_volatile_type:
