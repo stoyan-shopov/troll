@@ -191,6 +191,12 @@ std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
 	return dwdata->typeString(type_cache, true, 1);
 }
 
+void MainWindow::dumpData(uint32_t address, int byte_count)
+{
+	ui->plainTextEditDataDump->clear();
+	ui->plainTextEditDataDump->appendPlainText(target->readBytes(address, byte_count).toPercentEncoding());
+}
+
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
@@ -576,8 +582,9 @@ uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 5)->text().rep
 	
 	struct DwarfData::DataNode node;
 	dwdata->dataForType(type_cache, node, true, 1);
-	ui->treeWidget->clear();
-	ui->treeWidget->addTopLevelItem(itemForNode(node));
-	ui->treeWidget->expandAll();
-	ui->treeWidget->resizeColumnToContents(0);
+	ui->treeWidgetDataObjects->clear();
+	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node));
+	ui->treeWidgetDataObjects->expandAll();
+	ui->treeWidgetDataObjects->resizeColumnToContents(0);
+	dumpData(ui->tableWidgetStaticDataObjects->item(row, 2)->text().replace('$', "0x").toUInt(0, 0), node.bytesize);
 }

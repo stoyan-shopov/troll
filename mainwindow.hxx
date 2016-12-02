@@ -54,6 +54,7 @@ class MainWindow : public QMainWindow
 	QString elf_filename;
 	void updateRegisterView(int frame_number);
 	std::string typeStringForDieOffset(uint32_t die_offset);
+	void dumpData(uint32_t address, int byte_count);
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

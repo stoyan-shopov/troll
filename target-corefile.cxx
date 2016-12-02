@@ -23,9 +23,9 @@ TargetCorefile::TargetCorefile(const QString & rom_filename, uint32_t rom_base_a
 QByteArray TargetCorefile::readBytes(uint32_t address, int byte_count)
 {
 	if (rom_base_address <= address && address < rom_base_address + rom.length() - byte_count + 1)
-		return QByteArray(rom.data() + address, byte_count);
+		return QByteArray(rom.data() + address - rom_base_address, byte_count);
 	if (ram_base_address <= address && address < ram_base_address + ram.length() - byte_count + 1)
-		return QByteArray(ram.data() + address, byte_count);
+		return QByteArray(ram.data() + address - ram_base_address, byte_count);
 	Util::panic();
 }
 
