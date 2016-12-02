@@ -1705,11 +1705,20 @@ public:
 		qDebug() << "processing die offset" << die.offset;
 		switch (x.first)
 		{
-			case DW_FORM_exprloc:
 			{
-				int len(DwarfUtil::uleb128x(x.second));
+				int len;
+			case DW_FORM_block1:
+				len = * x.second, x.second ++; if (0)
+			case DW_FORM_block2:
+				len = * (uint16_t *) x.second, x.second += 2; if (0)
+			case DW_FORM_block4:
+				len = * (uint32_t *) x.second, x.second += 4; if (0)
+			case DW_FORM_block:
+			case DW_FORM_exprloc:
+				len = DwarfUtil::uleb128x(x.second);
 				return DwarfExpression::sforthCode(x.second, len);
 			}
+			case DW_FORM_data4:
 			case DW_FORM_sec_offset:
 			qDebug() << "location list offset:" << * (uint32_t *) x.second;
 				auto l = LocationList::locationExpressionForAddress(debug_loc, * (uint32_t *) x.second,
