@@ -194,11 +194,21 @@ public:
 	static bool isSubprogram(uint32_t tag) { return tag == DW_TAG_subprogram; }
 	static bool isLocationConstant(uint32_t location_attribute_form, const uint8_t * debug_info_bytes)
 	{
-		if (location_attribute_form != DW_FORM_exprloc)
-			return false;
-		uint32_t len;
-		len = uleb128x(debug_info_bytes);
-		return (len == 5 && * debug_info_bytes == DW_OP_addr) ? true : false;
+		switch (location_attribute_form)
+		{
+			int len;
+			case DW_FORM_block1:
+				len = * debug_info_bytes, debug_info_bytes ++; if (0)
+			case DW_FORM_block2:
+				len = * (uint16_t *) debug_info_bytes, debug_info_bytes += 2; if (0)
+			case DW_FORM_block4:
+				len = * (uint32_t *) debug_info_bytes, debug_info_bytes += 4; if (0)
+			case DW_FORM_block:
+			case DW_FORM_exprloc:
+				len = DwarfUtil::uleb128x(debug_info_bytes);
+				return (len == 5 && * debug_info_bytes == DW_OP_addr) ? true : false;
+		}
+		return false;
 	}
 };
 
