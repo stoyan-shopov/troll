@@ -11,6 +11,8 @@
 #include <QSettings>
 #include <QDir>
 
+#define DEBUG_BACKTRACE		0
+
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
 {
@@ -59,7 +61,7 @@ void MainWindow::backtrace()
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
 	int row;
 	
-	qDebug() << "backtrace:";
+	if (DEBUG_BACKTRACE) qDebug() << "backtrace:";
 	ui->tableWidgetBacktrace->blockSignals(true);
 	ui->tableWidgetBacktrace->setRowCount(0);
 	ui->tableWidgetBacktrace->blockSignals(false);
@@ -67,9 +69,9 @@ void MainWindow::backtrace()
 	{
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
 		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
-		qDebug() << x.file_name << (signed) x.line;
+		if (DEBUG_BACKTRACE) qDebug() << x.file_name << (signed) x.line;
 
-		qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(context.back()));
+		if (DEBUG_BACKTRACE) qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(context.back()));
 		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 		ui->tableWidgetBacktrace->setItem(row, 0, new QTableWidgetItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0'))));
 		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString(dwdata->nameOfDie(context.back()))));
@@ -86,7 +88,7 @@ void MainWindow::backtrace()
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 			if (!context.empty())
 			{
-				qDebug() << "architecture-specific unwinding performed";
+				if (DEBUG_BACKTRACE) qDebug() << "architecture-specific unwinding performed";
 				ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("architecture-specific unwinding performed"));
 			}
@@ -95,7 +97,7 @@ void MainWindow::backtrace()
 			break;
 		last_pc = cortexm0->programCounter();
 	}
-	qDebug() << "registers: " << cortexm0->getRegisters();
+	if (DEBUG_BACKTRACE) qDebug() << "registers: " << cortexm0->getRegisters();
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
 	ui->tableWidgetBacktrace->selectRow(0);
@@ -291,23 +293,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
-	
-#if 0
-	
-	std::vector<struct DwarfTypeNode> type_cache;
-	std::map<uint32_t, uint32_t> x;
-	dwdata->get_abbreviations_of_compilation_unit(0, x);
-	dwdata->readType(0x98, x, type_cache);
-	qDebug() << __FILE__ << __LINE__ << type_cache.size() << type_cache.at(0).die.children.size();
-	qDebug() << QString::fromStdString(dwdata->typeString(type_cache));
-	
-	struct DwarfData::DataNode node;
-	dwdata->dataForType(type_cache, node);
-	qDebug() << node.children.size();
-	ui->treeWidget->addTopLevelItem(itemForNode(node));
-#endif
-	
-	//*/
 	
 	int i;
 	uint32_t cu;
