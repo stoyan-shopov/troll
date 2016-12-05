@@ -199,9 +199,7 @@ void MainWindow::updateRegisterView(int frame_number)
 std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
 {
 	std::vector<struct DwarfTypeNode> type_cache;
-	std::map<uint32_t, uint32_t> abbreviations;
-	dwdata->get_abbreviations_of_compilation_unit(dwdata->compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
-	dwdata->readType(die_offset, abbreviations, type_cache);
+	dwdata->readType(die_offset, type_cache);
 	return dwdata->typeString(type_cache, true, 1);
 }
 
@@ -481,7 +479,7 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		ui->tableWidgetLocalVariables->insertRow(row = ui->tableWidgetLocalVariables->rowCount());
 		ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(QString(dwdata->nameOfDie(locals.at(i)))));
 		std::vector<DwarfTypeNode> type_cache;
-		dwdata->readType(locals.at(i).offset, abbreviations, type_cache);
+		dwdata->readType(locals.at(i).offset, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
 		ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
@@ -589,9 +587,7 @@ int row(ui->tableWidgetStaticDataObjects->currentRow());
 uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 5)->text().replace('$', "0x").toUInt(0, 0);
 uint32_t address = ui->tableWidgetStaticDataObjects->item(row, 2)->text().replace('$', "0x").toUInt(0, 0);
 	std::vector<struct DwarfTypeNode> type_cache;
-	std::map<uint32_t, uint32_t> abbreviations;
-	dwdata->get_abbreviations_of_compilation_unit(dwdata->compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
-	dwdata->readType(die_offset, abbreviations, type_cache);
+	dwdata->readType(die_offset, type_cache);
 	
 	struct DwarfData::DataNode node;
 	dwdata->dataForType(type_cache, node, true, 1);

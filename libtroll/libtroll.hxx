@@ -1351,8 +1351,14 @@ private:
 	}
 private:
 std::map<uint32_t, uint32_t> recursion_detector;
-public:
 int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
+public:
+int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache)
+{
+	std::map<uint32_t, uint32_t> abbreviations;
+	get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
+	return readType(die_offset, abbreviations, type_cache);
+}
 bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
