@@ -1056,6 +1056,7 @@ public:
 		qDebug() << "abbreviation fetch hits:" << stats.abbreviation_hits;
 		qDebug() << "abbreviation fetch misses:" << stats.abbreviation_misses;
 	}
+private:
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
 	{
@@ -1113,22 +1114,6 @@ public:
 			arange.next();
 		}
 		return -1;
-	}
-	int compilation_unit_count(void)
-	{
-		int i;
-		arange.rewind();
-		for (i = 0; arange.data < debug_aranges + debug_aranges_len; arange.next(), i++)
-			if (arange.address_size() != 4)
-				DwarfUtil::panic();
-		return i;
-	}
-	uint32_t next_compilation_unit(uint32_t compilation_unit_offset)
-	{
-		uint32_t x = compilation_unit_header(debug_info + compilation_unit_offset).next().data - debug_info;
-		if (x >= debug_info_len)
-			x = -1;
-		return x;
 	}
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
 	void get_abbreviations_of_compilation_unit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
@@ -1247,6 +1232,31 @@ public:
 			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
 		}
 		return false;
+	}
+public:
+	uint32_t next_compilation_unit(uint32_t compilation_unit_offset)
+	{
+		uint32_t x = compilation_unit_header(debug_info + compilation_unit_offset).next().data - debug_info;
+		if (x >= debug_info_len)
+			x = -1;
+		return x;
+	}
+	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
+	 * 		is because of the dwarf die flattenned tree representation */
+	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset)
+	{
+		std::map<uint32_t, uint32_t> abbreviations;
+		get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
+		return debug_tree_of_die(die_offset, abbreviations);
+	}
+	int compilation_unit_count(void)
+	{
+		int i;
+		arange.rewind();
+		for (i = 0; arange.data < debug_aranges + debug_aranges_len; arange.next(), i++)
+			if (arange.address_size() != 4)
+				DwarfUtil::panic();
+		return i;
 	}
 	/*! \todo	!!! this is *gross* inefficient - read and process only immediate die children instead !!! */
 	std::vector<struct Die> executionContextForAddress(uint32_t address, std::map<uint32_t, uint32_t> & abbreviations)

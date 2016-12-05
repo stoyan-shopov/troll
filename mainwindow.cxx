@@ -316,15 +316,13 @@ MainWindow::MainWindow(QWidget *parent) :
 	for (i = cu = 0; cu != -1; i++, cu = dwdata->next_compilation_unit(cu))
 	{
 		die_offset = cu + 11;
-		std::map<uint32_t, uint32_t> abbreviations;
-		dwdata->get_abbreviations_of_compilation_unit(cu, abbreviations);
-		dwdata->debug_tree_of_die(die_offset, abbreviations);
+		dwdata->debug_tree_of_die(die_offset);
 	}
 	profiling.all_compilation_units_processing_time = t.elapsed();
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
 	qDebug() << "decoding of .debug_info ended at" << die_offset;
 
-	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_info section : %1").arg(i));
+	qDebug() << "compilation unit count in the .debug_info section :" << i;
 	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())
