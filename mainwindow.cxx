@@ -469,8 +469,7 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		profiling.max_source_code_view_build_time = x.elapsed();
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	x.restart();
-	std::map<uint32_t, uint32_t> abbreviations;
-	auto context = dwdata->executionContextForAddress(pc, abbreviations);
+	auto context = dwdata->executionContextForAddress(pc);
 	auto locals = dwdata->localDataObjectsForContext(context);
 	for (i = 0; i < locals.size(); i ++)
 	{

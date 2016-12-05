@@ -1259,16 +1259,14 @@ public:
 		return i;
 	}
 	/*! \todo	!!! this is *gross* inefficient - read and process only immediate die children instead !!! */
-	std::vector<struct Die> executionContextForAddress(uint32_t address, std::map<uint32_t, uint32_t> & abbreviations)
+	std::vector<struct Die> executionContextForAddress(uint32_t address)
 	{
 		std::vector<struct Die> context;
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address);
-		abbreviations.clear();
-		get_abbreviations_of_compilation_unit(cu_die_offset, abbreviations);
 		if (cu_die_offset == -1)
 			return context;
 		cu_die_offset += /* discard the compilation unit header */ 11;
-		auto debug_tree = debug_tree_of_die(cu_die_offset, abbreviations);
+		auto debug_tree = debug_tree_of_die(cu_die_offset);
 		int i(0);
 		std::vector<struct Die> & die_list(debug_tree);
 		while (i < die_list.size())
@@ -1282,8 +1280,6 @@ public:
 				i ++;
 		return context;
 	}
-	/*! \todo	!!! this is *gross* inefficient - read and process only immediate die children instead !!! */
-	std::vector<struct Die> executionContextForAddress(uint32_t address) { std::map<uint32_t, uint32_t> abbreviations; return executionContextForAddress(address, abbreviations); }
 	std::vector<struct Die> localDataObjectsForContext(const std::vector<struct Die> & context)
 	{
 	std::vector<struct Die> locals;
@@ -1705,8 +1701,7 @@ private:
 	}
 	void reapStaticObjects(std::vector<struct StaticObject> & data_objects,
 	                       std::vector<struct StaticObject> & subprograms,
-	                       const struct Die & die,
-	                       const std::map<uint32_t, uint32_t> & abbreviations)
+	                       const struct Die & die)
 	{
 		int i;
 		if (DwarfUtil::isDataObject(die.tag))
@@ -1734,7 +1729,7 @@ private:
 			}
 		}
 		for (i = 0; i < die.children.size(); i ++)
-			reapStaticObjects(data_objects, subprograms, die.children.at(i), abbreviations);
+			reapStaticObjects(data_objects, subprograms, die.children.at(i));
 	}
 
 public:
@@ -1744,10 +1739,8 @@ public:
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
 		{
 			auto die_offset = cu + /* skip compilation unit header */ 11;
-			std::map<uint32_t, uint32_t> abbreviations;
-			get_abbreviations_of_compilation_unit(cu, abbreviations);
-			auto dies = debug_tree_of_die(die_offset, abbreviations);
-			reapStaticObjects(data_objects, subprograms, dies.at(0), abbreviations);
+			auto dies = debug_tree_of_die(die_offset);
+			reapStaticObjects(data_objects, subprograms, dies.at(0));
 		}
 	}
 	std::string locationSforthCode(const struct Die & die, const struct Die & compilation_unit_die, uint32_t address_for_location = -1, uint32_t location_attribute = DW_AT_location)
