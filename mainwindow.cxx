@@ -522,11 +522,11 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	qDebug() << "time for gathering data on all static storage duration data and subprograms:" << profiling.static_storage_duration_data_reap_time;
 	qDebug() << "time for building the static storage duration data and subprograms views:" << profiling.static_storage_duration_display_view_build_time;
 	qDebug() << "!!! total debugger startup time:" << profiling.debugger_startup_time;
-	qDebug() << "maximim time for retrieving line and addresses for a source code file:" << profiling.max_addresses_for_file_retrieval_time;
-	qDebug() << "maximim time for building a source code view:" << profiling.max_source_code_view_build_time;
-	qDebug() << "maximim time for building a local data view:" << profiling.max_local_data_objects_view_build_time;
-	qDebug() << "maximim time for generating a backtrace:" << profiling.max_backtrace_generation_time;
-	qDebug() << "maximim time for generating a context view:" << profiling.max_context_view_generation_time;
+	qDebug() << "maximum time for retrieving line and addresses for a source code file:" << profiling.max_addresses_for_file_retrieval_time;
+	qDebug() << "maximum time for building a source code view:" << profiling.max_source_code_view_build_time;
+	qDebug() << "maximum time for building a local data view:" << profiling.max_local_data_objects_view_build_time;
+	qDebug() << "maximum time for generating a backtrace:" << profiling.max_backtrace_generation_time;
+	qDebug() << "maximum time for generating a context view:" << profiling.max_context_view_generation_time;
 	QMainWindow::closeEvent(e);
 }
 
