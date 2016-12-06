@@ -343,7 +343,7 @@ public:
 	{
 		data = this->debug_types = debug_types; this->debug_types_len = debug_types_len;
 		while (data < debug_types + debug_types_len)
-			type_units.at(type_signature()) = type_offset(), data += unit_length() + sizeof unit_length();
+			type_units.operator [](type_signature()) = type_offset(), data += unit_length() + sizeof unit_length();
 	}
 	uint32_t typeOffsetOfSignature(uint64_t signature)
 	{
