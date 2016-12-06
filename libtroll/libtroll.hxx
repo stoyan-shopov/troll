@@ -218,8 +218,13 @@ public:
 
 struct Die
 {
-	uint32_t	tag;
-	/* offset of this die in the .debug_info section */
+	uint16_t	tag;
+	struct
+	{
+		/* if this flag is nonzero, then the die resides in the .debug_types section, if zero - it resides in the .debug_info section */
+		uint16_t	in_debug_types	: 1;
+	};
+	/* offset of this die in the .debug_info or .debug_types section */
 	uint32_t	offset;
 	uint32_t	abbrev_offset;
 	std::vector<struct Die> children;
@@ -317,6 +322,35 @@ struct compilation_unit_header
 	uint8_t		address_size(){return*(uint8_t*)(data+10);}
 	compilation_unit_header(const uint8_t * data) { this->data = data; }
 	struct compilation_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
+};
+
+class TypeUnitSection
+{
+	const uint8_t	* debug_types;
+	uint32_t	debug_types_len;
+	const uint8_t	* data;
+	uint32_t	unit_length() const{return*(uint32_t*)(data+0);}
+	uint16_t	version(){return*(uint16_t*)(data+4);}
+	uint32_t	debug_abbrev_offset(){return*(uint32_t*)(data+6);}
+	uint8_t		address_size(){return*(uint8_t*)(data+10);}
+	uint64_t	type_signature(){return*(uint64_t*)(data+11);}
+	uint32_t	type_offset(){return*(uint32_t*)(data+19);}
+
+	/* the map key is the type unit signature, the key value is the type offset (the type head die) in the .debug_types section */
+	std::map<uint64_t, uint32_t> type_units;
+public:
+	TypeUnitSection(const uint8_t * debug_types, uint32_t debug_types_len)
+	{
+		data = this->debug_types = debug_types; this->debug_types_len = debug_types_len;
+		while (data < debug_types + debug_types_len)
+			type_units.at(type_signature()) = type_offset(), data += unit_length() + sizeof unit_length();
+	}
+	uint32_t typeOffsetOfSignature(uint64_t signature)
+	{
+		if (type_units.find(signature) == type_units.end())
+			DwarfUtil::panic();
+		return type_units.at(signature);
+	}
 };
 
 struct StaticObject
@@ -1001,6 +1035,9 @@ private:
 	const uint8_t * debug_loc;
 	uint32_t	debug_loc_len;
 
+	const uint8_t * debug_types;
+	uint32_t	debug_types_len;
+
 	struct debug_arange arange;
 	/* cached for performance reasons */
 	const uint8_t	* last_searched_arange;
@@ -1019,12 +1056,15 @@ private:
 		unsigned abbreviation_misses;
 	}
 	stats;
+	
+	TypeUnitSection debug_types_section;
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
 		  const void * debug_str, uint32_t debug_str_len,
 		  const void * debug_line, uint32_t debug_line_len,
-		  const void * debug_loc, uint32_t debug_loc_len) : arange((const uint8_t *) debug_aranges)
+		  const void * debug_loc, uint32_t debug_loc_len,
+		  const void * debug_types, uint32_t debug_types_len) : arange((const uint8_t *) debug_aranges), debug_types_section((const uint8_t *) debug_types, debug_types_len)
 	{
 		this->debug_aranges = (const uint8_t *) debug_aranges;
 		this->debug_aranges_len = debug_aranges_len;
@@ -1040,6 +1080,8 @@ public:
 		this->debug_line_len = debug_line_len;
 		this->debug_loc = (const uint8_t *) debug_loc;
 		this->debug_loc_len = debug_loc_len;
+		this->debug_types = (const uint8_t *) debug_types;
+		this->debug_types_len = debug_types_len;
 
 		last_searched_compilation_unit = (const struct compilation_unit_header *) debug_info;
 		last_searched_arange = arange.data;

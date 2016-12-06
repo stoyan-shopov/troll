@@ -180,6 +180,15 @@ bool ok1, ok2;
 		debug_loc_len = rx.cap(2).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
+	debug_types_offset = debug_types_len = 0;
+	rx.setPattern("\\.debug_types\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	if (rx.indexIn(output) != -1)
+	{
+		qDebug() << ".debug_types at" << rx.cap(1) << "size" << rx.cap(2);
+		debug_loc_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_loc_len = rx.cap(2).toInt(&ok2, 16);
+		if (!(ok1 && ok2)) Util::panic();
+	}
 	return true;
 }
 
@@ -289,9 +298,11 @@ MainWindow::MainWindow(QWidget *parent) :
 	debug_line = debug_file.read(debug_line_len);
 	debug_file.seek(debug_loc_offset);
 	debug_loc = debug_file.read(debug_loc_len);
+	debug_file.seek(debug_types_offset);
+	debug_types = debug_file.read(debug_types_len);
 	profiling.debug_sections_disk_read_time = t.elapsed();
 	
-	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
+	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length(), debug_types.data(), debug_types.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
 	
 	int i;
