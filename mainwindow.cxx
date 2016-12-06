@@ -185,8 +185,8 @@ bool ok1, ok2;
 	if (rx.indexIn(output) != -1)
 	{
 		qDebug() << ".debug_types at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_loc_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_loc_len = rx.cap(2).toInt(&ok2, 16);
+		debug_types_offset = rx.cap(1).toInt(&ok1, 16);
+		debug_types_len = rx.cap(2).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
 	return true;
