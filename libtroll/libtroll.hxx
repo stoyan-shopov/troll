@@ -329,26 +329,28 @@ class TypeUnitSection
 	const uint8_t	* debug_types;
 	uint32_t	debug_types_len;
 	const uint8_t	* data;
+	/* the map key is the type unit signature, the key value is the offset of the type unit header in the .debug_types section */
+	std::map<uint64_t, uint32_t> type_units;
+public:
 	uint32_t	unit_length() const{return*(uint32_t*)(data+0);}
 	uint16_t	version(){return*(uint16_t*)(data+4);}
 	uint32_t	debug_abbrev_offset(){return*(uint32_t*)(data+6);}
 	uint8_t		address_size(){return*(uint8_t*)(data+10);}
 	uint64_t	type_signature(){return*(uint64_t*)(data+11);}
 	uint32_t	type_offset(){return*(uint32_t*)(data+19);}
+	uint32_t	type_unit_offset() const{return data-debug_types;}
 
-	/* the map key is the type unit signature, the key value is the type offset (the type head die) in the .debug_types section */
-	std::map<uint64_t, uint32_t> type_units;
-public:
 	TypeUnitSection(const uint8_t * debug_types, uint32_t debug_types_len)
 	{
 		data = this->debug_types = debug_types; this->debug_types_len = debug_types_len;
 		while (data < debug_types + debug_types_len)
-			type_units.operator [](type_signature()) = type_offset(), data += unit_length() + sizeof unit_length();
+			type_units.operator [](type_signature()) = data - debug_types, data += unit_length() + sizeof unit_length();
 	}
-	uint32_t typeOffsetOfSignature(uint64_t signature)
+	uint32_t typeUnitOffsetOfSignature(uint64_t signature)
 	{
 		if (type_units.find(signature) == type_units.end())
 			DwarfUtil::panic();
+		data = debug_types + type_units.at(signature);
 		return type_units.at(signature);
 	}
 };
@@ -1100,20 +1102,24 @@ public:
 	}
 private:
 	/* returns -1 if the compilation unit is not found */
-	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
+	uint32_t debugUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset, const uint8_t * debug_section = 0)
 	{
+		if (!debug_section)
+			debug_section = debug_info;
+#if 0
 		if (last_searched_compilation_unit->data - debug_info <= debug_info_offset && debug_info_offset < last_searched_compilation_unit->data - debug_info + last_searched_compilation_unit->unit_length())
 		{
 			if (STATS_ENABLED) stats.compilation_unit_header_hits ++;
 			return last_searched_compilation_unit->data - debug_info;
 		}
+#endif
 		if (STATS_ENABLED) stats.compilation_unit_header_misses ++;
-		compilation_unit_header h(debug_info);
-		while (h.data - debug_info < debug_info_len)
-			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
+		compilation_unit_header h(debug_section);
+		while (h.data - debug_section < debug_info_len)
+			if (h.data - debug_section <= debug_info_offset && debug_info_offset < h.data - debug_section + h.unit_length())
 			{
 				last_searched_compilation_unit = & h;
-				return h.data - debug_info;
+				return h.data - debug_section;
 			}
 			else h.next();
 		return -1;
@@ -1158,16 +1164,16 @@ private:
 		return -1;
 	}
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
-	void get_abbreviations_of_compilation_unit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
+	void get_abbreviations_of_debug_unit(const uint8_t * debug_unit, uint32_t debug_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
 	{
-		if (compilation_unit_offset == last_abbreviations_fetched_debug_info_offset)
+		if (debug_unit_offset == last_abbreviations_fetched_debug_info_offset)
 		{
 			if (STATS_ENABLED) stats.abbreviation_hits ++;
 			abbreviations = last_abbreviations_fetched;
 			return;
 		}
 		if (STATS_ENABLED) stats.abbreviation_misses ++;
-		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
+		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_unit + debug_unit_offset) . debug_abbrev_offset(); 
 		uint32_t code, tag, has_children, name, form;
 		int len;
 		abbreviations.clear();
@@ -1186,20 +1192,22 @@ private:
 				form = DwarfUtil::uleb128x(debug_abbrev);
 			}
 			while (name || form);
-			last_abbreviations_fetched_debug_info_offset = compilation_unit_offset;
+			last_abbreviations_fetched_debug_info_offset = debug_unit_offset;
 			last_abbreviations_fetched = abbreviations;
 		}
 	}
 	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
 	 * 		is because of the dwarf die flattenned tree representation */
-	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
+	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, const uint8_t * debug_section = 0, int depth = 0)
 	{
 		if (STATS_ENABLED) stats.dies_read ++;
 		std::vector<struct Die> dies;
-		const uint8_t * p = debug_info + die_offset;
+		if (!debug_section)
+			debug_section = debug_info;
+		const uint8_t * p = debug_section + die_offset;
 		int len;
 		uint32_t code = DwarfUtil::uleb128(p, & len);
-		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_section, 0, 16);
 		p += len;
 		if (!code)
 			DwarfUtil::panic("null die requested");
@@ -1210,6 +1218,7 @@ private:
 				DwarfUtil::panic("abbreviation code not found");
 			struct Abbreviation a(debug_abbrev + x->second);
 			struct Die die(a.tag(), die_offset, x->second);
+			die.in_debug_types = debug_section == debug_types;
 			
 			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
 			while (attr.first)
@@ -1217,11 +1226,11 @@ private:
 				p += DwarfUtil::skip_form_bytes(attr.second, p);
 				attr = a.next_attribute();
 			}
-			die_offset = p - debug_info;
+			die_offset = p - debug_section;
 			if (a.has_children())
 			{
-				die.children = debug_tree_of_die(die_offset, abbreviations, depth + 1);
-				p = debug_info + die_offset;
+				die.children = debug_tree_of_die(die_offset, abbreviations, debug_section, depth + 1);
+				p = debug_section + die_offset;
 			}
 			dies.push_back(die);
 			
@@ -1229,10 +1238,10 @@ private:
 				return dies;
 				
 			code = DwarfUtil::uleb128(p, & len);
-			if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+			if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_section, 0, 16);
 			p += len;
 		}
-		die_offset = p - debug_info;
+		die_offset = p - debug_section;
 
 		return dies;
 	}
@@ -1288,7 +1297,7 @@ public:
 	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset)
 	{
 		std::map<uint32_t, uint32_t> abbreviations;
-		get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
+		get_abbreviations_of_debug_unit(debug_info, debugUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
 		return debug_tree_of_die(die_offset, abbreviations);
 	}
 	int compilation_unit_count(void)
@@ -1385,27 +1394,27 @@ private:
 		auto x = a.dataForAttribute(DW_AT_abstract_origin, debug_info + die.offset);
 		if (!x.first)
 			return false;
-		auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
+		auto i = debugUnitOffsetForOffsetInDebugInfo(die.offset);
 		std::map<uint32_t, uint32_t> abbreviations;
-		get_abbreviations_of_compilation_unit(i, abbreviations);
+		get_abbreviations_of_debug_unit(debug_info, i, abbreviations);
 		auto referred_die_offset = DwarfUtil::formReference(x.first, x.second, i);
 		{
-			auto i = compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
+			auto i = debugUnitOffsetForOffsetInDebugInfo(referred_die_offset);
 			std::map<uint32_t, uint32_t> abbreviations;
-			get_abbreviations_of_compilation_unit(i, abbreviations);
+			get_abbreviations_of_debug_unit(debug_info, i, abbreviations);
 			referred_die = debug_tree_of_die(referred_die_offset, abbreviations).at(0);
 		}
 		return true;
 	}
 private:
 std::map<uint32_t, uint32_t> recursion_detector;
-int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
+int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, const uint8_t * debug_section, bool reset_recursion_detector = true);
 public:
 int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache)
 {
 	std::map<uint32_t, uint32_t> abbreviations;
-	get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
-	return readType(die_offset, abbreviations, type_cache);
+	get_abbreviations_of_debug_unit(debug_info, debugUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
+	return readType(die_offset, abbreviations, type_cache, debug_info);
 }
 bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
@@ -1684,7 +1693,7 @@ if (is_prefix_printed)
 	const char * nameOfDie(const struct Die & die, bool is_empty_name_allowed = false)
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
-		auto x = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
+		auto x = a.dataForAttribute(DW_AT_name, (die.in_debug_types ? debug_types : debug_info) + die.offset);
 		if (!x.first)
 		{
 			struct Die referred_die(die);
