@@ -1499,8 +1499,8 @@ if (is_prefix_printed)
 			if (is_prefix_printed)
 			{
 				Abbreviation a(debug_abbrev + die.abbrev_offset);
-				auto x = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
-				auto size = a.dataForAttribute(DW_AT_byte_size, debug_info + die.offset);
+				auto x = a.dataForAttribute(DW_AT_encoding, (die.in_debug_types ? debug_types : debug_info) + die.offset);
+				auto size = a.dataForAttribute(DW_AT_byte_size, (die.in_debug_types ? debug_types : debug_info) + die.offset);
 				if (x.first == 0 || size.first == 0)
 					DwarfUtil::panic();
 				switch (DwarfUtil::formConstant(x.first, x.second))
@@ -1559,7 +1559,7 @@ if (is_prefix_printed)
 						for (i = 0; i < die.children.size(); i ++)
 						{
 							Abbreviation a(debug_abbrev + die.children.at(i).abbrev_offset);
-							auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + die.children.at(i).offset);
+							auto subrange = a.dataForAttribute(DW_AT_upper_bound, (die.in_debug_types ? debug_types : debug_info) + die.children.at(i).offset);
 							if (subrange.first == 0)
 								continue;
 							type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange.first, subrange.second) + 1) + "]";
@@ -1609,7 +1609,7 @@ if (is_prefix_printed)
 	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
 	{
 		Abbreviation a(debug_abbrev + type.at(node_number).die.abbrev_offset);
-		auto x = a.dataForAttribute(DW_AT_byte_size, debug_info + type.at(node_number).die.offset);
+		auto x = a.dataForAttribute(DW_AT_byte_size, (type.at(node_number).die.in_debug_types ? debug_types : debug_info) + type.at(node_number).die.offset);
 		if (x.first)
 			return DwarfUtil::formConstant(x.first, x.second);
 		if (type.at(node_number).array_dimensions.size())

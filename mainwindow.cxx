@@ -583,7 +583,7 @@ uint32_t address = ui->tableWidgetStaticDataObjects->item(row, 2)->text().replac
 	dwdata->readType(die_offset, type_cache);
 	
 	struct DwarfData::DataNode node;
-	dwdata->dataForType(type_cache, node, true, 1);
+	dwdata->dataForType(type_cache, node, true, type_cache.at(0).next);
 	ui->treeWidgetDataObjects->clear();
 	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, target->readBytes(address, node.bytesize)));
 	ui->treeWidgetDataObjects->expandAll();

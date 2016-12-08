@@ -28,9 +28,24 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		 *		just pass that as an additional parameter */
 			debugUnitOffsetForOffsetInDebugInfo(saved_die_offset)
 			), abbreviations, type_cache, debug_section, false);
-	type_cache.push_back(node);
-	recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
-	auto t = a.dataForAttribute(DW_AT_type, debug_section + type_cache.at(index).die.offset);
+type_cache.push_back(node);
+recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
+	auto t = a.dataForAttribute(DW_AT_type, debug_section + node.die.offset);
+	if (!t.first)
+	{
+		t = a.dataForAttribute(DW_AT_signature, debug_section + node.die.offset);
+		if (t.first == DW_FORM_ref_sig8)
+		{
+there:
+			std::map<uint32_t, uint32_t> abbreviations;
+			auto x = debug_types_section.typeUnitOffsetOfSignature(*(uint64_t *) t.second);
+			qDebug() << "signature gateway" << QString("$%1").arg(*(uint64_t *) t.second,0, 16);
+			get_abbreviations_of_debug_unit(debug_types, x, abbreviations);
+			return readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
+		}
+		if (t.first)
+			DwarfUtil::panic();
+	}
 	if (t.first)
 	{
                 int i;
@@ -39,19 +54,29 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		 *		just pass that as an additional parameter */
 		uint32_t cu_offset(debugUnitOffsetForOffsetInDebugInfo(saved_die_offset, debug_section));
 		if (t.first == DW_FORM_ref_sig8)
+			goto there;
+#if 0
 		{
 			std::map<uint32_t, uint32_t> abbreviations;
 			auto x = debug_types_section.typeUnitOffsetOfSignature(*(uint64_t *) t.second);
 			get_abbreviations_of_debug_unit(debug_types, x, abbreviations);
 			//get_abbreviations_of_debug_unit(debug_types, debug_types_section.type_unit_offset() + debug_types_section.type_offset(), abbreviations);
-			i = readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
+			return readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
 			//DwarfUtil::panic();
 		}
 		else
+#endif
+//type_cache.push_back(node);
+//recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
 			i = readType(readTypeOffset(t.first, t.second, cu_offset), abbreviations, type_cache, debug_section, false);
                 type_cache.at(index).next = i;
                 if (TYPE_DEBUG_ENABLED) qDebug() << "read type die at index " << i;
         }
+	else
+	{
+//type_cache.push_back(node);
+//recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
+	}
 	if (type_cache.at(index).die.children.size())
 	{
                 int i, x, y;
