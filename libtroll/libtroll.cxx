@@ -28,20 +28,65 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		 *		just pass that as an additional parameter */
 			debugUnitOffsetForOffsetInDebugInfo(saved_die_offset)
 			), abbreviations, type_cache, debug_section, false);
+	
+	
+	
+	
+	
+	
+	
+	
+	{
+		auto t = a.dataForAttribute(DW_AT_signature, debug_section + node.die.offset);
+		if (t.first == DW_FORM_ref_sig8)
+		{
+			int i;
+			std::map<uint32_t, uint32_t> abbreviations;
+			auto x = debug_types_section.typeUnitOffsetOfSignature(*(uint64_t *) t.second);
+			qDebug() << "signature gateway" << QString("$%1").arg(*(uint64_t *) t.second,0, 16);
+			get_abbreviations_of_debug_unit(debug_types, x, abbreviations);
+			return readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
+		}
+		if (t.first)
+			DwarfUtil::panic();
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 type_cache.push_back(node);
 recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
 	auto t = a.dataForAttribute(DW_AT_type, debug_section + node.die.offset);
+if (t.first == DW_FORM_ref_sig8)
+	goto there;
 	if (!t.first)
 	{
 		t = a.dataForAttribute(DW_AT_signature, debug_section + node.die.offset);
 		if (t.first == DW_FORM_ref_sig8)
 		{
 there:
+			t.first = 0;
+			int i;
 			std::map<uint32_t, uint32_t> abbreviations;
 			auto x = debug_types_section.typeUnitOffsetOfSignature(*(uint64_t *) t.second);
 			qDebug() << "signature gateway" << QString("$%1").arg(*(uint64_t *) t.second,0, 16);
 			get_abbreviations_of_debug_unit(debug_types, x, abbreviations);
-			return readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
+			i = readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
+			type_cache.at(index).next = i;
+			//return i;
 		}
 		if (t.first)
 			DwarfUtil::panic();
@@ -53,8 +98,6 @@ there:
 		 *		should already have information about the containing compilation unit - maybe
 		 *		just pass that as an additional parameter */
 		uint32_t cu_offset(debugUnitOffsetForOffsetInDebugInfo(saved_die_offset, debug_section));
-		if (t.first == DW_FORM_ref_sig8)
-			goto there;
 #if 0
 		{
 			std::map<uint32_t, uint32_t> abbreviations;

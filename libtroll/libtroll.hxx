@@ -1656,7 +1656,7 @@ if (is_prefix_printed)
 			case DW_TAG_member:
 				dataForType(type, node, short_type_print, type.at(type_node_number).next);
 				{
-					auto x = a.dataForAttribute(DW_AT_data_member_location, debug_info + die.offset);
+					auto x = a.dataForAttribute(DW_AT_data_member_location, (die.in_debug_types ? debug_types : debug_info) + die.offset);
 					if (x.first) switch (x.first)
 					{
 					case DW_FORM_block1:
