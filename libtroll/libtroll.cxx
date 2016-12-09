@@ -70,26 +70,18 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 type_cache.push_back(node);
 recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
 	auto t = a.dataForAttribute(DW_AT_type, debug_section + node.die.offset);
-if (t.first == DW_FORM_ref_sig8)
-	goto there;
-	if (!t.first)
+	
+	if (t.first == DW_FORM_ref_sig8)
 	{
-		t = a.dataForAttribute(DW_AT_signature, debug_section + node.die.offset);
-		if (t.first == DW_FORM_ref_sig8)
-		{
-there:
-			t.first = 0;
-			int i;
-			std::map<uint32_t, uint32_t> abbreviations;
-			auto x = debug_types_section.typeUnitOffsetOfSignature(*(uint64_t *) t.second);
-			qDebug() << "signature gateway" << QString("$%1").arg(*(uint64_t *) t.second,0, 16);
-			get_abbreviations_of_debug_unit(debug_types, x, abbreviations);
-			i = readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
-			type_cache.at(index).next = i;
-			//return i;
-		}
-		if (t.first)
-			DwarfUtil::panic();
+		int i;
+		t.first = 0;
+		std::map<uint32_t, uint32_t> abbreviations;
+		auto x = debug_types_section.typeUnitOffsetOfSignature(*(uint64_t *) t.second);
+		qDebug() << "signature gateway" << QString("$%1").arg(*(uint64_t *) t.second,0, 16);
+		get_abbreviations_of_debug_unit(debug_types, x, abbreviations);
+		i = readType(x + debug_types_section.type_offset(), abbreviations, type_cache, debug_types, false);
+		type_cache.at(index).next = i;
+		//return i;
 	}
 	if (t.first)
 	{
