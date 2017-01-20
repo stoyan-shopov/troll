@@ -55,7 +55,7 @@ uint32_t x;
 QTime t;
 
 	t.start();
-	if (port->write(query.toLocal8Bit()) == -1) Util::panic();
+	if (port->write((query + '\n').toLocal8Bit()) == -1) Util::panic();
 	do
 	{
 		if (port->bytesAvailable())

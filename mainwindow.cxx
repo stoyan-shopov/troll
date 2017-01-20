@@ -57,6 +57,7 @@ void MainWindow::backtrace()
 	cortexm0->primeUnwinder();
 	register_cache->clear();
 	register_cache->pushFrame(cortexm0->getRegisters());
+	updateRegisterView(0);
 	uint32_t last_pc;
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
 	int row;
@@ -185,14 +186,13 @@ bool ok1, ok2;
 
 void MainWindow::updateRegisterView(int frame_number)
 {
-	ui->tableWidgetRegisters->setRowCount(0);
 	auto x = register_cache->registerFrame(frame_number);
-	int row;
-	for (int i(0); i < x.size(); i ++)
+	for (int row(0); row < x.size(); row ++)
 	{
-		ui->tableWidgetRegisters->insertRow(row = ui->tableWidgetRegisters->rowCount());
-		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r%1").arg(i)));
-		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem(QString("$%1").arg(x.at(i), 0, 16)));
+		QString s(QString("$%1").arg(x.at(row), 0, 16)), t = ui->tableWidgetRegisters->item(row, 1)->text();
+		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r%1").arg(row)));
+		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem(s));
+		ui->tableWidgetRegisters->item(row, 1)->setForeground(QBrush((s != t) ? Qt::red : Qt::black));
 	}
 	ui->tableWidgetRegisters->resizeColumnsToContents();
 	ui->tableWidgetRegisters->resizeRowsToContents();
@@ -318,6 +318,12 @@ MainWindow::MainWindow(QWidget *parent) :
 	cortexm0 = new CortexM0(sforth, target);
 	register_cache = new RegisterCache(cortexm0->cfaRegisterNumber());
 	cortexm0->primeUnwinder();
+	for (int row(0); row < CortexM0::registerCount(); row ++)
+	{
+		ui->tableWidgetRegisters->insertRow(row);
+		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r?").arg(row)));
+		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem("????????"));
+	}
 	backtrace();
 	
 	t.restart();
@@ -545,6 +551,7 @@ class Target * t;
 				else
 				{
 					QMessageBox::critical(0, "blackstrike port mismatch", "blackstrike port mismatch!!!");
+					blackstrike_port.close();
 					delete t;
 					continue;
 				}

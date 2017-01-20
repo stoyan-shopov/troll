@@ -24,6 +24,7 @@ public:
 			cfa_register_number;
 	}
 	bool architecturalUnwind(void);
+	static const int registerCount(void) { return register_count; }
 };
 
 #endif // CORTEXM0_H
