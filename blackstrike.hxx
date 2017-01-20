@@ -13,10 +13,9 @@ class Blackstrike : public Target
 private:
 	QSerialPort	* port;
 	void readAllRegisters(void);
-private slots:
-	void blackstrikeError(QSerialPort::SerialPortError error) { if (error != QSerialPort::NoError) *(int*)0=0; }
 public:
-	Blackstrike(QSerialPort * port) { this->port = port; connect(port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError))); }
+	QString interrogate(const QString & query);
+	Blackstrike(QSerialPort * port) { this->port = port; }
 	QByteArray readBytes(uint32_t address, int byte_count) { Util::panic(); }
 	virtual uint32_t readWord(uint32_t address);
 	virtual uint32_t readRegister(uint32_t register_number);

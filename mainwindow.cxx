@@ -477,8 +477,17 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 
 void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
 {
-	if (error != QSerialPort::NoError)
+	switch (error)
+	{
+	default:
 		Util::panic();
+	case QSerialPort::NoError:
+	case QSerialPort::TimeoutError:
+		break;
+	case QSerialPort::PermissionError:
+		QMessageBox::critical(0, "error connecting to the blackstrike probe", "error connecting to the blackstrike probe\npermission denied(port already open?)");
+		break;
+	}
 }
 
 void MainWindow::closeEvent(QCloseEvent *e)
@@ -523,6 +532,7 @@ int i;
 class Target * t;
 	for (i = 0; i < ports.size(); i ++)
 	{
+		qDebug() << ports[i].manufacturer();
 		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == 0x1d50)
 		{
 			blackstrike_port.setPortName(ports.at(i).portName());
@@ -530,6 +540,14 @@ class Target * t;
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
 				QMessageBox::information(0, "blackstrike port opened", "opened blackstrike port " + blackstrike_port.portName());
+				if (((Blackstrike *)t)->interrogate("12 12 * .( <<<start>>>). .( <<<end>>>)cr").contains("144"))
+					QMessageBox::information(0, "blackstrike detected", "blackstrike opened successfully");
+				else
+				{
+					QMessageBox::critical(0, "blackstrike port mismatch", "blackstrike port mismatch!!!");
+					delete t;
+					continue;
+				}
 				cortexm0->setTargetController(target = t);
 				backtrace();
 				return;
