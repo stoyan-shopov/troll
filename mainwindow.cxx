@@ -251,7 +251,8 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
-	elf_filename = "X:/blackstrike-github/src/blackmagic";
+	//elf_filename = "X:/blackstrike-github/src/blackmagic";
+	elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	ui->setupUi(this);
 	restoreGeometry(s.value("window-geometry").toByteArray());
@@ -545,12 +546,9 @@ class Target * t;
 			t = new Blackstrike(& blackstrike_port);
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
-				QMessageBox::information(0, "blackstrike port opened", "opened blackstrike port " + blackstrike_port.portName());
-				if (((Blackstrike *)t)->interrogate("12 12 * .( <<<start>>>). .( <<<end>>>)cr").contains("144"))
-					QMessageBox::information(0, "blackstrike detected", "blackstrike opened successfully");
-				else
+				if (!((Blackstrike *)t)->interrogate("12 12 * .( <<<start>>>). .( <<<end>>>)cr").contains("144"))
 				{
-					QMessageBox::critical(0, "blackstrike port mismatch", "blackstrike port mismatch!!!");
+					QMessageBox::critical(0, "blackstrike port mismatch", "blackstrike port detected, but does not respond!!!\nport is " + ports.at(i).portName());
 					blackstrike_port.close();
 					delete t;
 					continue;

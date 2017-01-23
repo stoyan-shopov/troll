@@ -510,6 +510,9 @@ struct DwarfExpression
 				case DW_OP_shl:
 					x << "DW_OP_shl ";
 					break;
+				case DW_OP_shr:
+					x << "DW_OP_shr ";
+					break;
 				case DW_OP_ne:
 					x << "DW_OP_ne ";
 					break;
