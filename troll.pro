@@ -37,7 +37,8 @@ HEADERS  += mainwindow.hxx \
     target.hxx \
     target-corefile.hxx \
     blackstrike.hxx \
-    registercache.hxx
+    registercache.hxx \
+    memory.hxx
 
 FORMS    += mainwindow.ui
 
