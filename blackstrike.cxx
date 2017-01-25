@@ -43,7 +43,7 @@ QTime t;
 	qDebug() << "target register read took" << t.elapsed() << "milliseconds";
 }
 
-QString Blackstrike::interrogate(const QString & query)
+QString Blackstrike::interrogate(const QString & query, bool *isOk)
 {
 	if (query.indexOf(".( <<<start>>>)") >= query.indexOf(".( <<<end>>>)"))
 		Util::panic();
@@ -55,13 +55,19 @@ uint32_t x;
 QTime t;
 
 	t.start();
+	if (isOk)
+		* isOk = true;
 	if (port->write((query + '\n').toLocal8Bit()) == -1) Util::panic();
 	do
 	{
 		if (port->bytesAvailable())
 			s += port->readAll();
 		else if (!port->waitForReadyRead(2000))
+		{
+			if (isOk)
+				* isOk = false;
 			return QString("query timed out");
+		}
 	}
 	while (!s.contains("<<<end>>>"));
 	if (BLACKSTIRKE_DEBUG) qDebug() << s;
@@ -70,9 +76,6 @@ QTime t;
 		Util::panic();
 	if (BLACKSTIRKE_DEBUG) qDebug() << "string recognized: " << rx.cap();
 	s = rx.cap(1);
-	rx.setPattern("\\s*(\\S+)");
-	if (rx.indexIn(s) == -1)
-		Util::panic();
 	if (BLACKSTIRKE_DEBUG) qDebug() << "query response:" << x << "\n" << "target query took" << t.elapsed() << "milliseconds";
 	return rx.cap(1);
 }
@@ -80,36 +83,20 @@ QTime t;
 uint32_t Blackstrike::readWord(uint32_t address)
 {
 QString s;
-QRegExp rx("<<<start>>>(.*)<<<end>>>");
+QRegExp rx("\\s*(\\S+)");
 bool ok;
 uint32_t x;
-QTime t;
 
-	t.start();
-	if (port->write(QString("$%1 ").arg(address, 0, 16).toLocal8Bit()) == -1) Util::panic();
-	if (port->write("base @ >r hex .( <<<start>>>) t@ u. .( <<<end>>>) r> base ! cr\n") == -1) Util::panic();
-	do
-	{
-		if (port->bytesAvailable())
-			s += port->readAll();
-		else if (!port->waitForReadyRead(2000))
-			Util::panic();
-	}
-	while (!s.contains("<<<end>>>"));
-	if (BLACKSTIRKE_DEBUG) qDebug() << s;
-	s.replace('\n', "");
-	if (rx.indexIn(s) == -1)
+	s = interrogate(QString("$%1 base @ >r hex .( <<<start>>>) t@ u. .( <<<end>>>) r> base ! cr").arg(address, 0, 16).toLocal8Bit(), & ok);
+	if (!ok)
 		Util::panic();
-	if (BLACKSTIRKE_DEBUG) qDebug() << "string recognized: " << rx.cap();
-	s = rx.cap(1);
-	rx.setPattern("\\s*(\\S+)");
+
 	if (rx.indexIn(s) == -1)
 		Util::panic();
 	x = rx.cap(1).toUInt(& ok, 16);
 	if (!ok)
 		Util::panic();
 	if (BLACKSTIRKE_DEBUG) qDebug() << "read value" << x;
-	qDebug() << "target word read took" << t.elapsed() << "milliseconds";
 	return x;
 }
 
