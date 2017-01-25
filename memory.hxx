@@ -16,13 +16,12 @@ class Memory
 private:
 	QVector<struct memory_range> ranges;
 public:
-	Memory();
 	void addRange(uint32_t address, const QByteArray & data)
 	{
 		int i;
 		for (i = 0; i < ranges.size(); i ++)
-			if (ranges[i].address <= address && address < ranges[i].address + ranges[i].data.size()
-				|| address <= ranges[i].address && ranges[i].address < address + data.size())
+			if (ranges[i].address <= address && address <= ranges[i].address + ranges[i].data.size()
+				|| address <= ranges[i].address && ranges[i].address <= address + data.size())
 			{
 				/* regions overlap - coalesce */
 				QByteArray x;
@@ -34,9 +33,10 @@ public:
 				}
 				else
 					x = data + ranges[i].data.right(ranges[i].data.size() - ((address + data.size()) - ranges[i].address));
-				ranges[i] = (struct memory_range) { .address = address, .data = data, };
-				break;
+				ranges[i] = (struct memory_range) { .address = address, .data = x, };
+				return;
 			}
+		ranges.push_back((struct memory_range) { .address = address, .data = data, });
 	}
 	void dump(void)
 	{
