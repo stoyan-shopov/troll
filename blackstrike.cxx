@@ -43,15 +43,15 @@ QTime t;
 	qDebug() << "target register read took" << t.elapsed() << "milliseconds";
 }
 
-QString Blackstrike::interrogate(const QString & query, bool *isOk)
+QByteArray Blackstrike::interrogate(const QString & query, bool *isOk)
 {
 	if (query.indexOf(".( <<<start>>>)") >= query.indexOf(".( <<<end>>>)"))
 		Util::panic();
 
-QString s;
+QByteArray s;
 QRegExp rx("<<<start>>>(.*)<<<end>>>");
+int l, r;
 bool ok;
-uint32_t x;
 QTime t;
 
 	t.start();
@@ -66,18 +66,47 @@ QTime t;
 		{
 			if (isOk)
 				* isOk = false;
-			return QString("query timed out");
+			return "query timed out";
 		}
 	}
 	while (!s.contains("<<<end>>>"));
 	if (BLACKSTIRKE_DEBUG) qDebug() << s;
-	s.replace('\n', "");
-	if (rx.indexIn(s) == -1)
+	//s.replace('\n', "");
+	l = s.indexOf("<<<start>>>");
+	r = s.indexOf("<<<end>>>");
+	if (l >= r)
 		Util::panic();
-	if (BLACKSTIRKE_DEBUG) qDebug() << "string recognized: " << rx.cap();
-	s = rx.cap(1);
-	if (BLACKSTIRKE_DEBUG) qDebug() << "query response:" << x << "\n" << "target query took" << t.elapsed() << "milliseconds";
-	return rx.cap(1);
+	s = s.mid(l + sizeof "<<<start>>>" - /* ignore null terminator */ 1, r - l + sizeof "<<<start>>>" - /* ignore null terminator */ 1);
+	if (BLACKSTIRKE_DEBUG) qDebug() << "string recognized: " << s;
+	if (BLACKSTIRKE_DEBUG) qDebug() << "target query took" << t.elapsed() << "milliseconds";
+	return s;
+}
+
+QByteArray Blackstrike::readBytes(uint32_t address, int byte_count)
+{
+	/*
+QString s(
+" [undefined] tdump [if] : tdump ( address word-count --) 0 ?do dup t@ . 4 + loop drop ; [then] "
+"$%1 $%2 .( <<<start>>>) tdump .( <<<end>>>) cr "
+);
+	if ((address & 3) || (byte_count & 3))
+		Util::panic();
+	auto x = interrogate(s.arg(address, 0, 16).arg(byte_count >> 2, 0, 16));
+	qDebug() << x.length();
+	*/
+QTime t;
+QString s(
+//" [undefined] xtest [if] : xtest [ 1 16 lshift ] literal 0 do .\" ********************************\"loop ; [then] "
+//" [undefined] xtest [if] : xtest [ 1 20 lshift ] literal 0 do [char] * emit loop ; [then] "
+" 0 1 17 lshift "
+" .( <<<start>>>) target-dump .( <<<end>>>) cr "
+);
+	if ((address & 3) || (byte_count & 3))
+		Util::panic();
+	t.start();
+	auto x = interrogate(s);
+	qDebug() << "usb xfer speed:" << ((float) x.length() / t.elapsed()) * 1000. << "bytes/second";
+	return QByteArray();
 }
 
 uint32_t Blackstrike::readWord(uint32_t address)
