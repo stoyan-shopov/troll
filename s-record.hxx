@@ -12,7 +12,7 @@
 class SRecordMemoryData : public Memory
 {
 public:
-	SRecordMemoryData(QString filename)
+	bool loadFile(const QString & filename)
 	{
 		QFile f(filename);
 		QRegExp rx("S(.)(..)(........)(.+)(\\w\\w)");
@@ -29,6 +29,7 @@ public:
 			}
 		}
 		dump();
+		return true;
 	}
 };
 

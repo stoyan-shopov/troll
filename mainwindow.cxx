@@ -11,8 +11,6 @@
 #include <QSettings>
 #include <QDir>
 
-#include "s-record.hxx"
-
 #define DEBUG_BACKTRACE		0
 
 
@@ -117,7 +115,7 @@ bool ok1, ok2;
 
 	readelf.start("readelf.exe", QStringList() << "-S" << elf_filename);
 	readelf.waitForFinished();
-	if (readelf.error() != QProcess::UnknownError)
+	if (readelf.error() != QProcess::UnknownError || readelf.exitCode() || readelf.exitStatus() != QProcess::NormalExit)
 		Util::panic();
 	qDebug() << (output = readelf.readAll());
 	if (rx.indexIn(output) != -1)
@@ -184,6 +182,19 @@ bool ok1, ok2;
 		if (!(ok1 && ok2)) Util::panic();
 	}
 	return true;
+}
+
+bool MainWindow::loadSRecordFile()
+{
+QProcess objcopy;
+QString outfile = QFileInfo(elf_filename).fileName();
+
+	objcopy.start("objcopy.exe", QStringList() << "-O" << "srec" << elf_filename << outfile + ".srec");
+	objcopy.waitForFinished();
+	qDebug() << objcopy.readAll();
+	if (objcopy.error() != QProcess::UnknownError || objcopy.exitCode() || objcopy.exitStatus() != QProcess::NormalExit)
+		Util::panic();
+	return s_record_file.loadFile(outfile + ".srec");
 }
 
 void MainWindow::updateRegisterView(int frame_number)
@@ -271,6 +282,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	QTime t;
 	t.start();
 	readElfSections();
+	loadSRecordFile();
 	if (!debug_file.open(QFile::ReadOnly))
 	{
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
@@ -318,7 +330,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	target->parseMemoryAreas("<memory-map><memory type=\"ram\" start=\"0x20000000\" length=\"0x5000\"/><memory type=\"flash\" start=\"0x08000000\" length=\"0x20000\"><property name=\"blocksize\">0x800</property></memory></memory-map>");
-	SRecordMemoryData xxx("bm.srec");
 	
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 	cortexm0 = new CortexM0(sforth, target);

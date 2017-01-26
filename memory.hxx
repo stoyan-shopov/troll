@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <QVector>
 #include <QByteArray>
+#include "target.hxx"
 
 struct memory_range
 {
@@ -13,7 +14,7 @@ struct memory_range
 
 class Memory
 {
-private:
+protected:
 	QVector<struct memory_range> ranges;
 public:
 	void addRange(uint32_t address, const QByteArray & data)
@@ -37,6 +38,10 @@ public:
 				return;
 			}
 		ranges.push_back((struct memory_range) { .address = address, .data = data, });
+	}
+	bool isMemoryMatching(class Target * target)
+	{
+		return false;
 	}
 	void dump(void)
 	{

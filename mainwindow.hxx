@@ -10,6 +10,7 @@
 #include "cortexm0.hxx"
 #include "registercache.hxx"
 #include <QSerialPort>
+#include "s-record.hxx"
 
 #define MAIN_APS	1
 
@@ -48,9 +49,11 @@ class MainWindow : public QMainWindow
 	RegisterCache	* register_cache;
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
+	SRecordMemoryData s_record_file;
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0);
 	void backtrace(void);
 	bool readElfSections(void);
+	bool loadSRecordFile(void);
 	QString elf_filename;
 	void updateRegisterView(int frame_number);
 	std::string typeStringForDieOffset(uint32_t die_offset);
