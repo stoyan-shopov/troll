@@ -76,7 +76,7 @@ QTime t;
 	r = s.indexOf("<<<end>>>");
 	if (l >= r)
 		Util::panic();
-	s = s.mid(l + sizeof "<<<start>>>" - /* ignore null terminator */ 1, r - l + sizeof "<<<start>>>" - /* ignore null terminator */ 1);
+	s = s.mid(l + sizeof "<<<start>>>" - /* ignore null terminator */ 1, r - l - sizeof "<<<start>>>" + /* ignore null terminator */ 1);
 	if (BLACKSTIRKE_DEBUG) qDebug() << "string recognized: " << s;
 	if (BLACKSTIRKE_DEBUG) qDebug() << "target query took" << t.elapsed() << "milliseconds";
 	return s;
@@ -98,15 +98,15 @@ QTime t;
 QString s(
 //" [undefined] xtest [if] : xtest [ 1 16 lshift ] literal 0 do .\" ********************************\"loop ; [then] "
 //" [undefined] xtest [if] : xtest [ 1 20 lshift ] literal 0 do [char] * emit loop ; [then] "
-" 0 1 17 lshift "
+" $%1 $%2 "
 " .( <<<start>>>) target-dump .( <<<end>>>) cr "
 );
 	if ((address & 3) || (byte_count & 3))
 		Util::panic();
 	t.start();
-	auto x = interrogate(s);
+	auto x = interrogate(s.arg(address, 0, 16).arg(byte_count, 0, 16));
 	qDebug() << "usb xfer speed:" << ((float) x.length() / t.elapsed()) * 1000. << "bytes/second";
-	return QByteArray();
+	return x;
 }
 
 uint32_t Blackstrike::readWord(uint32_t address)

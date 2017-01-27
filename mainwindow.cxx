@@ -570,8 +570,14 @@ class Target * t;
 					continue;
 				}
 				cortexm0->setTargetController(target = t);
-				t->readBytes(0, 1 << 17);
 				backtrace();
+				if (!s_record_file.isMemoryMatching(target))
+				{
+					QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");
+					Util::panic();
+				}
+				else
+					QMessageBox::information(0, "memory contents match", "target memory contents match");
 				return;
 			}
 			else

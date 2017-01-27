@@ -1,9 +1,10 @@
 #ifndef MEMORY_H
 #define MEMORY_H
-
+ 
 #include <stdint.h>
 #include <QVector>
 #include <QByteArray>
+#include <QFile>
 #include "target.hxx"
 
 struct memory_range
@@ -41,7 +42,24 @@ public:
 	}
 	bool isMemoryMatching(class Target * target)
 	{
-		return false;
+		int i;
+		for (i = 0; i < ranges.size(); i ++)
+		{
+			auto x = target->readBytes(ranges[i].address, ranges[i].data.size());
+			qDebug() << x.size() << ranges[i].data.size();
+			
+			QFile f1("out1.bin");
+			f1.open(QFile::WriteOnly);
+			f1.write(x);
+			f1.close();
+			f1.setFileName("out2.bin");
+			f1.open(QFile::WriteOnly);
+			f1.write(ranges[i].data);
+			f1.close();
+			if (x != ranges[i].data)
+				return false;
+		}
+		return true;
 	}
 	void dump(void)
 	{
