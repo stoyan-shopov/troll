@@ -218,10 +218,10 @@ std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
 	return dwdata->typeString(type_cache, true, 1);
 }
 
-void MainWindow::dumpData(uint32_t address, int byte_count)
+void MainWindow::dumpData(uint32_t address, const QByteArray &data)
 {
 	ui->plainTextEditDataDump->clear();
-	ui->plainTextEditDataDump->appendPlainText(target->readBytes(address, byte_count).toPercentEncoding());
+	ui->plainTextEditDataDump->appendPlainText(data.toPercentEncoding());
 }
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -614,16 +614,17 @@ void MainWindow::on_tableWidgetStaticDataObjects_itemSelectionChanged()
 int row(ui->tableWidgetStaticDataObjects->currentRow());
 uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 5)->text().replace('$', "0x").toUInt(0, 0);
 uint32_t address = ui->tableWidgetStaticDataObjects->item(row, 2)->text().replace('$', "0x").toUInt(0, 0);
+QByteArray data;
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(die_offset, type_cache);
 	
 	struct DwarfData::DataNode node;
 	dwdata->dataForType(type_cache, node, true, 1);
 	ui->treeWidgetDataObjects->clear();
-	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, target->readBytes(address, node.bytesize)));
+	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize)));
 	ui->treeWidgetDataObjects->expandAll();
 	ui->treeWidgetDataObjects->resizeColumnToContents(0);
-	dumpData(address, node.bytesize);
+	dumpData(address, data);
 }
 
 void MainWindow::on_actionHack_mode_triggered()
