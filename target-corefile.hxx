@@ -13,6 +13,7 @@ private:
 public:
 	TargetCorefile(const QString & rom_filename, uint32_t rom_base_address, const QString & ram_filename, uint32_t ram_base_address, const QString register_filename);
 	virtual QByteArray interrogate(const QByteArray & query, bool * isOk = 0) { Util::panic(); }
+	bool reset(void) { Util::panic(); }
 	QByteArray readBytes(uint32_t address, int byte_count);
 	uint32_t readRegister(uint32_t register_number);
 	uint32_t readWord(uint32_t address);

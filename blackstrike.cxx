@@ -82,6 +82,14 @@ QTime t;
 	return s;
 }
 
+bool Blackstrike::reset(void)
+{
+	registers.clear();
+	if (!Target::interrogate(QString("target-reset .( <<<start>>>).( <<<end>>>)")).isEmpty())
+		Util::panic();
+	return true;
+}
+
 QByteArray Blackstrike::readBytes(uint32_t address, int byte_count)
 {
 	/*

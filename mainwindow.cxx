@@ -348,7 +348,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	for (int row(0); row < CortexM0::registerCount(); row ++)
 	{
 		ui->tableWidgetRegisters->insertRow(row);
-		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r?").arg(row)));
+		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r?")));
 		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem("????????"));
 	}
 	backtrace();
@@ -656,5 +656,7 @@ bool hack_mode(ui->actionHack_mode->isChecked());
 
 void MainWindow::on_actionReset_target_triggered()
 {
-	target->interrogate(QString("target-reset .( <<<start>>>).( <<<end>>>)"));
+	if (!target->reset())
+		Util::panic();
+	backtrace();
 }
