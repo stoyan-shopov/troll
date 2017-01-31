@@ -645,3 +645,8 @@ bool hack_mode(ui->actionHack_mode->isChecked());
 	ui->treeWidgetDataObjects->setColumnHidden(3, !hack_mode);
 	ui->treeWidgetDataObjects->setColumnHidden(4, !hack_mode);
 }
+
+void MainWindow::on_actionReset_target_triggered()
+{
+	target->interrogate(QString("target-reset .( <<<start>>>).( <<<end>>>)"));
+}

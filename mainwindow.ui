@@ -71,6 +71,7 @@
    <addaction name="actionShell"/>
    <addaction name="actionEdit"/>
    <addaction name="actionHack_mode"/>
+   <addaction name="actionReset_target"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -541,6 +542,11 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+H</string>
+   </property>
+  </action>
+  <action name="actionReset_target">
+   <property name="text">
+    <string>reset target</string>
    </property>
   </action>
  </widget>

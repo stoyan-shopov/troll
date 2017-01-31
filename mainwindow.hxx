@@ -78,6 +78,8 @@ private slots:
 	
 	void on_actionHack_mode_triggered();
 	
+	void on_actionReset_target_triggered();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	

@@ -191,7 +191,7 @@ public:
 		}
 	}
 	static bool isDataObject(uint32_t tag) { return tag == DW_TAG_variable; }
-	static bool isSubprogram(uint32_t tag) { return tag == DW_TAG_subprogram; }
+	static bool isSubprogram(uint32_t tag) { return tag == DW_TAG_subprogram || tag == DW_TAG_inlined_subroutine; }
 	static bool isLocationConstant(uint32_t location_attribute_form, const uint8_t * debug_info_bytes, uint32_t & address)
 	{
 		switch (location_attribute_form)
