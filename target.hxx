@@ -7,6 +7,8 @@
 #include <QXmlStreamReader>
 #include <list>
 
+#include "util.hxx"
+
 class Target : public QObject
 {
 	Q_OBJECT
@@ -26,6 +28,8 @@ public:
 	virtual QByteArray readBytes(uint32_t address, int byte_count) = 0;
 	virtual uint32_t readRegister(uint32_t register_number) = 0;
 	virtual uint32_t singleStep(void) = 0;
+	virtual QByteArray interrogate(const QByteArray & query, bool * isOk = 0) = 0;
+	QByteArray interrogate(const QString & query, bool * isOk = 0) { return interrogate(query.toLocal8Bit(), isOk); }
 	void parseMemoryAreas(const QString & xml_memory_description)
 	{
 		uint32_t start, length;
@@ -71,6 +75,32 @@ public:
 		qDebug() << "detected flash areas:";
 		for (i = 0; i < flash_areas.size(); i++)
 			qDebug() << flash_areas[i].start << flash_areas[i].length;
+	}
+	bool isAreaInFlash(uint32_t address, uint32_t length)
+	{
+		int i;
+		for (i = 0; i < flash_areas.size(); i++)
+			if (flash_areas[i].start <= address && address + length <= flash_areas[i].start + flash_areas[i].length)
+				return true;
+		return false;
+	}
+	std::pair<uint32_t /* address */, uint32_t /* length */> flashSectorAddressesForRange(uint32_t address, uint32_t length)
+	{
+		int i;
+		uint32_t x;
+		std::pair<uint32_t, uint32_t> result;
+		for (i = 0; i < flash_areas.size(); i++)
+			if (flash_areas[i].start <= address && address + length <= flash_areas[i].start + flash_areas[i].length)
+				break;
+		if (i == flash_areas.size())
+			Util::panic();
+		x = ((address - flash_areas[i].start) / flash_areas[i].blocksize) * flash_areas[i].blocksize;
+		length += address - (flash_areas[i].start + x);
+		length += flash_areas[i].blocksize - 1;
+		length /= flash_areas[i].blocksize;
+		length *= flash_areas[i].blocksize;
+		return std::pair<uint32_t, uint32_t>(x + flash_areas[i].start, length);
+		
 	}
 protected:
 	std::vector<struct ram_area> ram_areas;

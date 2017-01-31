@@ -43,7 +43,7 @@ QTime t;
 	qDebug() << "target register read took" << t.elapsed() << "milliseconds";
 }
 
-QByteArray Blackstrike::interrogate(const QString & query, bool *isOk)
+QByteArray Blackstrike::interrogate(const QByteArray & query, bool *isOk)
 {
 	if (query.indexOf(".( <<<start>>>)") >= query.indexOf(".( <<<end>>>)"))
 		Util::panic();
@@ -57,12 +57,12 @@ QTime t;
 	t.start();
 	if (isOk)
 		* isOk = true;
-	if (port->write((query + '\n').toLocal8Bit()) == -1) Util::panic();
+	if (port->write(query + '\n') == -1) Util::panic();
 	do
 	{
 		if (port->bytesAvailable())
 			s += port->readAll();
-		else if (!port->waitForReadyRead(2000))
+		else if (!port->waitForReadyRead(6000))
 		{
 			if (isOk)
 				* isOk = false;
@@ -101,10 +101,12 @@ QString s(
 " $%1 $%2 "
 " .( <<<start>>>) target-dump .( <<<end>>>) cr "
 );
+/*
 	if ((address & 3) || (byte_count & 3))
 		Util::panic();
+		*/
 	t.start();
-	auto x = interrogate(s.arg(address, 0, 16).arg(byte_count, 0, 16));
+	auto x = interrogate(s.arg(address, 0, 16).arg(byte_count, 0, 16).toLocal8Bit());
 	qDebug() << "usb xfer speed:" << ((float) x.length() / t.elapsed()) * 1000. << "bytes/second";
 	return x;
 }

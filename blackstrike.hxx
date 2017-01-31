@@ -14,7 +14,7 @@ private:
 	QSerialPort	* port;
 	void readAllRegisters(void);
 public:
-	QByteArray interrogate(const QString & query, bool * isOk = 0);
+	virtual QByteArray interrogate(const QByteArray &query, bool * isOk = 0);
 	Blackstrike(QSerialPort * port) { this->port = port; }
 	QByteArray readBytes(uint32_t address, int byte_count);
 	virtual uint32_t readWord(uint32_t address);

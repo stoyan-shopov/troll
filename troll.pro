@@ -39,7 +39,8 @@ HEADERS  += mainwindow.hxx \
     blackstrike.hxx \
     registercache.hxx \
     memory.hxx \
-    s-record.hxx
+    s-record.hxx \
+    flash-memory-writer.hxx
 
 FORMS    += mainwindow.ui
 

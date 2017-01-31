@@ -11,6 +11,8 @@
 #include <QSettings>
 #include <QDir>
 
+#include "flash-memory-writer.hxx"
+
 #define DEBUG_BACKTRACE		0
 
 
@@ -570,7 +572,9 @@ class Target * t;
 					continue;
 				}
 				cortexm0->setTargetController(target = t);
+				target->parseMemoryAreas("<memory-map><memory type=\"ram\" start=\"0x20000000\" length=\"0x5000\"/><memory type=\"flash\" start=\"0x08000000\" length=\"0x20000\"><property name=\"blocksize\">0x800</property></memory></memory-map>");
 				backtrace();
+				FlashMemoryWriter::syncFlash(target, s_record_file);
 				if (!s_record_file.isMemoryMatching(target))
 				{
 					QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");

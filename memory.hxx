@@ -15,9 +15,8 @@ struct memory_range
 
 class Memory
 {
-protected:
-	QVector<struct memory_range> ranges;
 public:
+	QVector<struct memory_range> ranges;
 	void addRange(uint32_t address, const QByteArray & data)
 	{
 		int i;
