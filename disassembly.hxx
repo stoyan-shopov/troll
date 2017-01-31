@@ -20,7 +20,7 @@ public:
 		int i = 0, x;
 		bool ok;
 		QFile f(disassembly_filename);
-		QRegExp rx("^\\s+(\\w+):");
+		QRegExp rx("^\\s*(\\w+):");
 		if (!f.open(QFile::ReadOnly))
 			Util::panic();
 		disassembly_text = f.readAll();
@@ -62,7 +62,10 @@ public:
 		if ((h = m + 6) >= index_table.size())
 			h = index_table.size() - 1;
 		if (line_for_address)
-			* line_for_address = m - l;
+		{
+			* line_for_address = disassembly_text.mid(index_table.at(l).second, index_table.at(m).second - index_table.at(l).second).count('\n');
+			disassembly_text.mid(0);
+		}
 		return disassembly_text.mid(index_table.at(l).second, disassembly_text.indexOf('\n', index_table.at(h).second) - index_table.at(l).second);
 	}
 };
