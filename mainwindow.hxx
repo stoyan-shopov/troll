@@ -11,6 +11,7 @@
 #include "registercache.hxx"
 #include <QSerialPort>
 #include "s-record.hxx"
+#include "disassembly.hxx"
 
 #define MAIN_APS	1
 
@@ -44,6 +45,7 @@ class MainWindow : public QMainWindow
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
+	Disassembly 	* dis;
 	Sforth	* sforth;
 	Target	* target;
 	RegisterCache	* register_cache;

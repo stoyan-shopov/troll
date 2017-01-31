@@ -40,7 +40,8 @@ HEADERS  += mainwindow.hxx \
     registercache.hxx \
     memory.hxx \
     s-record.hxx \
-    flash-memory-writer.hxx
+    flash-memory-writer.hxx \
+    disassembly.hxx
 
 FORMS    += mainwindow.ui \
     notification.ui

@@ -103,6 +103,7 @@ void MainWindow::backtrace()
 	if (DEBUG_BACKTRACE) qDebug() << "registers: " << cortexm0->getRegisters();
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
+	ui->plainTextEdit->setPlainText(dis->disassemblyAroundAddress(register_cache->registerFrame(0).at(15)));
 	ui->tableWidgetBacktrace->selectRow(0);
 	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
 		profiling.max_backtrace_generation_time = t.elapsed();
@@ -283,6 +284,7 @@ MainWindow::MainWindow(QWidget *parent) :
 #endif
 	QTime t;
 	t.start();
+	dis = new Disassembly("bdis.txt");
 	readElfSections();
 	loadSRecordFile();
 	if (!debug_file.open(QFile::ReadOnly))
