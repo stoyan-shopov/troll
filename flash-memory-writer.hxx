@@ -5,6 +5,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QLabel>
+#include <QTime>
 #include <QProgressDialog>
 
 #include "util.hxx"
@@ -18,6 +19,9 @@ class FlashMemoryWriter
 public:
 	static bool syncFlash(Target * target, const Memory & memory_contents)
 	{
+		QTime t;
+		if (memory_contents.isMemoryMatching(target))
+			return true;
 		if (memory_contents.ranges.size() != 1 || !target->isAreaInFlash(memory_contents.ranges[0].address, memory_contents.ranges[0].data.size()))
 			Util::panic();
 		auto x = target->flashSectorAddressesForRange(memory_contents.ranges[0].address, memory_contents.ranges[0].data.size());
@@ -28,19 +32,24 @@ public:
 		mbox.label->setText(QString("erasing flash at start address $%1, size $%2").arg(x.first, 0, 16).arg(x.second, 0, 16));
 		dialog.show();
 		QApplication::processEvents();
+		t.start();
 		auto s = target->interrogate(QString("$%1 $%2 .( <<<start>>>)flash-erase .( <<<end>>>)").arg(x.first, 0, 16).arg(x.second, 0, 16));
+		qDebug() << "flash erase speed" << QString("%1 bytes per second").arg((float) (x.second * 1000.) / t.elapsed());
 		qDebug() << s;
+		dialog.setWindowTitle("writing flash");
 		mbox.label->setText(QString("writing $%1 bytes to flash at start address $%2")
 			.arg(memory_contents.ranges[0].data.size(), 0, 16)
 			.arg(memory_contents.ranges[0].address, 0, 16));
 		QApplication::processEvents();
 
+		t.restart();
 		s = target->interrogate(QString("$%1 $%2 .( <<<start>>>)\nflash-write\n")
 				.arg(memory_contents.ranges[0].address, 0, 16)
 		                .arg(memory_contents.ranges[0].data.size(), 0, 16).toLocal8Bit()
 		                + memory_contents.ranges[0].data + " .( <<<end>>>)");
+		qDebug() << "flash write speed" << QString("%1 bytes per second").arg((float) (memory_contents.ranges[0].data.size() * 1000.) / t.elapsed());
 		qDebug() << s;
-		return s.contains("success") ? true : false;
+		return memory_contents.isMemoryMatching(target);
 	}
 };
 

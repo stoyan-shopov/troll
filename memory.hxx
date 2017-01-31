@@ -42,7 +42,7 @@ public:
 			}
 		ranges.push_back((struct memory_range) { .address = address, .data = data, });
 	}
-	bool isMemoryMatching(class Target * target)
+	bool isMemoryMatching(class Target * target) const
 	{
 		int i;
 		QDialog dialog;
