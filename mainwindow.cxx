@@ -103,7 +103,13 @@ void MainWindow::backtrace()
 	if (DEBUG_BACKTRACE) qDebug() << "registers: " << cortexm0->getRegisters();
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
-	ui->plainTextEdit->setPlainText(dis->disassemblyAroundAddress(register_cache->registerFrame(0).at(15)));
+	int line_in_disassembly;
+	ui->plainTextEdit->setPlainText(dis->disassemblyAroundAddress(register_cache->registerFrame(0).at(15), & line_in_disassembly));
+	QTextCursor c(ui->plainTextEdit->textCursor());
+	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, line_in_disassembly);
+	QTextBlockFormat f;
+	f.setBackground(QBrush(Qt::cyan));
+	c.setBlockFormat(f);
 	ui->tableWidgetBacktrace->selectRow(0);
 	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
 		profiling.max_backtrace_generation_time = t.elapsed();

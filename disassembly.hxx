@@ -42,7 +42,7 @@ public:
 			if (index_table.at(i).first <= index_table.at(i - 1).first)
 				Util::panic();
 	}
-	QString disassemblyAroundAddress(uint32_t address)
+	QString disassemblyAroundAddress(uint32_t address, int * line_for_address = 0)
 	{
 		int l = 0, h = index_table.size() - 1, m;
 		while (l <= h)
@@ -61,6 +61,8 @@ public:
 			l = 0;
 		if ((h = m + 6) >= index_table.size())
 			h = index_table.size() - 1;
+		if (line_for_address)
+			* line_for_address = m - l;
 		return disassembly_text.mid(index_table.at(l).second, disassembly_text.indexOf('\n', index_table.at(h).second) - index_table.at(l).second);
 	}
 };
