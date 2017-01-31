@@ -5,7 +5,10 @@
 #include <QVector>
 #include <QByteArray>
 #include <QFile>
+#include <QApplication>
 #include "target.hxx"
+
+#include "ui_notification.h"
 
 struct memory_range
 {
@@ -42,8 +45,17 @@ public:
 	bool isMemoryMatching(class Target * target)
 	{
 		int i;
+		QDialog dialog;
+		Ui::Notification mbox;
+		mbox.setupUi(& dialog);
+		dialog.setWindowTitle("verifying target memory contents");
 		for (i = 0; i < ranges.size(); i ++)
 		{
+			mbox.label->setText(QString("verifying target memory region\nstart address $%1, size $%2")
+			                    .arg(ranges[i].address, 0, 16)
+			                    .arg(ranges[i].data.size(), 0, 16));
+			dialog.show();
+			QApplication::processEvents();
 			auto x = target->readBytes(ranges[i].address, ranges[i].data.size());
 			qDebug() << x.size() << ranges[i].data.size();
 			

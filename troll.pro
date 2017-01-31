@@ -42,7 +42,8 @@ HEADERS  += mainwindow.hxx \
     s-record.hxx \
     flash-memory-writer.hxx
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    notification.ui
 
 INCLUDEPATH += libtroll/ sforth/
 
