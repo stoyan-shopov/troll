@@ -339,7 +339,6 @@ MainWindow::MainWindow(QWidget *parent) :
 		dwundwind->dump(), dwundwind->next();
 	
 	target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
-	target->parseMemoryAreas("<memory-map><memory type=\"ram\" start=\"0x20000000\" length=\"0x5000\"/><memory type=\"flash\" start=\"0x08000000\" length=\"0x20000\"><property name=\"blocksize\">0x800</property></memory></memory-map>");
 	
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 	cortexm0 = new CortexM0(sforth, target);
@@ -580,8 +579,15 @@ class Target * t;
 					continue;
 				}
 				cortexm0->setTargetController(target = t);
-				target->parseMemoryAreas("<memory-map><memory type=\"ram\" start=\"0x20000000\" length=\"0x5000\"/><memory type=\"flash\" start=\"0x08000000\" length=\"0x20000\"><property name=\"blocksize\">0x800</property></memory></memory-map>");
 				backtrace();
+				auto s = target->interrogate(QString(".( <<<start>>>)?target-mem-map .( <<<end>>>)"));
+				if (!s.contains("memory-map"))
+				{
+					QMessageBox::critical(0, "error reading target memory map", QString("error reading target memory map"));
+					Util::panic();
+				}
+				qDebug() << s;
+				target->parseMemoryAreas(s);
 				if (!FlashMemoryWriter::syncFlash(target, s_record_file))
 				{
 					QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");

@@ -76,36 +76,35 @@ public:
 		qDebug() << "detected flash areas:";
 		for (i = 0; i < flash_areas.size(); i++)
 			qDebug() << flash_areas[i].start << flash_areas[i].length;
+		std::sort(flash_areas.begin(), flash_areas.end(), compare_memory_areas);
 	}
-	bool isAreaInFlash(uint32_t address, uint32_t length)
+	/* if the memory range passed does not fit entirely in flash memory, an empty vector is returned */
+	std::vector<std::pair<uint32_t /* start address in flash */, uint32_t /* length of flash area */> > flashAreasForRange(uint32_t address, uint32_t length)
 	{
 		int i;
-		for (i = 0; i < flash_areas.size(); i++)
-			if (flash_areas[i].start <= address && address + length <= flash_areas[i].start + flash_areas[i].length)
-				return true;
-		return false;
-	}
-	std::pair<uint32_t /* address */, uint32_t /* length */> flashSectorAddressesForRange(uint32_t address, uint32_t length)
-	{
-		int i;
-		uint32_t x;
-		std::pair<uint32_t, uint32_t> result;
-		for (i = 0; i < flash_areas.size(); i++)
-			if (flash_areas[i].start <= address && address + length <= flash_areas[i].start + flash_areas[i].length)
-				break;
-		if (i == flash_areas.size())
-			Util::panic();
-		x = ((address - flash_areas[i].start) / flash_areas[i].blocksize) * flash_areas[i].blocksize;
-		length += address - (flash_areas[i].start + x);
-		length += flash_areas[i].blocksize - 1;
-		length /= flash_areas[i].blocksize;
-		length *= flash_areas[i].blocksize;
-		return std::pair<uint32_t, uint32_t>(x + flash_areas[i].start, length);
-		
+		std::vector<std::pair<uint32_t, uint32_t> > ranges;
+		for (i = 0; length && i < flash_areas.size(); i++)
+			if (flash_areas[i].start <= address && address < flash_areas[i].start + flash_areas[i].length)
+			{
+				auto x = Util::min(length, flash_areas[i].start + flash_areas[i].length - address);
+				ranges.push_back(std::pair<uint32_t, uint32_t>(address, x));
+				address += x;
+				length -= x;
+				x = ((ranges[i].first - flash_areas[i].start) % flash_areas[i].blocksize);
+				ranges[i].first -= x;
+				ranges[i].second += x;
+				x = flash_areas[i].blocksize;
+				ranges[i].second += (x - (ranges[i].second % x)) % x;
+			}
+		if (length)
+			ranges.clear();
+		return ranges;
 	}
 protected:
 	std::vector<struct ram_area> ram_areas;
 	std::vector<struct flash_area> flash_areas;
+private:
+	static bool compare_memory_areas(const struct flash_area & first, const struct flash_area & second) { return first.start < second.start; }
 };
 
 #endif // TARGET_H
