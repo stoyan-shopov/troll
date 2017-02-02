@@ -351,7 +351,7 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r?")));
 		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem("????????"));
 	}
-	backtrace();
+	//backtrace();
 	
 	t.restart();
 	dwdata->dumpLines();
@@ -659,4 +659,42 @@ void MainWindow::on_actionReset_target_triggered()
 	if (!target->reset())
 		Util::panic();
 	backtrace();
+}
+
+void MainWindow::on_actionCore_dump_triggered()
+{
+QDir dir;
+QFile f;
+QDate date(QDate::currentDate());
+QTime time(QTime::currentTime());
+QString dirname = QString("coredump-%1%2%3-%4%5%6")
+			.arg(date.day(), 2, 10, QChar('0'))
+			.arg(date.month(), 2, 10, QChar('0'))
+			.arg(date.year() % 100, 2, 10, QChar('0'))
+			.arg(time.hour(), 2, 10, QChar('0'))
+			.arg(time.minute(), 2, 10, QChar('0'))
+			.arg(time.second(), 2, 10, QChar('0'));
+int i;
+
+	if (!dir.mkdir(dirname))
+		Util::panic();
+	f.setFileName(dirname + "/flash.bin");
+	if (!f.open(QFile::WriteOnly))
+		Util::panic();
+	f.write(target->readBytes(0x08000000, 0x20000));
+	f.close();
+	f.setFileName(dirname + "/ram.bin");
+	if (!f.open(QFile::WriteOnly))
+		Util::panic();
+	f.write(target->readBytes(0x20000000, 0x4000));
+	f.close();
+	f.setFileName(dirname + "/registers.bin");
+	if (!f.open(QFile::WriteOnly))
+		Util::panic();
+	for (i = 0; i < register_cache->registerFrame(0).size(); i ++)
+		f.write((const char * ) & register_cache->registerFrame(0).at(i), sizeof register_cache->registerFrame(0).at(i));
+	f.close();
+	f.setFileName(elf_filename);
+	if (!f.copy(dirname + "/" + QFileInfo(elf_filename).fileName()))
+		Util::panic();
 }

@@ -72,6 +72,7 @@
    <addaction name="actionEdit"/>
    <addaction name="actionHack_mode"/>
    <addaction name="actionReset_target"/>
+   <addaction name="actionCore_dump"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -547,6 +548,11 @@
   <action name="actionReset_target">
    <property name="text">
     <string>reset target</string>
+   </property>
+  </action>
+  <action name="actionCore_dump">
+   <property name="text">
+    <string>core dump</string>
    </property>
   </action>
  </widget>

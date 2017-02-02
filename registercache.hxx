@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include "util.hxx"
 
 class RegisterCache
 {
@@ -14,7 +15,9 @@ public:
 	RegisterCache(uint32_t cfa_register_number) { this->cfa_register_number = cfa_register_number; }
 	void clear(void) { register_frames.clear(); }
 	void pushFrame(const std::vector<uint32_t> & register_frame) { register_frames.push_back(register_frame); }
-	const std::vector<uint32_t> registerFrame(uint32_t frame_number) { return register_frames.at(frame_number); }
+	const std::vector<uint32_t> registerFrame(uint32_t frame_number)
+	{ if (frame_number < register_frames.size()) return register_frames.at(frame_number); else Util::panic();}
+	int frameCount(void) { return register_frames.size(); }
 };
 
 #endif // REGISTERCACHE_H

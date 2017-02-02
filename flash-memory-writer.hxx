@@ -34,6 +34,11 @@ public:
 		QApplication::processEvents();
 		t.start();
 		auto s = target->interrogate(QString("$%1 $%2 .( <<<start>>>)flash-erase .( <<<end>>>)").arg(x.first, 0, 16).arg(x.second, 0, 16));
+		if (!s.contains("erased successfully"))
+		{
+			QMessageBox::critical(0, "error erasing flash", QString("error erasing $%1 bytes of flash at address $%2").arg(x.second, 0, 16).arg(x.first, 0, 16));
+			Util::panic();
+		}
 		qDebug() << "flash erase speed" << QString("%1 bytes per second").arg((float) (x.second * 1000.) / t.elapsed());
 		qDebug() << s;
 		dialog.setWindowTitle("writing flash");
