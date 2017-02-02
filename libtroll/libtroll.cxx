@@ -38,7 +38,14 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		 *		should already have information about the containing compilation unit - maybe
 		 *		just pass that as an additional parameter */
 		uint32_t cu_offset(compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset));
-                i = readType(readTypeOffset(t.first, t.second, cu_offset), abbreviations, type_cache, false);
+		/* generally, the referred type can be in another compilation unit; gcc has not been observed
+		 * to do this until now (02022017), but the IAR compiler does generate such references;
+		 * if this is the case, the abbreviations of the referred compilation unit must be fetched,
+		 * so do fetch them in all cases */
+		auto x = readTypeOffset(t.first, t.second, cu_offset);
+		std::map<uint32_t, uint32_t> abbreviations;
+		get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(x), abbreviations);
+                i = readType(x, abbreviations, type_cache, false);
                 type_cache.at(index).next = i;
                 if (TYPE_DEBUG_ENABLED) qDebug() << "read type die at index " << i;
         }
@@ -53,7 +60,7 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 			Abbreviation a(debug_abbrev + type_cache.at(x).die.abbrev_offset);
 			auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + type_cache.at(x).die.offset);
 			if (subrange.first == 0)
-				/*! \todo	at least some versions of gcc are known to omit the upper bound attribute is 0;
+				/*! \todo	at least some versions of gcc are known to omit the upper bound attribute if it is 0;
 				 *		maybe have the option to store a zero here */
 				type_cache.at(index).array_dimensions.push_back(-1);
 			else

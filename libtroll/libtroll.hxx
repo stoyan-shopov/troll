@@ -8,8 +8,8 @@
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
 #define DEBUG_ENABLED			0
-#define DEBUG_LINE_PROGRAMS_ENABLED	0
-#define DEBUG_DIE_READ_ENABLED		0
+#define DEBUG_LINE_PROGRAMS_ENABLED	1
+#define DEBUG_DIE_READ_ENABLED		1
 #define DEBUG_ADDRESS_RANGE_ENABLED	0
 #define UNWIND_DEBUG_ENABLED		0
 
@@ -101,7 +101,10 @@ public:
 		case DW_FORM_string:
 			return strlen((const char *) debug_info_bytes) + 1;
 		case DW_FORM_block:
-			panic();
+		{
+			int x = uleb128(debug_info_bytes, & bytes_to_skip);
+			return x + bytes_to_skip;
+		}
 		case DW_FORM_block1:
 			return 1 + * debug_info_bytes;
 		case DW_FORM_data1:
@@ -113,7 +116,6 @@ public:
 		case DW_FORM_strp:
 			return 4;
 		case DW_FORM_udata:
-			panic();
 			return uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip;
 		case DW_FORM_ref_addr:
 			return 4;
@@ -143,6 +145,8 @@ public:
 	{
 		switch (attribute_form)
 		{
+		case DW_FORM_udata:
+			return uleb128(debug_info_bytes);
 		case DW_FORM_addr:
 		case DW_FORM_data4:
 		case DW_FORM_sec_offset:
@@ -159,6 +163,8 @@ public:
 	{
 		switch (attribute_form)
 		{
+		case DW_FORM_ref_addr:
+			return * (uint32_t *) debug_info_bytes;
 		case DW_FORM_ref4:
 			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
 		default:
@@ -559,7 +565,7 @@ private:
 		return p + 1;
 	}
 	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
-	struct line_state { uint32_t file, address, is_stmt; int line; } registers[2], * current, * prev;
+	struct line_state { uint32_t file, address, is_stmt; int line, column; } registers[2], * current, * prev;
 	void init(void) { registers[0] = (struct line_state) { .file = 1, .address = 0, .is_stmt = default_is_stmt(), .line = 1, };
 				registers[1] = (struct line_state) { .file = 1, .address = 0xffffffff, .is_stmt = 0, .line = -1, };
 				current = registers, prev = registers + 1; }
@@ -668,7 +674,9 @@ public:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current->file;
 					break;
 				case DW_LNS_set_column:
-					DwarfUtil::panic();
+					current->column = DwarfUtil::uleb128(p, & len);
+					p += len;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current->column;
 					break;
 				case DW_LNS_negate_stmt:
 					current->is_stmt = ! current->is_stmt;
@@ -786,7 +794,9 @@ public:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current->file;
 					break;
 				case DW_LNS_set_column:
-					DwarfUtil::panic();
+					current->column = DwarfUtil::uleb128(p, & len);
+					p += len;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current->column;
 					break;
 				case DW_LNS_negate_stmt:
 					current->is_stmt = ! current->is_stmt;
@@ -1163,7 +1173,12 @@ private:
 		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 		p += len;
 		if (!code)
+		{
+			/*! \todo	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
+			 * children, while it actually does not... don't know how exactly to handle this, so just return an empty vector */
+			return dies;
 			DwarfUtil::panic("null die requested");
+		}
 		while (code)
 		{
 			auto x = abbreviations.find(code);
@@ -1336,6 +1351,10 @@ private:
 			return * (uint32_t *) debug_info_bytes;
 		case DW_FORM_ref4:
 			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
+		case DW_FORM_ref_udata:
+			return DwarfUtil::uleb128(debug_info_bytes) + compilation_unit_header_offset;
+		case DW_FORM_ref_addr:
+			return * (uint32_t *) debug_info_bytes;
 		default:
 			DwarfUtil::panic();
 		}
@@ -1611,11 +1630,16 @@ if (is_prefix_printed)
 					auto x = a.dataForAttribute(DW_AT_data_member_location, debug_info + die.offset);
 					if (x.first) switch (x.first)
 					{
+					/* special cases for members */
+					case DW_FORM_block:
+						DwarfUtil::uleb128x(x.second);
+						if (0)
 					case DW_FORM_block1:
-						/* special case for dwarf-2 debug information */
 						x.second ++;
-						if (* x.second == DW_OP_plus_uconst)
+						if (* x.second ++ == DW_OP_plus_uconst)
 							node.data_member_location = DwarfUtil::uleb128x(x.second);
+						else
+							DwarfUtil::panic();
 						break;
 					default:
 						node.data_member_location = DwarfUtil::formConstant(x.first, x.second);
@@ -1810,7 +1834,7 @@ private:
 			this->debug_frame = debug_frame;
 			this->debug_frame_len = debug_frame_len;
 			data = debug_frame + debug_frame_offset;
-			if (isCIE() && version() != 1)
+			if (isCIE() && version() > 3)
 				DwarfUtil::panic("unsupported .debug_frame version");
 			if (isCIE() && strlen(augmentation()))
 				DwarfUtil::panic("unsupported .debug_frame CIE augmentation");

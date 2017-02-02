@@ -122,6 +122,15 @@ QProcess readelf;
 QString output;
 bool ok1, ok2;
 
+	debug_aranges_offset = debug_aranges_len =
+	debug_info_offset = debug_info_len =
+	debug_abbrev_offset = debug_abbrev_len =
+	debug_frame_offset = debug_frame_len =
+	debug_ranges_offset = debug_ranges_len =
+	debug_str_offset = debug_str_len =
+	debug_line_offset = debug_line_len =
+	debug_loc_offset = debug_loc_len = 0;
+	
 	readelf.start("readelf.exe", QStringList() << "-S" << elf_filename);
 	readelf.waitForFinished();
 	if (readelf.error() != QProcess::UnknownError || readelf.exitCode() || readelf.exitStatus() != QProcess::NormalExit)
@@ -274,7 +283,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
+	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
+	elf_filename = "X:/ivan-project/can-example/STM32-P405_CAN_example/Project/STM32F4xx_StdPeriph_Examples/CAN/Networking/STM324xG_EVAL/Exe/CAN_networking.out";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	ui->setupUi(this);
 	restoreGeometry(s.value("window-geometry").toByteArray());
