@@ -1433,6 +1433,13 @@ if (is_prefix_printed)
 				if (!short_type_print)
 					type_string += ";\n";
 			}
+			else
+			{
+				Abbreviation a(debug_abbrev + die.abbrev_offset);
+				auto x = a.dataForAttribute(DW_AT_bit_size, debug_info + die.offset);
+				if (x.first)
+					type_string += QString(" : %1").arg(DwarfUtil::formConstant(x.first, x.second)).toStdString();
+			}
 				break;
 			case DW_TAG_volatile_type:
 				if (is_prefix_printed) type_string += "volatile ";
@@ -1498,6 +1505,9 @@ if (is_prefix_printed)
 								break;
 							case 4:
 								type_string += "unsigned int ";
+								break;
+							case 8:
+								type_string += "long long unsigned int ";
 								break;
 						}
 						break;

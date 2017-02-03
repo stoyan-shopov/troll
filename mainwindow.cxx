@@ -38,7 +38,8 @@ int i;
 		uint32_t x;
 			case 1: x = * (uint8_t *) (data.data() + data_pos); if (0)
 			case 2: x = * (uint16_t *) (data.data() + data_pos); if (0)
-			case 4: x = * (uint32_t *) (data.data() + data_pos);
+			case 4: x = * (uint32_t *) (data.data() + data_pos); if (0)
+			case 8: x = * (uint64_t *) (data.data() + data_pos);
 				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : QString("%1").arg(x));
 				break;
 			default:
@@ -283,8 +284,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
-	elf_filename = "X:/ivan-project/can-example/STM32-P405_CAN_example/Project/STM32F4xx_StdPeriph_Examples/CAN/Networking/STM324xG_EVAL/Exe/CAN_networking.out";
+	elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
+	//elf_filename = "X:/ivan-project/can-example/STM32-P405_CAN_example/Project/STM32F4xx_StdPeriph_Examples/CAN/Networking/STM324xG_EVAL/Exe/CAN_networking.out";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	ui->setupUi(this);
 	restoreGeometry(s.value("window-geometry").toByteArray());
