@@ -1590,6 +1590,10 @@ if (is_prefix_printed)
 			for (i = 0; i < type.at(node_number).array_dimensions.size(); n *= type.at(node_number).array_dimensions.at(i ++));
 			return n * sizeOf(type, type.at(node_number).next);
 		}
+		/* special case for compilers (e.g. the IAR compiler), which do not record an explicit
+		 * DW_AT_byte_size value for pointers */
+		if (type.at(node_number).die.tag == DW_TAG_pointer_type)
+			return sizeof(uint32_t);
 		return sizeOf(type, type.at(node_number).next);
 	}
 	
