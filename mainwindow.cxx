@@ -27,7 +27,7 @@ int i;
 	}
 }
 
-QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const QByteArray & data, int data_pos)
+QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const QByteArray & data, int data_pos, int numeric_base, const QString & numeric_prefix)
 {
 auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << "???" << QString("%1").arg(node.data_member_location));
 int i;
@@ -41,17 +41,20 @@ int i;
 			case 4: x = * (uint32_t *) (data.data() + data_pos); if (0)
 			case 8: x = * (uint64_t *) (data.data() + data_pos);
 				if (node.bitsize)
+				{
 					x >>= node.bitposition, x &= (1 << node.bitsize) - 1;
-				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : QString("%1").arg(x));
+					n->setText(1, QString("%1 bit").arg(node.bitsize) + ((node.bitsize != 1) ? "s":""));
+				}
+				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : numeric_prefix + QString("%1").arg(x, 0, numeric_base));
 				break;
 			default:
 				Util::panic();
 		}
 	}
 	if (node.array_dimensions.size())
-		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0), data, data_pos + i * node.children.at(0).bytesize)), i ++);
+		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0), data, data_pos + i * node.children.at(0).bytesize, numeric_base, numeric_prefix)), i ++);
 	else
-		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i), data, data_pos + node.children.at(i).data_member_location)), i ++);
+		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i), data, data_pos + node.children.at(i).data_member_location, numeric_base, numeric_prefix)), i ++);
 	return n;
 }
 
@@ -295,6 +298,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->splitterMain->restoreGeometry(s.value("main-splitter/geometry").toByteArray());
 	ui->splitterMain->restoreState(s.value("main-splitter/state").toByteArray());
 	ui->actionHack_mode->setChecked(s.value("hack-mode", true).toBool());
+	ui->comboBoxDataDisplayNumericBase->setCurrentIndex(s.value("data-display-numeric-base", 1).toUInt());
 	on_actionHack_mode_triggered();
 #if MAIN_APS
 	QFile debug_file(elf_filename);
@@ -543,6 +547,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
 	s.setValue("main-splitter/state", ui->splitterMain->saveState());
 	s.setValue("hack-mode", ui->actionHack_mode->isChecked());
+	s.setValue("data-display-numeric-base", ui->comboBoxDataDisplayNumericBase->currentIndex());
 	qDebug() << "";
 	qDebug() << "";
 	qDebug() << "";
@@ -645,13 +650,22 @@ int row(ui->tableWidgetStaticDataObjects->currentRow());
 uint32_t die_offset = ui->tableWidgetStaticDataObjects->item(row, 5)->text().replace('$', "0x").toUInt(0, 0);
 uint32_t address = ui->tableWidgetStaticDataObjects->item(row, 2)->text().replace('$', "0x").toUInt(0, 0);
 QByteArray data;
+int numeric_base;
+QString numeric_prefix;
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(die_offset, type_cache);
 	
 	struct DwarfData::DataNode node;
 	dwdata->dataForType(type_cache, node, true, 1);
 	ui->treeWidgetDataObjects->clear();
-	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize)));
+	switch (numeric_base = ui->comboBoxDataDisplayNumericBase->currentText().toUInt())
+	{
+		case 2: numeric_prefix = "%"; break;
+		case 16: numeric_prefix = "$"; break;
+		case 10: break;
+		default: Util::panic();
+	}
+	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize), 0, numeric_base, numeric_prefix));
 	ui->treeWidgetDataObjects->expandAll();
 	ui->treeWidgetDataObjects->resizeColumnToContents(0);
 	dumpData(address, data);
@@ -716,4 +730,10 @@ int i;
 	f.setFileName(elf_filename);
 	if (!f.copy(dirname + "/" + QFileInfo(elf_filename).fileName()))
 		Util::panic();
+}
+
+void MainWindow::on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index)
+{
+	if (ui->tableWidgetStaticDataObjects->currentRow() >= 0)
+		on_tableWidgetStaticDataObjects_itemSelectionChanged();
 }

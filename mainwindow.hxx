@@ -52,7 +52,7 @@ class MainWindow : public QMainWindow
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
 	SRecordMemoryData s_record_file;
-	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0);
+	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	void backtrace(void);
 	bool readElfSections(void);
 	bool loadSRecordFile(void);
@@ -83,6 +83,8 @@ private slots:
 	void on_actionReset_target_triggered();
 	
 	void on_actionCore_dump_triggered();
+	
+	void on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index);
 	
 protected:
 	void closeEvent(QCloseEvent * e);
