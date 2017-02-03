@@ -17,7 +17,7 @@ public:
 	virtual QByteArray interrogate(const QByteArray &query, bool * isOk = 0);
 	bool reset(void);
 	Blackstrike(QSerialPort * port) { this->port = port; }
-	QByteArray readBytes(uint32_t address, int byte_count);
+	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
 	virtual uint32_t readWord(uint32_t address);
 	virtual uint32_t readRegister(uint32_t register_number);
 	virtual uint32_t singleStep(void);

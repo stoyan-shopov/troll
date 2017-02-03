@@ -90,7 +90,7 @@ bool Blackstrike::reset(void)
 	return true;
 }
 
-QByteArray Blackstrike::readBytes(uint32_t address, int byte_count)
+QByteArray Blackstrike::readBytes(uint32_t address, int byte_count, bool is_failure_allowed)
 {
 	/*
 QString s(

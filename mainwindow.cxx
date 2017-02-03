@@ -665,7 +665,7 @@ QString numeric_prefix;
 		case 10: break;
 		default: Util::panic();
 	}
-	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize), 0, numeric_base, numeric_prefix));
+	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize, true), 0, numeric_base, numeric_prefix));
 	ui->treeWidgetDataObjects->expandAll();
 	ui->treeWidgetDataObjects->resizeColumnToContents(0);
 	dumpData(address, data);
