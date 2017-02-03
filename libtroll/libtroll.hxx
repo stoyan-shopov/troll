@@ -8,12 +8,12 @@
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
 #define DEBUG_ENABLED			0
-#define DEBUG_LINE_PROGRAMS_ENABLED	1
-#define DEBUG_DIE_READ_ENABLED		1
+#define DEBUG_LINE_PROGRAMS_ENABLED	0
+#define DEBUG_DIE_READ_ENABLED		0
 #define DEBUG_ADDRESS_RANGE_ENABLED	0
 #define UNWIND_DEBUG_ENABLED		0
 
-#define STATS_ENABLED			1
+#define STATS_ENABLED			0
 
 class DwarfUtil
 {
@@ -158,6 +158,10 @@ public:
 		default:
 			panic();
 		}
+	}
+	static uint32_t formConstant(const std::pair<uint32_t, const uint8_t *> & formdata)
+	{
+		return formConstant(formdata.first, formdata.second);
 	}
 	static uint32_t formReference(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
 	{
@@ -1227,7 +1231,7 @@ private:
 		if (range.first)
 		{
 			auto base_address = compilation_unit_base_address(compilation_unit_die);
-			const uint32_t * range_list = (const uint32_t *) (debug_ranges + DwarfUtil::formConstant(range.first, range.second));
+			const uint32_t * range_list = (const uint32_t *) (debug_ranges + DwarfUtil::formConstant(range));
 			while (range_list[0] && range_list[1])
 			{
 				if (range_list[0] == -1)
@@ -1332,7 +1336,7 @@ public:
 		if (!x.first)
 			return s;
 		class DebugLine l(debug_line, debug_line_len);
-		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x.first, x.second), file_number);
+		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x), file_number);
 		l.stringsForFileNumber(file_number, s.file_name, s.directory_name);
 		x = a.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
 		if (x.first)
@@ -1438,7 +1442,7 @@ if (is_prefix_printed)
 				Abbreviation a(debug_abbrev + die.abbrev_offset);
 				auto x = a.dataForAttribute(DW_AT_bit_size, debug_info + die.offset);
 				if (x.first)
-					type_string += QString(" : %1").arg(DwarfUtil::formConstant(x.first, x.second)).toStdString();
+					type_string += QString(" : %1").arg(DwarfUtil::formConstant(x)).toStdString();
 			}
 				break;
 			case DW_TAG_volatile_type:
@@ -1481,10 +1485,10 @@ if (is_prefix_printed)
 				auto size = a.dataForAttribute(DW_AT_byte_size, debug_info + die.offset);
 				if (x.first == 0 || size.first == 0)
 					DwarfUtil::panic();
-				switch (DwarfUtil::formConstant(x.first, x.second))
+				switch (DwarfUtil::formConstant(x))
 				{
 					default:
-						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x.first, x.second);
+						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x);
 						DwarfUtil::panic();
 					case DW_ATE_boolean:
 						type_string += "bool ";
@@ -1493,7 +1497,7 @@ if (is_prefix_printed)
 						type_string += "unsigned char ";
 						break;
 					case DW_ATE_unsigned:
-						switch (DwarfUtil::formConstant(size.first, size.second))
+						switch (DwarfUtil::formConstant(size))
 						{
 							default:
 								DwarfUtil::panic();
@@ -1512,7 +1516,7 @@ if (is_prefix_printed)
 						}
 						break;
 					case DW_ATE_signed:
-						switch (DwarfUtil::formConstant(size.first, size.second))
+						switch (DwarfUtil::formConstant(size))
 						{
 							default:
 								DwarfUtil::panic();
@@ -1524,6 +1528,9 @@ if (is_prefix_printed)
 								break;
 							case 4:
 								type_string += "signed int ";
+								break;
+							case 8:
+								type_string += "long long signed int ";
 								break;
 						}
 				}
@@ -1543,7 +1550,7 @@ if (is_prefix_printed)
 							auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + die.children.at(i).offset);
 							if (subrange.first == 0)
 								continue;
-							type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange.first, subrange.second) + 1) + "]";
+							type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
 						}
 					else
 						type_string += "[]";
@@ -1592,7 +1599,7 @@ if (is_prefix_printed)
 		Abbreviation a(debug_abbrev + type.at(node_number).die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_byte_size, debug_info + type.at(node_number).die.offset);
 		if (x.first)
-			return DwarfUtil::formConstant(x.first, x.second);
+			return DwarfUtil::formConstant(x);
 		if (type.at(node_number).array_dimensions.size())
 		{
 			int i;
@@ -1615,6 +1622,8 @@ if (is_prefix_printed)
 		struct
 		{
 			uint32_t is_pointer	: 1;
+			uint32_t bitsize	: 5;
+			uint32_t bitposition	: 5;
 		};
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
@@ -1626,7 +1635,7 @@ if (is_prefix_printed)
 		node.data.push_back(typeString(type, short_type_print, type_node_number));
 		node.bytesize = sizeOf(type, type_node_number);
 		node.data_member_location = 0;
-		node.is_pointer = 0;
+		node.is_pointer = node.bitsize = node.bitposition = 0;
 		switch (die.tag)
 		{
 			case DW_TAG_structure_type:
@@ -1656,8 +1665,14 @@ if (is_prefix_printed)
 							DwarfUtil::panic();
 						break;
 					default:
-						node.data_member_location = DwarfUtil::formConstant(x.first, x.second);
+						node.data_member_location = DwarfUtil::formConstant(x);
 					}
+					x = a.dataForAttribute(DW_AT_bit_size, debug_info + die.offset);
+					if (x.first)
+						node.bitsize = DwarfUtil::formConstant(x);
+					x = a.dataForAttribute(DW_AT_bit_offset, debug_info + die.offset);
+					if (x.first)
+						node.bitposition = node.bytesize * 8 - DwarfUtil::formConstant(x) - node.bitsize;
 				}
 				break;
 			case DW_TAG_volatile_type:
@@ -1717,9 +1732,9 @@ private:
 	{
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto t = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
-		x.file = ((t.first) ? DwarfUtil::formConstant(t.first, t.second) : -1);
+		x.file = ((t.first) ? DwarfUtil::formConstant(t) : -1);
 		t = a.dataForAttribute(DW_AT_decl_line, debug_info + die.offset);
-		x.line = ((t.first) ? DwarfUtil::formConstant(t.first, t.second) : -1);
+		x.line = ((t.first) ? DwarfUtil::formConstant(t) : -1);
 		t = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
 		if (t.first)
 		{

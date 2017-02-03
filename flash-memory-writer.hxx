@@ -55,7 +55,7 @@ public:
 		QApplication::processEvents();
 
 		t.restart();
-		s = target->interrogate(QString("$%1 $%2 .( <<<start>>>)flash-write")
+		s = target->interrogate(QString("$%1 $%2 .( <<<start>>>)flash-write\n")
 				.arg(memory_contents.ranges[0].address, 0, 16)
 		                .arg(memory_contents.ranges[0].data.size(), 0, 16).toLocal8Bit()
 		                + memory_contents.ranges[0].data + " .( <<<end>>>)");

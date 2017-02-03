@@ -35,7 +35,7 @@ int i;
 	{
 		if (data_pos + node.bytesize <= data.size()) switch (node.bytesize)
 		{
-		uint32_t x;
+		uint64_t x;
 			case 1: x = * (uint8_t *) (data.data() + data_pos); if (0)
 			case 2: x = * (uint16_t *) (data.data() + data_pos); if (0)
 			case 4: x = * (uint32_t *) (data.data() + data_pos); if (0)
@@ -361,7 +361,7 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r?")));
 		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem("????????"));
 	}
-	//backtrace();
+	backtrace();
 	
 	t.restart();
 	dwdata->dumpLines();
