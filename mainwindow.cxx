@@ -40,6 +40,8 @@ int i;
 			case 2: x = * (uint16_t *) (data.data() + data_pos); if (0)
 			case 4: x = * (uint32_t *) (data.data() + data_pos); if (0)
 			case 8: x = * (uint64_t *) (data.data() + data_pos);
+				if (node.bitsize)
+					x >>= node.bitposition, x &= (1 << node.bitsize) - 1;
 				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : QString("%1").arg(x));
 				break;
 			default:
