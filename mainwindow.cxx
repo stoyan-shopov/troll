@@ -46,6 +46,8 @@ int i;
 					n->setText(1, QString("%1 bit").arg(node.bitsize) + ((node.bitsize != 1) ? "s":""));
 				}
 				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : numeric_prefix + QString("%1").arg(x, 0, numeric_base));
+				if (node.is_enumeration)
+					n->setText(2, n->text(2) + " (" + QString::fromStdString(dwdata->enumeratorNameForValue(x, node.enumeration_die) + ")"));
 				break;
 			default:
 				Util::panic();

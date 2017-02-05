@@ -147,6 +147,8 @@ public:
 		{
 		case DW_FORM_udata:
 			return uleb128(debug_info_bytes);
+		case DW_FORM_sdata:
+			return sleb128(debug_info_bytes);
 		case DW_FORM_addr:
 		case DW_FORM_data4:
 		case DW_FORM_sec_offset:
@@ -234,6 +236,7 @@ struct Die
 	uint32_t	abbrev_offset;
 	std::vector<struct Die> children;
 	Die(uint32_t tag, uint32_t offset, uint32_t abbrev_offset){ this->tag = tag, this->offset = offset, this->abbrev_offset = abbrev_offset; }
+	Die(){ tag = offset = abbrev_offset = 0; }
 };
 
 /* !!! warning - this can generally be a circular graph !!! */
@@ -1619,11 +1622,13 @@ if (is_prefix_printed)
 		std::vector<std::string> data;
 		uint32_t bytesize;
 		uint32_t data_member_location;
+		struct Die	enumeration_die;
 		struct
 		{
 			uint32_t is_pointer	: 1;
-			uint32_t bitsize	: 5;
-			uint32_t bitposition	: 5;
+			uint32_t is_enumeration	: 1;
+			uint32_t bitsize	: 6;
+			uint32_t bitposition	: 6;
 		};
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
@@ -1635,7 +1640,7 @@ if (is_prefix_printed)
 		node.data.push_back(typeString(type, short_type_print, type_node_number));
 		node.bytesize = sizeOf(type, type_node_number);
 		node.data_member_location = 0;
-		node.is_pointer = node.bitsize = node.bitposition = 0;
+		node.is_pointer = node.is_enumeration = node.bitsize = node.bitposition = 0;
 		switch (die.tag)
 		{
 			case DW_TAG_structure_type:
@@ -1683,6 +1688,8 @@ if (is_prefix_printed)
 			case DW_TAG_base_type:
 				break;
 			case DW_TAG_enumeration_type:
+				node.enumeration_die = die;
+				node.is_enumeration = 1;
 				break;
 			case DW_TAG_array_type:
 				if (type.at(type_node_number).array_dimensions.size())
@@ -1693,6 +1700,26 @@ if (is_prefix_printed)
 				qDebug() << "unhandled tag" << type.at(type_node_number).die.tag;
 				DwarfUtil::panic();
 		}
+	}
+	/*! \todo	this will eventually need to be 64 bit... */
+	std::string enumeratorNameForValue(uint32_t value, const struct Die & die)
+	{
+		if (die.tag != DW_TAG_enumeration_type)
+			DwarfUtil::panic();
+		int i;
+		for (i = 0; i < die.children.size(); i ++)
+		{
+			if (die.children.at(i).tag != DW_TAG_enumerator)
+				DwarfUtil::panic();
+			Abbreviation a(debug_abbrev + die.children.at(i).abbrev_offset);
+			auto x = a.dataForAttribute(DW_AT_const_value, debug_info + die.children.at(i).offset);
+			if (DwarfUtil::formConstant(x) == value)
+			{
+				auto x = a.dataForAttribute(DW_AT_name, debug_info + die.children.at(i).offset);
+				return DwarfUtil::formString(x.first, x.second, debug_str);
+			}
+		}
+		return "<<< unknown enumerator value >>>";
 	}
 
 	const char * nameOfDie(const struct Die & die, bool is_empty_name_allowed = false)
