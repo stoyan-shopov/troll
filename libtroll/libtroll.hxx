@@ -526,12 +526,28 @@ struct DwarfExpression
 				case DW_OP_shr:
 					x << "DW_OP_shr ";
 					break;
+				case DW_OP_shra:
+					x << "DW_OP_shra ";
+					break;
 				case DW_OP_ne:
 					x << "DW_OP_ne ";
 					break;
 				case DW_OP_const2u:
 					x << * ((uint16_t *) dwarf_expression) << " ";
 					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
+					break;
+				case DW_OP_plus_uconst:
+					x << DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					x << " DW_OP_plus_uconst ";
+					break;
+				case DW_OP_plus:
+					x << "DW_OP_plus ";
+					break;
+				case DW_OP_minus:
+					x << "DW_OP_minus ";
+					break;
+				case DW_OP_deref:
+					x << "DW_OP_deref ";
 					break;
 				default:
 					DwarfUtil::panic();
@@ -1969,6 +1985,12 @@ private:
 				{
 					default:
 					DwarfUtil::panic();
+					case DW_CFA_remember_state:
+						result << "DW_CFA_remember_state" << " ";
+						break;
+					case DW_CFA_restore_state:
+						result << "DW_CFA_restore_state" << " ";
+						break;
 					case DW_CFA_def_cfa:
 						op = DwarfUtil::uleb128(insn, & len);
 						insn += len;
@@ -2055,7 +2077,7 @@ public:
 		sfcode
 				<< cie.code_alignment_factor() << " to code-alignment-factor "
 				<< cie.data_alignment_factor() << " to data-alignment-factor "
-				<< (cie.ciefde_sforth_code() + fde.ciefde_sforth_code()) << " unwinding-rules-defined ";
+				<< (cie.ciefde_sforth_code() + " initial-cie-instructions-defined " + fde.ciefde_sforth_code()) << " unwinding-rules-defined ";
 		return std::pair<std::string, uint32_t>(sfcode.str(), fde.initial_location());
 	}
 };

@@ -1,3 +1,5 @@
+#include <QMessageBox>
+
 #include "cortexm0.hxx"
 #include "target.hxx"
 
@@ -55,6 +57,12 @@ uint32_t cfa;
 	sforth->evaluate("init-unwinder-round\n");
 	sforth->evaluate(QString("%1 to current-address %2 to unwind-address ").arg(start_address).arg(unwind_address) + unwind_code + '\n');
 	auto r = sforth->getResults(1);
+	if (r.size() == 0)
+	{
+		/* evaluation probably aborted due to unsupported unwinding rules */
+		QMessageBox::critical(0, "register frame unwinding aborted", "register frame unwinding aborted\nsee the sforth execution log for more details");
+		return false;
+	}
 	if (r.size() != 1 || r.at(0) != 0xffffffff)
 		return false;
 	sforth->evaluate("cfa-value\n");

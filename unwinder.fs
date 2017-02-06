@@ -37,6 +37,67 @@ create unwind-xts register-count cells allot
 \ data table for unwinding registers by the DW_CFA_offset instruction
 create cfa-offset-table register-count cells allot
 
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ state stack and initial-cie-instructions words
+\ these are needed by unwinding instructions
+\ DW_CFA_restore, DW_CFA_remember_state, DW_CFA_restore_state
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+create initial-cie-unwind-xts register-count cells allot
+create initial-cie-cfa-offset-table register-count cells allot
+
+1 constant state-stack-depth
+0 value state-stack-pointer
+
+: initial-cie-instructions-defined ( --)
+	unwind-xts initial-cie-unwind-xts register-count cells move
+	cfa-offset-table initial-cie-cfa-offset-table register-count cells move
+	0 to state-stack-pointer
+	;
+
+\ the layout of a state-stack frame is:
+\ 1 cell for the cfa register number for the DW_CFA_def_cfa instruction
+\ 1 cell for the cfa register offset for the DW_CFA_def_cfa instruction
+\ 1 cell for xfa rule execution token
+\ 'register-count' cells for the register unwind execution tokens
+\ 'register-count' cells for values for the DW_CFA_offset register unwind rules
+
+\ an empty-ascending convention is used for the cell stack
+1 cells 1 cells + 1 cells + register-count cells + register-count cells + constant state-stack-frame-size
+create state-stack state-stack-frame-size state-stack-depth * allot
+
+: DW_CFA_remember_state ( --)
+	state-stack-pointer state-stack-depth = abort" state stack full; consider expanding the state stack"
+	state-stack-pointer state-stack-frame-size * state-stack + >r
+	cfa-register-number 0 r@ [] !
+	cfa-register-offset 1 r@ [] !
+	cfa-rule-xt 2 r@ [] !
+	unwind-xts 3 r@ [] register-count cells move
+	cfa-offset-table 3 register-count + r> [] register-count cells move
+	state-stack-pointer 1+ to state-stack-pointer
+	;
+: DW_CFA_restore_state ( --)
+	state-stack-pointer 0= abort" state stack empty"
+	state-stack-pointer 1- to state-stack-pointer
+	state-stack-pointer state-stack-frame-size * state-stack + >r
+	0 r@ [] @ to cfa-register-number
+	1 r@ [] @ to cfa-register-offset
+	2 r@ [] @ to cfa-rule-xt
+	3 r@ [] unwind-xts register-count cells move
+	3 register-count + r> [] cfa-offset-table register-count cells move
+	;
+
+: DW_CFA_restore ( register-number --)
+	>r
+	r@ initial-cie-unwind-xts [] @ r@ unwind-xts [] !
+	r@ initial-cie-cfa-offset-table [] @ r> cfa-offset-table [] !
+	;
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ end of state stack and initial-cie-instruction words
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 \ unwind parameters	
 -1 value current-address
 -1 value unwind-address

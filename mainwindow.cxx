@@ -291,7 +291,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
+	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
+	elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
 	//elf_filename = "X:/ivan-project/can-example/STM32-P405_CAN_example/Project/STM32F4xx_StdPeriph_Examples/CAN/Networking/STM324xG_EVAL/Exe/CAN_networking.out";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	ui->setupUi(this);
@@ -721,7 +722,7 @@ int i;
 	f.setFileName(dirname + "/ram.bin");
 	if (!f.open(QFile::WriteOnly))
 		Util::panic();
-	f.write(target->readBytes(0x20000000, 0x4000));
+	f.write(target->readBytes(0x20000000, 0x20000));
 	f.close();
 	f.setFileName(dirname + "/registers.bin");
 	if (!f.open(QFile::WriteOnly))
