@@ -453,22 +453,7 @@ if (!ui->tableWidgetBacktrace->item(row, 0))
 uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
 
 	src.setFileName(ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
-	if (src.open(QFile::ReadOnly))
-	{
-		int i(1);
-		l = ui->tableWidgetBacktrace->item(row, 3)->text().toInt();
-		while (!src.atEnd())
-		{
-			if (i == l)
-				cursor_position_for_line = t.length();
-			t += QString("%1|").arg(i ++, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
-		}
-	}
-	else
-		t = QString("cannot open source code file ") + src.fileName();
-	ui->plainTextEdit->appendPlainText(t);
-	QTextCursor c(ui->plainTextEdit->textCursor());
-
+	
 	std::vector<struct DebugLine::lineAddress> line_addresses;
 	x.start();
 	dwdata->addressesForFile(ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), line_addresses);
@@ -481,6 +466,25 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	std::map<uint32_t, uint32_t> lines;
 	for (i = 0; i < line_addresses.size(); i ++)
 		lines[line_addresses.at(i).line] ++;
+
+	if (src.open(QFile::ReadOnly))
+	{
+		int i(1);
+		l = ui->tableWidgetBacktrace->item(row, 3)->text().toInt();
+		while (!src.atEnd())
+		{
+			if (i == l)
+				cursor_position_for_line = t.length();
+			t += QString("%1 %2|").arg(lines[i])// ? '*' : ' ')
+			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
+			i ++;
+		}
+	}
+	else
+		t = QString("cannot open source code file ") + src.fileName();
+	ui->plainTextEdit->appendPlainText(t);
+	QTextCursor c(ui->plainTextEdit->textCursor());
+
 #if 0
 	c.movePosition(QTextCursor::Start);
 	dis.setBackground(QBrush(Qt::lightGray));
