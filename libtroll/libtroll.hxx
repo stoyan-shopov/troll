@@ -1849,6 +1849,12 @@ public:
 		if (!x.first)
 			return "";
 		qDebug() << "processing die offset" << die.offset;
+		if (location_attribute == DW_AT_const_value)
+		{
+			std::stringstream result;
+			result << DwarfUtil::formConstant(x) << " " << "DW_AT_const_value";
+			return result.str();
+		}
 		switch (x.first)
 		{
 			{
