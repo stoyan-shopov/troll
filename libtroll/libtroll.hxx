@@ -980,8 +980,6 @@ public:
 	{
 		file_name = "<<< unknown file >>>";
 		directory_name = "<<< unknown directory >>>";
-		if (!file_name)
-			return;
 		size_t l;
 		union { const char * s; const uint8_t * p; } f;
 		f.s = file_names();
@@ -1773,6 +1771,9 @@ if (is_prefix_printed)
 private:
 	void fillStaticObjectDetails(const struct Die & die, struct StaticObject & x)
 	{
+		struct Die referred_die(die);
+		if (hasAbstractOrigin(die, referred_die))
+			return fillStaticObjectDetails(referred_die, x);
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto t = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
 		x.file = ((t.first) ? DwarfUtil::formConstant(t) : -1);
