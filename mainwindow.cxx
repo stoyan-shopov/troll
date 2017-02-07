@@ -519,6 +519,9 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		dwdata->readType(locals.at(i).offset, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
 		ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
+		if (ui->tableWidgetLocalVariables->item(row, 2)->text().isEmpty())
+			/* the data object may have been evaluated as a compile-time constant - try that */
+			ui->tableWidgetLocalVariables->item(row, 2)->setText(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc, DW_AT_const_value)));
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
 	}
 	ui->tableWidgetLocalVariables->resizeColumnsToContents();
