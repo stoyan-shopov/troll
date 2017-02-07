@@ -18,9 +18,12 @@ public:
 	bool reset(void);
 	Blackstrike(QSerialPort * port) { this->port = port; }
 	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
-	virtual uint32_t readWord(uint32_t address);
-	virtual uint32_t readRegister(uint32_t register_number);
-	virtual uint32_t singleStep(void);
+	uint32_t readWord(uint32_t address);
+	uint32_t readRegister(uint32_t register_number);
+	uint32_t singleStep(void);
+	bool resume(void);
+	bool requestHalt(void);
+	uint32_t haltReason(void);
 };
 
 #endif // BLACKSTRIKE_HXX

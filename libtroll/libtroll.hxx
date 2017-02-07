@@ -2014,6 +2014,10 @@ private:
 						i -= len;
 						result << op << " " << "DW_CFA_def_cfa_register" << " ";
 						break;
+					case DW_CFA_advance_loc1:
+						result << (uint32_t) (* insn ++) << " " << "DW_CFA_advance_loc1" << " ";
+						i --;
+						break;
 					case DW_CFA_nop:
 						break;
 				}

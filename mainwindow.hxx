@@ -86,6 +86,12 @@ private slots:
 	
 	void on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index);
 	
+	void on_actionResume_triggered();
+	
+	void on_actionHalt_triggered();
+	
+	void on_actionRead_state_triggered();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	

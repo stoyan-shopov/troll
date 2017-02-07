@@ -67,7 +67,6 @@ void MainWindow::backtrace()
 	cortexm0->primeUnwinder();
 	register_cache->clear();
 	register_cache->pushFrame(cortexm0->getRegisters());
-	updateRegisterView(0);
 	uint32_t last_pc;
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
 	int row;
@@ -118,7 +117,10 @@ void MainWindow::backtrace()
 	QTextBlockFormat f;
 	f.setBackground(QBrush(Qt::cyan));
 	c.setBlockFormat(f);
-	ui->tableWidgetBacktrace->selectRow(0);
+	if (ui->tableWidgetBacktrace->rowCount())
+		ui->tableWidgetBacktrace->selectRow(0);
+	else
+		updateRegisterView(0);
 	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
 		profiling.max_backtrace_generation_time = t.elapsed();
 }
@@ -291,8 +293,9 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
-	elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
+	elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
+	//elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
+	//elf_filename = "X:/ivan-project/stm32f405-bootloader/src/bootloader.elf";
 	//elf_filename = "X:/ivan-project/can-example/STM32-P405_CAN_example/Project/STM32F4xx_StdPeriph_Examples/CAN/Networking/STM324xG_EVAL/Exe/CAN_networking.out";
 //QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	ui->setupUi(this);
@@ -739,4 +742,20 @@ void MainWindow::on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index
 {
 	if (ui->tableWidgetStaticDataObjects->currentRow() >= 0)
 		on_tableWidgetStaticDataObjects_itemSelectionChanged();
+}
+
+void MainWindow::on_actionResume_triggered()
+{
+	target->resume();
+}
+
+void MainWindow::on_actionHalt_triggered()
+{
+	target->requestHalt();
+}
+
+void MainWindow::on_actionRead_state_triggered()
+{
+	if (target->haltReason())
+		backtrace();
 }

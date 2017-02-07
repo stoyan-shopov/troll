@@ -72,6 +72,9 @@
    <addaction name="actionEdit"/>
    <addaction name="actionHack_mode"/>
    <addaction name="actionReset_target"/>
+   <addaction name="actionResume"/>
+   <addaction name="actionHalt"/>
+   <addaction name="actionRead_state"/>
    <addaction name="actionCore_dump"/>
    <addaction name="separator"/>
   </widget>
@@ -586,6 +589,21 @@
   <action name="actionCore_dump">
    <property name="text">
     <string>core dump</string>
+   </property>
+  </action>
+  <action name="actionResume">
+   <property name="text">
+    <string>resume</string>
+   </property>
+  </action>
+  <action name="actionHalt">
+   <property name="text">
+    <string>halt</string>
+   </property>
+  </action>
+  <action name="actionRead_state">
+   <property name="text">
+    <string>read state</string>
    </property>
   </action>
  </widget>

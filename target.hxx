@@ -29,6 +29,9 @@ public:
 	virtual QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false) = 0;
 	virtual uint32_t readRegister(uint32_t register_number) = 0;
 	virtual uint32_t singleStep(void) = 0;
+	virtual bool resume(void) = 0;
+	virtual bool requestHalt(void) = 0;
+	virtual uint32_t haltReason(void) = 0;
 	virtual QByteArray interrogate(const QByteArray & query, bool * isOk = 0) = 0;
 	QByteArray interrogate(const QString & query, bool * isOk = 0) { return interrogate(query.toLocal8Bit(), isOk); }
 	void parseMemoryAreas(const QString & xml_memory_description)

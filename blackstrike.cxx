@@ -1,5 +1,6 @@
 #include <QDebug>
 #include <QTime>
+#include <QMessageBox>
 #include "blackstrike.hxx"
 
 #define BLACKSTIRKE_DEBUG	0
@@ -183,4 +184,32 @@ QTime t;
 	if (BLACKSTIRKE_DEBUG) qDebug() << "target halt reason: " << x;
 	qDebug() << "target single-stepping took" << t.elapsed() << "milliseconds";
 	return x;
+}
+
+bool Blackstrike::resume()
+{
+	registers.clear();
+	interrogate(QString("target-resume .( <<<start>>>).( <<<end>>>)").toLocal8Bit());
+	return true;
+}
+
+bool Blackstrike::requestHalt()
+{
+	interrogate(QString("target-request-halt .( <<<start>>>).( <<<end>>>)").toLocal8Bit());
+	return true;
+}
+
+uint32_t Blackstrike::haltReason()
+{
+bool ok;
+QString s;
+unsigned halt_reason; 
+	halt_reason = (s = interrogate(QString("?target-run-state .( <<<start>>>). .( <<<end>>>)").toLocal8Bit())).toUInt(& ok);
+	if (!ok)
+	{
+		QMessageBox::critical(0, "cannot read target state", "cannot read target state, response is: " + s);
+		Util::panic();
+	}
+	QMessageBox::information(0, "target halt reason", QString("target halt reason: %1").arg(halt_reason));
+	return halt_reason;
 }
