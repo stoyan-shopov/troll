@@ -293,6 +293,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
+	elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
 	elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
 	//elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
 	//elf_filename = "X:/ivan-project/stm32f405-bootloader/src/bootloader.elf";
@@ -315,7 +316,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	t.start();
 	dis = new Disassembly("bdis.txt");
 	readElfSections();
-	loadSRecordFile();
 	if (!debug_file.open(QFile::ReadOnly))
 	{
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
@@ -351,11 +351,14 @@ MainWindow::MainWindow(QWidget *parent) :
 		die_offset = cu + 11;
 		dwdata->debug_tree_of_die(die_offset);
 	}
+	dwdata->dumpStats();
+
 	profiling.all_compilation_units_processing_time = t.elapsed();
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
 	qDebug() << "decoding of .debug_info ended at" << die_offset;
-
 	qDebug() << "compilation unit count in the .debug_info section :" << i;
+	
+	loadSRecordFile();
 	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())
@@ -419,6 +422,15 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "debugger startup time:" << profiling.debugger_startup_time << "milliseconds";
 
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
+	
+	std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > source_files;
+	dwdata->getFileAndDirectoryNamesPointers(source_files);
+	for (i = 0; i < source_files.size(); i ++)
+	{
+		ui->tableWidgetFiles->insertRow(i);
+		ui->tableWidgetFiles->setItem(i, 0, new QTableWidgetItem(source_files.at(i).first));
+	}
+	ui->tableWidgetFiles->sortByColumn(0);
 }
 
 MainWindow::~MainWindow()
@@ -463,20 +475,32 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	qDebug() << "addresses for file count: " << line_addresses.size();
 	x.restart();
 	
+	/*
 	std::map<uint32_t, uint32_t> lines;
 	for (i = 0; i < line_addresses.size(); i ++)
 		lines[line_addresses.at(i).line] ++;
+		*/
+	std::map<uint32_t, struct DebugLine::lineAddress *> lines;
+	for (i = 0; i < line_addresses.size(); i ++)
+	{
+		line_addresses.at(i).next = lines[line_addresses.at(i).line];
+		lines[line_addresses.at(i).line] = & line_addresses.at(i);
+	}
 
 	if (src.open(QFile::ReadOnly))
 	{
 		int i(1);
+		struct DebugLine::lineAddress * dis;
 		l = ui->tableWidgetBacktrace->item(row, 3)->text().toInt();
 		while (!src.atEnd())
 		{
 			if (i == l)
 				cursor_position_for_line = t.length();
-			t += QString("%1 %2|").arg(lines[i])// ? '*' : ' ')
+			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
 			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
+			dis = lines[i];
+			while (dis)
+				t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
 			i ++;
 		}
 	}
@@ -732,7 +756,7 @@ int i;
 	f.setFileName(dirname + "/ram.bin");
 	if (!f.open(QFile::WriteOnly))
 		Util::panic();
-	f.write(target->readBytes(0x20000000, 0x20000));
+	f.write(target->readBytes(0x20000000, /*0x20000*/0x4000));
 	f.close();
 	f.setFileName(dirname + "/registers.bin");
 	if (!f.open(QFile::WriteOnly))
