@@ -257,6 +257,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui(new Ui::MainWindow)
 {
 	QTime startup_time;
+	int i;
 	startup_time.start();
 	QCoreApplication::setOrganizationName("shopov instruments");
 	QCoreApplication::setApplicationName("troll");
@@ -339,24 +340,12 @@ MainWindow::MainWindow(QWidget *parent) :
 	debug_loc = debug_file.read(debug_loc_len);
 	profiling.debug_sections_disk_read_time = t.elapsed();
 	
+	t.restart();
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
-	
-	int i;
-	uint32_t cu;
-	t.restart();
-	uint32_t die_offset;
-	for (i = cu = 0; cu != -1; i++, cu = dwdata->next_compilation_unit(cu))
-	{
-		die_offset = cu + 11;
-		dwdata->debug_tree_of_die(die_offset);
-	}
-	dwdata->dumpStats();
-
 	profiling.all_compilation_units_processing_time = t.elapsed();
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
-	qDebug() << "decoding of .debug_info ended at" << die_offset;
-	qDebug() << "compilation unit count in the .debug_info section :" << i;
+	dwdata->dumpStats();
 	
 	loadSRecordFile();
 	

@@ -1068,6 +1068,7 @@ private:
 	struct
 	{
 		unsigned dies_read;
+		unsigned total_dies;
 		unsigned compilation_unit_arange_hits;
 		unsigned compilation_unit_arange_misses;
 		unsigned compilation_unit_header_hits;
@@ -1076,6 +1077,52 @@ private:
 		unsigned abbreviation_misses;
 	}
 	stats;
+	struct DieFingerprint
+	{
+		uint32_t	offset;
+		uint32_t	abbrev_offset;
+	};
+	
+	std::vector<struct Die> reapDieFingerprints(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
+	{
+		stats.total_dies ++;
+		std::vector<struct Die> dies;
+		const uint8_t * p = debug_info + die_offset;
+		int len;
+		uint32_t code = DwarfUtil::uleb128(p, & len);
+		p += len;
+		if (!code)
+			/*! \todo	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
+			 * children, while it actually does not... don't know how exactly to handle this, so just return an empty vector */
+			return;
+		while (code)
+		{
+			auto x = abbreviations.find(code);
+			if (x == abbreviations.end())
+				DwarfUtil::panic("abbreviation code not found");
+			struct Abbreviation a(debug_abbrev + x->second);
+			
+			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
+			while (attr.first)
+			{
+				p += DwarfUtil::skip_form_bytes(attr.second, p);
+				attr = a.next_attribute();
+			}
+			die_offset = p - debug_info;
+			if (a.has_children())
+			{
+				reapDieFingerprints(die_offset, abbreviations, depth + 1);
+				p = debug_info + die_offset;
+			}
+			
+			if (depth == 0)
+				return dies;
+				
+			code = DwarfUtil::uleb128(p, & len);
+			p += len;
+		}
+		die_offset = p - debug_info;
+	}
 public:
 	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
@@ -1102,6 +1149,15 @@ public:
 		last_searched_arange = arange.data;
 		memset(& stats, 0, sizeof stats);
 		last_abbreviations_fetched_debug_info_offset = -1;
+		
+		std::map<uint32_t, uint32_t> & abbreviations;
+		getAbbreviationsOfCompilationUnit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations);
+		uint32_t cu;
+		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
+		{
+			auto die_offset = cu + /* skip compilation unit header */ 11;
+			auto dies = debug_tree_of_die(die_offset);
+		}
 	}
 	void dumpStats(void)
 	{
@@ -1173,7 +1229,7 @@ private:
 		return -1;
 	}
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
-	void get_abbreviations_of_compilation_unit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
+	void getAbbreviationsOfCompilationUnit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
 	{
 		if (compilation_unit_offset == last_abbreviations_fetched_debug_info_offset)
 		{
