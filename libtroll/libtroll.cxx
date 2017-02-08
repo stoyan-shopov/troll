@@ -28,6 +28,15 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		 *		just pass that as an additional parameter */
 			compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset)
 			), abbreviations, type_cache, false);
+
+	x = a.dataForAttribute(DW_AT_specification, debug_info + node.die.offset);
+	if (x.first)
+		return readType(DwarfUtil::formReference(x.first, x.second,
+		/*! \todo	this is braindamaged; whoever passes the abbreviation cache to this function
+		 *		should already have information about the containing compilation unit - maybe
+		 *		just pass that as an additional parameter */
+			compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset)
+			), abbreviations, type_cache, false);
 	type_cache.push_back(node);
 	recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
 	auto t = a.dataForAttribute(DW_AT_type, debug_info + type_cache.at(index).die.offset);

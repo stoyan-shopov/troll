@@ -243,6 +243,7 @@ std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
 {
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(die_offset, type_cache);
+	qDebug() << "type cache size" << type_cache.size() << "die offset" << die_offset;
 	return dwdata->typeString(type_cache, true, 1);
 }
 
@@ -295,7 +296,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
 	elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
-	elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
+	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
 	//elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
 	//elf_filename = "X:/ivan-project/stm32f405-bootloader/src/bootloader.elf";
 	//elf_filename = "X:/ivan-project/can-example/STM32-P405_CAN_example/Project/STM32F4xx_StdPeriph_Examples/CAN/Networking/STM324xG_EVAL/Exe/CAN_networking.out";
@@ -347,7 +348,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
 	dwdata->dumpStats();
 	
-	loadSRecordFile();
+	//loadSRecordFile();
 	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())

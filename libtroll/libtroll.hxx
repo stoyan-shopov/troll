@@ -1067,8 +1067,9 @@ private:
 	
 	struct
 	{
-		unsigned dies_read;
 		unsigned total_dies;
+		unsigned total_compilation_units;
+		unsigned dies_read;
 		unsigned compilation_unit_arange_hits;
 		unsigned compilation_unit_arange_misses;
 		unsigned compilation_unit_header_hits;
@@ -1082,6 +1083,7 @@ private:
 		uint32_t	offset;
 		uint32_t	abbrev_offset;
 	};
+	std::vector<struct DieFingerprint> die_fingerprints;
 	
 	std::vector<struct Die> reapDieFingerprints(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
@@ -1091,10 +1093,9 @@ private:
 		int len;
 		uint32_t code = DwarfUtil::uleb128(p, & len);
 		p += len;
-		if (!code)
-			/*! \todo	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
-			 * children, while it actually does not... don't know how exactly to handle this, so just return an empty vector */
-			return;
+
+		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
+		 * children, while it actually does not... handle this at the condition check at the start of the loop */
 		while (code)
 		{
 			auto x = abbreviations.find(code);
@@ -1102,7 +1103,9 @@ private:
 				DwarfUtil::panic("abbreviation code not found");
 			struct Abbreviation a(debug_abbrev + x->second);
 			
-			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
+			die_fingerprints.push_back((struct DieFingerprint) { .offset = die_offset, .abbrev_offset = x->second});
+			
+			auto attr = a.next_attribute();
 			while (attr.first)
 			{
 				p += DwarfUtil::skip_form_bytes(attr.second, p);
@@ -1150,17 +1153,20 @@ public:
 		memset(& stats, 0, sizeof stats);
 		last_abbreviations_fetched_debug_info_offset = -1;
 		
-		std::map<uint32_t, uint32_t> & abbreviations;
-		getAbbreviationsOfCompilationUnit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations);
+		std::map<uint32_t, uint32_t> abbreviations;
 		uint32_t cu;
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
 		{
 			auto die_offset = cu + /* skip compilation unit header */ 11;
-			auto dies = debug_tree_of_die(die_offset);
+			stats.total_compilation_units ++;
+			getAbbreviationsOfCompilationUnit(cu, abbreviations);
+			reapDieFingerprints(die_offset, abbreviations);
 		}
 	}
 	void dumpStats(void)
 	{
+		qDebug() << "total dies in .debug_info:" << stats.total_dies;
+		qDebug() << "total compilation units in .debug_info:" << stats.total_compilation_units;
 		qDebug() << "total dies read:" << stats.dies_read;
 		qDebug() << "compilation unit address range search hits:" << stats.compilation_unit_arange_hits;
 		qDebug() << "compilation unit address range search misses:" << stats.compilation_unit_arange_misses;
@@ -1261,6 +1267,39 @@ private:
 			last_abbreviations_fetched = abbreviations;
 		}
 	}
+	void get_abbreviations_of_compilation_unit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
+	{
+		if (compilation_unit_offset == last_abbreviations_fetched_debug_info_offset)
+		{
+			if (STATS_ENABLED) stats.abbreviation_hits ++;
+			abbreviations = last_abbreviations_fetched;
+			return;
+		}
+		if (STATS_ENABLED) stats.abbreviation_misses ++;
+		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
+		uint32_t code, tag, has_children, name, form;
+		int len;
+		abbreviations.clear();
+		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
+		{
+			auto x = abbreviations.find(code);
+			if (x != abbreviations.end())
+				DwarfUtil::panic("duplicate abbreviation code");
+			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
+			debug_abbrev += len;
+			tag = DwarfUtil::uleb128x(debug_abbrev);
+			has_children = DwarfUtil::uleb128x(debug_abbrev);
+			do
+			{
+				name = DwarfUtil::uleb128x(debug_abbrev);
+				form = DwarfUtil::uleb128x(debug_abbrev);
+			}
+			while (name || form);
+			last_abbreviations_fetched_debug_info_offset = compilation_unit_offset;
+			last_abbreviations_fetched = abbreviations;
+		}
+	}
+
 	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
 	 * 		is because of the dwarf die flattenned tree representation */
 	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
@@ -1272,13 +1311,8 @@ private:
 		uint32_t code = DwarfUtil::uleb128(p, & len);
 		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 		p += len;
-		if (!code)
-		{
-			/*! \todo	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
-			 * children, while it actually does not... don't know how exactly to handle this, so just return an empty vector */
-			return dies;
-			DwarfUtil::panic("null die requested");
-		}
+		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
+		 * children, while it actually does not... handle this at the condition check at the start of the loop */
 		while (code)
 		{
 			auto x = abbreviations.find(code);
@@ -1507,7 +1541,9 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 			case DW_TAG_union_type:
 				if (is_prefix_printed) type_string += "union"; if (0)
 			case DW_TAG_structure_type:
-				if (is_prefix_printed) type_string += "struct";
+				if (is_prefix_printed) type_string += "struct"; if (0)
+			case DW_TAG_class_type:
+				if (is_prefix_printed) type_string += "??? class ???";
 if (is_prefix_printed)
 			{
 				int j;
@@ -1558,13 +1594,14 @@ if (is_prefix_printed)
 					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
 			}
 				break;
+			case DW_TAG_reference_type:
 			case DW_TAG_pointer_type:
 				if (is_prefix_printed)
 				{
 					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
 					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
 						type_string += "(";
-					type_string += "*";
+					type_string += ((die.tag == DW_TAG_pointer_type) ? "*" : "&");
 				}
 				else
 				{
@@ -1586,11 +1623,17 @@ if (is_prefix_printed)
 					default:
 						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x);
 						DwarfUtil::panic();
+					case DW_ATE_float:
+						type_string += "float ";
+						break;
 					case DW_ATE_boolean:
 						type_string += "bool ";
 						break;
 					case DW_ATE_unsigned_char:
 						type_string += "unsigned char ";
+						break;
+					case DW_ATE_signed_char:
+						type_string += "signed char ";
 						break;
 					case DW_ATE_unsigned:
 						switch (DwarfUtil::formConstant(size))
@@ -1653,6 +1696,7 @@ if (is_prefix_printed)
 				}
 			}
 				break;
+			case DW_TAG_subprogram:
 			case DW_TAG_subroutine_type:
 				typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
 				if (!is_prefix_printed)
@@ -1677,7 +1721,7 @@ if (is_prefix_printed)
 				}
 				break;
 			default:
-				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag;
+				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag << "in" << __func__;
 				DwarfUtil::panic();
 		}
 	}
@@ -1692,6 +1736,11 @@ if (is_prefix_printed)
 
 	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
 	{
+		if (node_number == -1)
+		{
+			qDebug() << __func__ << "bad node index";
+			DwarfUtil::panic();
+		}
 		Abbreviation a(debug_abbrev + type.at(node_number).die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_byte_size, debug_info + type.at(node_number).die.offset);
 		if (x.first)
@@ -1706,6 +1755,8 @@ if (is_prefix_printed)
 		/* special case for compilers (e.g. the IAR compiler), which do not record an explicit
 		 * DW_AT_byte_size value for pointers */
 		if (type.at(node_number).die.tag == DW_TAG_pointer_type)
+			return sizeof(uint32_t);
+		if (type.at(node_number).die.tag == DW_TAG_subprogram)
 			return sizeof(uint32_t);
 		return sizeOf(type, type.at(node_number).next);
 	}
@@ -1789,8 +1840,10 @@ if (is_prefix_printed)
 					node.array_dimensions = type.at(type_node_number).array_dimensions;
 				node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, type.at(type_node_number).next);
 				break;
+			case DW_TAG_subprogram:
+				break;
 			default:
-				qDebug() << "unhandled tag" << type.at(type_node_number).die.tag;
+				qDebug() << "unhandled tag" << type.at(type_node_number).die.tag << "in" << __func__;
 				DwarfUtil::panic();
 		}
 	}
