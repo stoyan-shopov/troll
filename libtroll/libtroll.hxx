@@ -170,6 +170,7 @@ public:
 		switch (attribute_form)
 		{
 		case DW_FORM_ref_addr:
+			qDebug() << "!!! referenced die is in another compilation unit; must update abbreviation cache !!!";
 			return * (uint32_t *) debug_info_bytes;
 		case DW_FORM_ref4:
 			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
@@ -244,10 +245,10 @@ struct DwarfTypeNode
 {
 	struct Die	die;
 	int		next;
-	int		sibling;
-	int		childlist;
+	bool		processed;
+	std::vector<uint32_t>	children;
 	std::vector<uint32_t>	array_dimensions;
-        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = sibling = childlist = -1; }
+        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; processed = false; }
 };
 
 struct Abbreviation
@@ -1529,7 +1530,7 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 		if (node_number == -1)
 		{
 			if (is_prefix_printed)
-				type_string += "void";
+				type_string += "void ";
 			return;
 		}
 		const struct Die & die(type.at(node_number).die);
@@ -1560,6 +1561,15 @@ if (is_prefix_printed)
 			}
 			break;
 			case DW_TAG_formal_parameter:
+				if (0)
+			case DW_TAG_template_type_parameter:
+				if (is_prefix_printed)
+					type_string += "@template value parameter@ ";
+			case DW_TAG_template_value_parameter:
+				if (0)
+			case DW_TAG_inheritance:
+				if (is_prefix_printed)
+					type_string += "@inherits@ ";
 			case DW_TAG_member:
 			if (is_prefix_printed)
 			{
@@ -1595,13 +1605,15 @@ if (is_prefix_printed)
 			}
 				break;
 			case DW_TAG_reference_type:
+			case DW_TAG_rvalue_reference_type:
+			case DW_TAG_ptr_to_member_type:
 			case DW_TAG_pointer_type:
 				if (is_prefix_printed)
 				{
 					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
 					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
 						type_string += "(";
-					type_string += ((die.tag == DW_TAG_pointer_type) ? "*" : "&");
+					type_string += ((die.tag == DW_TAG_pointer_type || die.tag == DW_TAG_ptr_to_member_type) ? "*" : "&");
 				}
 				else
 				{
@@ -1623,6 +1635,9 @@ if (is_prefix_printed)
 					default:
 						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x);
 						DwarfUtil::panic();
+					case DW_ATE_UTF:
+						type_string += "utf ";
+						break;
 					case DW_ATE_float:
 						type_string += "float ";
 						break;
@@ -1702,19 +1717,18 @@ if (is_prefix_printed)
 				if (!is_prefix_printed)
 				{
 				int i;
-					i = type.at(node_number).childlist;
+					type_string += nameOfDie(type.at(node_number).die, true);
 					type_string += "(";
-					if (i == -1)
+					if (!type.at(node_number).children.size())
 						type_string += "void";
 					else
 					{
-						do
+						for (i = 0; i < type.at(node_number).children.size(); i ++)
 						{
-							if (type.at(i).die.tag == DW_TAG_formal_parameter)
-								type_string += typeString(type, short_type_print, i) + ", ";
-							i = type.at(i).sibling;
+							int j = type.at(node_number).children.at(i);
+							if (type.at(j).die.tag == DW_TAG_formal_parameter)
+								type_string += typeString(type, short_type_print, j) + ", ";
 						}
-						while (i != -1);
 						type_string.pop_back(), type_string.pop_back();
 					}
 					type_string += ") ";
@@ -1722,6 +1736,7 @@ if (is_prefix_printed)
 				break;
 			default:
 				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag << "in" << __func__;
+				qDebug() << "die offset" << type.at(node_number).die.offset;
 				DwarfUtil::panic();
 		}
 	}
@@ -1738,7 +1753,9 @@ if (is_prefix_printed)
 	{
 		if (node_number == -1)
 		{
+		/*! \todo	handle declarations here - for some reason they appear here */
 			qDebug() << __func__ << "bad node index";
+			return -1;
 			DwarfUtil::panic();
 		}
 		Abbreviation a(debug_abbrev + type.at(node_number).die.abbrev_offset);
@@ -1758,6 +1775,7 @@ if (is_prefix_printed)
 			return sizeof(uint32_t);
 		if (type.at(node_number).die.tag == DW_TAG_subprogram)
 			return sizeof(uint32_t);
+		
 		return sizeOf(type, type.at(node_number).next);
 	}
 	
@@ -1777,26 +1795,47 @@ if (is_prefix_printed)
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
-	void dataForType(const std::vector<struct DwarfTypeNode> & type, struct DataNode & node, bool short_type_print = true, int type_node_number = 0)
+	void dataForType(std::vector<struct DwarfTypeNode> & type, struct DataNode & node, bool short_type_print = true, int type_node_number = 0)
 	{
+		static int xxx = 0;
 		struct Die die(type.at(type_node_number).die);
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
-		node.data.push_back(typeString(type, short_type_print, type_node_number));
 		node.bytesize = sizeOf(type, type_node_number);
 		node.data_member_location = 0;
 		node.is_pointer = node.is_enumeration = node.bitsize = node.bitposition = 0;
+		
+		
+		if (1 && type.at(type_node_number).processed)
+		{
+			qDebug() << "recursion detected in" << __func__;
+			qDebug() << "node index" << type_node_number;
+node.data.push_back("!!! recursion detected !!!");
+			return;
+		}
+		type.at(type_node_number).processed = true;
+
+		node.data.push_back(typeString(type, short_type_print, type_node_number));
+
 		switch (die.tag)
 		{
 			case DW_TAG_structure_type:
 			case DW_TAG_union_type:
+			case DW_TAG_class_type:
 				int j;
-				for (j = type.at(type_node_number).childlist; j != -1; j = type.at(j).sibling)
-					node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, j);
+				for (j = 0; j < type.at(type_node_number).children.size(); j ++)
+				{
+					DataNode n;
+					dataForType(type, n, short_type_print, type.at(type_node_number).children.at(j));
+					node.children.push_back(n);
+				}
 				break;
+			case DW_TAG_ptr_to_member_type:
 			case DW_TAG_pointer_type:
+			case DW_TAG_reference_type:
 				node.is_pointer = 1;
 				break;
 			case DW_TAG_member:
+			case DW_TAG_inheritance:
 				dataForType(type, node, short_type_print, type.at(type_node_number).next);
 				{
 					auto x = a.dataForAttribute(DW_AT_data_member_location, debug_info + die.offset);
@@ -1840,12 +1879,15 @@ if (is_prefix_printed)
 					node.array_dimensions = type.at(type_node_number).array_dimensions;
 				node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, type.at(type_node_number).next);
 				break;
+			case DW_TAG_template_type_parameter:
+			case DW_TAG_template_value_parameter:
 			case DW_TAG_subprogram:
 				break;
 			default:
 				qDebug() << "unhandled tag" << type.at(type_node_number).die.tag << "in" << __func__;
 				DwarfUtil::panic();
 		}
+		type.at(type_node_number).processed = false;
 	}
 	/*! \todo	this will eventually need to be 64 bit... */
 	std::string enumeratorNameForValue(uint32_t value, const struct Die & die)
@@ -1949,7 +1991,7 @@ private:
 	                       const struct Die & die)
 	{
 		int i;
-		if (DwarfUtil::isDataObject(die.tag))
+		if (DwarfUtil::isDataObject(die.tag)/** && die.offset == 0x3ef945/**/)
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			uint32_t address;

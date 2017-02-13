@@ -20,26 +20,24 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		DwarfUtil::panic();
 	struct DwarfTypeNode node(type.at(0));
 	struct Abbreviation a(debug_abbrev + node.die.abbrev_offset);
-	auto x = a.dataForAttribute(DW_AT_abstract_origin, debug_info + node.die.offset);
-	if (x.first)
-		return readType(DwarfUtil::formReference(x.first, x.second,
+	std::pair<uint32_t, const uint8_t *> t;
+	if ((t = a.dataForAttribute(DW_AT_abstract_origin, debug_info + node.die.offset)).first
+		|| (t = a.dataForAttribute(DW_AT_import, debug_info + node.die.offset)).first
+		|| (t = a.dataForAttribute(DW_AT_specification, debug_info + node.die.offset)).first
+			)
+	{
+		return readType(DwarfUtil::formReference(t.first, t.second,
 		/*! \todo	this is braindamaged; whoever passes the abbreviation cache to this function
 		 *		should already have information about the containing compilation unit - maybe
 		 *		just pass that as an additional parameter */
 			compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset)
 			), abbreviations, type_cache, false);
-
-	x = a.dataForAttribute(DW_AT_specification, debug_info + node.die.offset);
-	if (x.first)
-		return readType(DwarfUtil::formReference(x.first, x.second,
-		/*! \todo	this is braindamaged; whoever passes the abbreviation cache to this function
-		 *		should already have information about the containing compilation unit - maybe
-		 *		just pass that as an additional parameter */
-			compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset)
-			), abbreviations, type_cache, false);
+	}
+	
 	type_cache.push_back(node);
 	recursion_detector.operator [](saved_die_offset) = index = type_cache.size() - 1;
-	auto t = a.dataForAttribute(DW_AT_type, debug_info + type_cache.at(index).die.offset);
+
+	t = a.dataForAttribute(DW_AT_type, debug_info + type_cache.at(index).die.offset);
 	if (t.first)
 	{
                 int i;
@@ -58,12 +56,13 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
                 type_cache.at(index).next = i;
                 if (TYPE_DEBUG_ENABLED) qDebug() << "read type die at index " << i;
         }
+
 	if (type_cache.at(index).die.children.size())
 	{
-                int i, x, y;
+		int i, x;
 		if (TYPE_DEBUG_ENABLED) qDebug() << "aggregate type, child count" << type_cache.at(index).die.children.size();
-                x = readType(type_cache.at(index).die.children.at(0).offset, abbreviations, type_cache, false);
-                type_cache.at(index).childlist = x;
+		x = readType(type_cache.at(index).die.children.at(0).offset, abbreviations, type_cache, false);
+		type_cache.at(index).children.push_back(x);
 		if (type_cache.at(x).die.tag == DW_TAG_subrange_type)
 		{
 			Abbreviation a(debug_abbrev + type_cache.at(x).die.abbrev_offset);
@@ -75,15 +74,14 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 			else
 				type_cache.at(index).array_dimensions.push_back(DwarfUtil::formConstant(subrange.first, subrange.second) + 1);
 		}
-                for (i = 1; i < type_cache.at(index).die.children.size(); i ++)
+		for (i = 1; i < type_cache.at(index).die.children.size(); i ++)
 		{
 			if (TYPE_DEBUG_ENABLED) qDebug() << "reading type child" << i << ", offset is" << type_cache.at(index).die.children.at(i).offset;
-                        //* x = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache), x = & type_cache.at(* x).sibling;
-                        y = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache, false);
-                        type_cache.at(x).sibling = y;
-                        x = y;
-                }
+			x = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache, false);
+			type_cache.at(index).children.push_back(x);
+		}
 	}
+	
 	if (TYPE_DEBUG_ENABLED) qDebug() << "done" << QString("$%1").arg(saved_die_offset, 0, 16);
 	return index;
 }
@@ -94,7 +92,10 @@ bool DwarfData::isPointerType(const std::vector<DwarfTypeNode> &type, int node_n
 		return false;
 	switch (type.at(node_number).die.tag)
 	{
+		case DW_TAG_rvalue_reference_type:
+		case DW_TAG_reference_type:
 		case DW_TAG_pointer_type:
+		case DW_TAG_ptr_to_member_type:
 			return true;
 	}
 	return false;

@@ -50,6 +50,8 @@ int i;
 					n->setText(2, n->text(2) + " (" + QString::fromStdString(dwdata->enumeratorNameForValue(x, node.enumeration_die) + ")"));
 				break;
 			default:
+n->setText(2, "<<< UNKNOWN SIZE >>>");
+break;
 				Util::panic();
 		}
 	}
@@ -296,6 +298,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
 	elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
+	//elf_filename = "x:/build-atomic-test-Desktop_Qt_5_7_0_MinGW_32bit-Debug/debug/atomic.elf";
 	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
 	//elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
 	//elf_filename = "X:/ivan-project/stm32f405-bootloader/src/bootloader.elf";
@@ -379,7 +382,10 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "static storage duration data reaped in" << profiling.static_storage_duration_data_reap_time << "milliseconds";
 	qDebug() << "data objects:" << data_objects.size() << ", subprograms:" << subprograms.size();
 	t.restart();
-	for (i = 0; i < subprograms.size(); i++)
+	
+#if 1
+	
+if (0) for (i = 0; i < subprograms.size(); i++)
 	{
 		int row(ui->tableWidgetFunctions->rowCount());
 		ui->tableWidgetFunctions->insertRow(row);
@@ -412,7 +418,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "debugger startup time:" << profiling.debugger_startup_time << "milliseconds";
 
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
-	
+#if XXX
 	std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > source_files;
 	dwdata->getFileAndDirectoryNamesPointers(source_files);
 	for (i = 0; i < source_files.size(); i ++)
@@ -421,6 +427,37 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetFiles->setItem(i, 0, new QTableWidgetItem(source_files.at(i).first));
 	}
 	ui->tableWidgetFiles->sortByColumn(0);
+#endif
+	
+#endif	
+	
+	if (0)
+	{
+		QMessageBox::information(0, "", "press any key");
+		//uint32_t die_offset = 0x18c17;
+		uint32_t die_offset = 0x2c405;
+		int numeric_base;
+		QString numeric_prefix;
+		
+			std::vector<struct DwarfTypeNode> type_cache;
+			dwdata->readType(die_offset, type_cache);
+QMessageBox::information(0, "", "press any key");
+			
+			struct DwarfData::DataNode node;
+			dwdata->dataForType(type_cache, node, true, 0);
+			ui->treeWidgetDataObjects->clear();
+			switch (numeric_base = ui->comboBoxDataDisplayNumericBase->currentText().toUInt())
+			{
+				case 2: numeric_prefix = "%"; break;
+				case 16: numeric_prefix = "$"; break;
+				case 10: break;
+				default: Util::panic();
+			}
+			ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, QByteArray(node.bytesize, 0), 0, numeric_base, numeric_prefix));
+			ui->treeWidgetDataObjects->expandAll();
+			ui->treeWidgetDataObjects->resizeColumnToContents(0);
+			qDebug() << "type cache size" << type_cache.size();
+	}
 }
 
 MainWindow::~MainWindow()
