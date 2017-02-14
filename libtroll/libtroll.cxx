@@ -3,7 +3,7 @@
 #define TYPE_DEBUG_ENABLED	0
 /* the first node in the vector is the head of the type graph
  * returns the position in the vector at which the new node is placed */
-int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector)
+int DwarfData::readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector)
 {
 	int index;
 	if (reset_recursion_detector)
@@ -31,7 +31,7 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		 *		should already have information about the containing compilation unit - maybe
 		 *		just pass that as an additional parameter */
 			compilationUnitOffsetForOffsetInDebugInfo(saved_die_offset)
-			), abbreviations, type_cache, false);
+			), type_cache, false);
 	}
 	
 	type_cache.push_back(node);
@@ -50,9 +50,7 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		 * if this is the case, the abbreviations of the referred compilation unit must be fetched,
 		 * so do fetch them in all cases */
 		auto x = readTypeOffset(t.first, t.second, cu_offset);
-		std::map<uint32_t, uint32_t> abbreviations;
-		get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(x), abbreviations);
-                i = readType(x, abbreviations, type_cache, false);
+                i = readType(x, type_cache, false);
                 type_cache.at(index).next = i;
                 if (TYPE_DEBUG_ENABLED) qDebug() << "read type die at index " << i;
         }
@@ -61,7 +59,7 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 	{
 		int i, x;
 		if (TYPE_DEBUG_ENABLED) qDebug() << "aggregate type, child count" << type_cache.at(index).die.children.size();
-		x = readType(type_cache.at(index).die.children.at(0).offset, abbreviations, type_cache, false);
+		x = readType(type_cache.at(index).die.children.at(0).offset, type_cache, false);
 		type_cache.at(index).children.push_back(x);
 		if (type_cache.at(x).die.tag == DW_TAG_subrange_type)
 		{
@@ -77,7 +75,7 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		for (i = 1; i < type_cache.at(index).die.children.size(); i ++)
 		{
 			if (TYPE_DEBUG_ENABLED) qDebug() << "reading type child" << i << ", offset is" << type_cache.at(index).die.children.at(i).offset;
-			x = readType(type_cache.at(index).die.children.at(i).offset, abbreviations, type_cache, false);
+			x = readType(type_cache.at(index).die.children.at(i).offset, type_cache, false);
 			type_cache.at(index).children.push_back(x);
 		}
 	}

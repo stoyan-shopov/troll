@@ -245,7 +245,6 @@ std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
 {
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(die_offset, type_cache);
-	qDebug() << "type cache size" << type_cache.size() << "die offset" << die_offset;
 	return dwdata->typeString(type_cache, true, 1);
 }
 
@@ -296,9 +295,9 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
-	elf_filename = "KFM224.elf";
+	//elf_filename = "KFM224.elf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
+	elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
 	//elf_filename = "x:/build-atomic-test-Desktop_Qt_5_7_0_MinGW_32bit-Debug/debug/atomic.elf";
 	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
@@ -396,6 +395,8 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetFunctions->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).file)));
 		ui->tableWidgetFunctions->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).line)));
 		ui->tableWidgetFunctions->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(subprograms.at(i).die_offset, 0, 16)));
+		if (!(i % 5000))
+			qDebug() << "constructing static subprograms view:" << subprograms.size() - i << "remaining";
 	}
 	for (i = 0; i < data_objects.size(); i++)
 	{
@@ -407,15 +408,17 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
 		ui->tableWidgetStaticDataObjects->setItem(row, 4, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
 		ui->tableWidgetStaticDataObjects->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
-qDebug() << __func__ << __LINE__ << data_objects.size() - i << "remaining" << "index" << i;
+		if (!(i % 500))
+			qDebug() << "constructing static data objects view:" << data_objects.size() - i << "remaining";
 	}
-qDebug() << __func__ << __LINE__;
 	ui->tableWidgetFunctions->sortItems(0);
 	ui->tableWidgetFunctions->resizeColumnsToContents();
-	ui->tableWidgetFunctions->resizeRowsToContents();
+	/*! \warning	resizing the rows to fit the contents can be **very** expensive */
+	//ui->tableWidgetFunctions->resizeRowsToContents();
 	ui->tableWidgetStaticDataObjects->sortItems(0);
 	ui->tableWidgetStaticDataObjects->resizeColumnsToContents();
-	ui->tableWidgetStaticDataObjects->resizeRowsToContents();
+	/*! \warning	resizing the rows to fit the contents can be **very** expensive */
+	//ui->tableWidgetStaticDataObjects->resizeRowsToContents();
 	profiling.static_storage_duration_display_view_build_time = t.elapsed();
 	qDebug() << "static object lists built in" << profiling.static_storage_duration_display_view_build_time << "milliseconds";
 

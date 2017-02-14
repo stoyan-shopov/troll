@@ -1064,8 +1064,6 @@ private:
 	/* cached for performance reasons */
 	const uint8_t	* last_searched_arange;
 	struct compilation_unit_header last_searched_compilation_unit;
-	std::map<uint32_t, uint32_t> last_abbreviations_fetched;
-	uint32_t last_abbreviations_fetched_debug_info_offset;
 	
 	struct
 	{
@@ -1102,6 +1100,32 @@ private:
 		DwarfUtil::panic();
 	}
 	
+	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
+	void getAbbreviationsOfCompilationUnit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
+	{
+		if (STATS_ENABLED) stats.abbreviation_misses ++;
+		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
+		uint32_t code, tag, has_children, name, form;
+		int len;
+		abbreviations.clear();
+		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
+		{
+			auto x = abbreviations.find(code);
+			if (x != abbreviations.end())
+				DwarfUtil::panic("duplicate abbreviation code");
+			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
+			debug_abbrev += len;
+			tag = DwarfUtil::uleb128x(debug_abbrev);
+			has_children = DwarfUtil::uleb128x(debug_abbrev);
+			do
+			{
+				name = DwarfUtil::uleb128x(debug_abbrev);
+				form = DwarfUtil::uleb128x(debug_abbrev);
+			}
+			while (name || form);
+		}
+	}
+
 	std::vector<struct Die> reapDieFingerprints(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
 		stats.total_dies ++;
@@ -1169,7 +1193,6 @@ public:
 		last_searched_compilation_unit.data = this->debug_info;
 		last_searched_arange = arange.data;
 		memset(& stats, 0, sizeof stats);
-		last_abbreviations_fetched_debug_info_offset = -1;
 		
 		std::map<uint32_t, uint32_t> abbreviations;
 		uint32_t cu;
@@ -1252,72 +1275,6 @@ private:
 		}
 		return -1;
 	}
-	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
-	void getAbbreviationsOfCompilationUnit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
-	{
-		if (compilation_unit_offset == last_abbreviations_fetched_debug_info_offset)
-		{
-			if (STATS_ENABLED) stats.abbreviation_hits ++;
-			abbreviations = last_abbreviations_fetched;
-			return;
-		}
-		if (STATS_ENABLED) stats.abbreviation_misses ++;
-		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
-		uint32_t code, tag, has_children, name, form;
-		int len;
-		abbreviations.clear();
-		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
-		{
-			auto x = abbreviations.find(code);
-			if (x != abbreviations.end())
-				DwarfUtil::panic("duplicate abbreviation code");
-			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
-			debug_abbrev += len;
-			tag = DwarfUtil::uleb128x(debug_abbrev);
-			has_children = DwarfUtil::uleb128x(debug_abbrev);
-			do
-			{
-				name = DwarfUtil::uleb128x(debug_abbrev);
-				form = DwarfUtil::uleb128x(debug_abbrev);
-			}
-			while (name || form);
-			last_abbreviations_fetched_debug_info_offset = compilation_unit_offset;
-			last_abbreviations_fetched = abbreviations;
-		}
-	}
-	void get_abbreviations_of_compilation_unit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
-	{
-		if (compilation_unit_offset == last_abbreviations_fetched_debug_info_offset)
-		{
-			if (STATS_ENABLED) stats.abbreviation_hits ++;
-			abbreviations = last_abbreviations_fetched;
-			return;
-		}
-		if (STATS_ENABLED) stats.abbreviation_misses ++;
-		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
-		uint32_t code, tag, has_children, name, form;
-		int len;
-		abbreviations.clear();
-		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
-		{
-			auto x = abbreviations.find(code);
-			if (x != abbreviations.end())
-				DwarfUtil::panic("duplicate abbreviation code");
-			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
-			debug_abbrev += len;
-			tag = DwarfUtil::uleb128x(debug_abbrev);
-			has_children = DwarfUtil::uleb128x(debug_abbrev);
-			do
-			{
-				name = DwarfUtil::uleb128x(debug_abbrev);
-				form = DwarfUtil::uleb128x(debug_abbrev);
-			}
-			while (name || form);
-			last_abbreviations_fetched_debug_info_offset = compilation_unit_offset;
-			last_abbreviations_fetched = abbreviations;
-		}
-	}
-
 	uint32_t compilation_unit_base_address(const struct Die & compilation_unit_die)
 	{
 		struct Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
@@ -1370,7 +1327,8 @@ public:
 		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 		p += len;
 		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
-		 * children, while it actually does not... handle this at the condition check at the start of the loop */
+		 * children, while it actually does not - such a die actually considers a single null die child,
+		 * which is explicitly permitted by the dwarf standard. Handle this at the condition check at the start of the loop */
 		while (code)
 		{
 			auto x = abbreviationOffsetForDieOffset(die_offset);
@@ -1512,27 +1470,16 @@ private:
 				return false;
 		}
 		auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
-		std::map<uint32_t, uint32_t> abbreviations;
-		get_abbreviations_of_compilation_unit(i, abbreviations);
 		auto referred_die_offset = DwarfUtil::formReference(x.first, x.second, i);
 		{
 			auto i = compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
-			std::map<uint32_t, uint32_t> abbreviations;
-			get_abbreviations_of_compilation_unit(i, abbreviations);
 			referred_die = debug_tree_of_die(referred_die_offset).at(0);
 		}
 		return true;
 	}
-private:
 std::map<uint32_t, uint32_t> recursion_detector;
-int readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbreviations, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
 public:
-int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache)
-{
-	std::map<uint32_t, uint32_t> abbreviations;
-	get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
-	return readType(die_offset, abbreviations, type_cache);
-}
+int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
 bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
@@ -2289,10 +2236,5 @@ public:
 				<< (cie.ciefde_sforth_code() + " initial-cie-instructions-defined " + fde.ciefde_sforth_code()) << " unwinding-rules-defined ";
 		return std::pair<std::string, uint32_t>(sfcode.str(), fde.initial_location());
 	}
-};
-
-class CompilationUnit : Die
-{
-public:
 };
 
