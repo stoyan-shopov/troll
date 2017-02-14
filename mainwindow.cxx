@@ -384,9 +384,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "static storage duration data reaped in" << profiling.static_storage_duration_data_reap_time << "milliseconds";
 	qDebug() << "data objects:" << data_objects.size() << ", subprograms:" << subprograms.size();
 	t.restart();
-	
-#if 1
-	
+
 	for (i = 0; i < subprograms.size(); i++)
 	{
 		int row(ui->tableWidgetFunctions->rowCount());
@@ -434,37 +432,9 @@ MainWindow::MainWindow(QWidget *parent) :
 	{
 		ui->tableWidgetFiles->insertRow(i);
 		ui->tableWidgetFiles->setItem(i, 0, new QTableWidgetItem(source_files.at(i).first));
+		ui->tableWidgetFiles->setItem(i, 1, new QTableWidgetItem(source_files.at(i).second));
 	}
 	ui->tableWidgetFiles->sortItems(0);
-#endif	
-	
-	if (0)
-	{
-		QMessageBox::information(0, "", "press any key");
-		//uint32_t die_offset = 0x18c17;
-		uint32_t die_offset = 0x2c405;
-		int numeric_base;
-		QString numeric_prefix;
-		
-			std::vector<struct DwarfTypeNode> type_cache;
-			dwdata->readType(die_offset, type_cache);
-QMessageBox::information(0, "", "press any key");
-			
-			struct DwarfData::DataNode node;
-			dwdata->dataForType(type_cache, node, true, 0);
-			ui->treeWidgetDataObjects->clear();
-			switch (numeric_base = ui->comboBoxDataDisplayNumericBase->currentText().toUInt())
-			{
-				case 2: numeric_prefix = "%"; break;
-				case 16: numeric_prefix = "$"; break;
-				case 10: break;
-				default: Util::panic();
-			}
-			ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, QByteArray(node.bytesize, 0), 0, numeric_base, numeric_prefix));
-			ui->treeWidgetDataObjects->expandAll();
-			ui->treeWidgetDataObjects->resizeColumnToContents(0);
-			qDebug() << "type cache size" << type_cache.size();
-	}
 }
 
 MainWindow::~MainWindow()
