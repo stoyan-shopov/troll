@@ -54,6 +54,7 @@ class MainWindow : public QMainWindow
 	CortexM0	* cortexm0;
 	SRecordMemoryData s_record_file;
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
+	void displaySourceCodeFile(const QString & source_filename, const QString & directory_name, int highlighted_line);
 	void backtrace(void);
 	bool readElfSections(void);
 	bool loadSRecordFile(void);

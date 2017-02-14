@@ -62,6 +62,91 @@ break;
 	return n;
 }
 
+void MainWindow::displaySourceCodeFile(const QString & source_filename, const QString & directory_name, int highlighted_line)
+{
+QTime stime;
+stime.start();
+QFile src;
+QString t;
+QTextBlockFormat f;
+QTime x;
+int i, cursor_position_for_line(0);
+int row(ui->tableWidgetBacktrace->currentRow());
+
+	ui->plainTextEdit->clear();
+	src.setFileName(directory_name + "/" + source_filename);
+	
+	std::vector<struct DebugLine::lineAddress> line_addresses;
+	x.start();
+	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
+		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
+	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
+	qDebug() << "addresses for file count: " << line_addresses.size();
+	x.restart();
+	
+	std::map<uint32_t, struct DebugLine::lineAddress *> lines;
+	for (i = line_addresses.size() - 1; i >= 0; i --)
+	{
+		line_addresses.at(i).next = lines[line_addresses.at(i).line];
+		lines[line_addresses.at(i).line] = & line_addresses.at(i);
+	}
+
+	if (src.open(QFile::ReadOnly))
+	{
+		int i(1);
+		struct DebugLine::lineAddress * dis;
+		while (!src.atEnd())
+		{
+			if (i == highlighted_line)
+				cursor_position_for_line = t.length();
+			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
+			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
+			if (ui->actionShow_disassembly_address_ranges->isChecked())
+			{
+				dis = lines[i];
+				while (dis)
+					t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
+			}
+			i ++;
+		}
+	}
+	else
+		t = QString("cannot open source code file ") + src.fileName();
+	ui->plainTextEdit->appendPlainText(t);
+	QTextCursor c(ui->plainTextEdit->textCursor());
+
+#if 0
+	c.movePosition(QTextCursor::Start);
+	dis.setBackground(QBrush(Qt::lightGray));
+	i = 0;
+	while (!c.atEnd())
+	{
+		i ++;
+		if (lines[i])
+			c.setBlockFormat(dis);
+		if (!c.movePosition(QTextCursor::NextBlock))
+			break;
+	}
+#endif
+	c.movePosition(QTextCursor::Start);
+#if 0
+	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
+	qDebug() << "line" << l << "computed position" << cursor_position_for_line << "real position" << c.position() << "delta" << cursor_position_for_line - c.position();
+#else
+	c.setPosition(cursor_position_for_line);
+#endif
+	f.setBackground(QBrush(Qt::cyan));
+	c.setBlockFormat(f);
+	ui->plainTextEdit->setTextCursor(c);
+	ui->plainTextEdit->centerCursor();
+	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_source_code_view_build_time)
+		profiling.max_source_code_view_build_time = x.elapsed();
+	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
+	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
+		profiling.max_context_view_generation_time = stime.elapsed();
+}
+
 void MainWindow::backtrace()
 {
 	QTime t;
@@ -457,16 +542,10 @@ void MainWindow::on_lineEditSforthCommand_returnPressed()
 
 void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 {
-QTime stime;
-stime.start();
-QFile src;
-QString t;
-QTextBlockFormat f, dis;
 QTime x;
-int i, l, cursor_position_for_line(0);
+int i;
 int row(ui->tableWidgetBacktrace->currentRow());
 updateRegisterView(row);
-ui->plainTextEdit->clear();
 ui->tableWidgetLocalVariables->setRowCount(0);
 if (!ui->tableWidgetBacktrace->item(row, 0))
 {
@@ -475,82 +554,8 @@ if (!ui->tableWidgetBacktrace->item(row, 0))
 }
 uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
 
-	src.setFileName(ui->tableWidgetBacktrace->item(row, 4)->text() + "/" + ui->tableWidgetBacktrace->item(row, 2)->text());
-	
-	std::vector<struct DebugLine::lineAddress> line_addresses;
+	displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt());
 	x.start();
-	dwdata->addressesForFile((ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), "core_cmFunc.h"), line_addresses);
-	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
-		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
-	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
-	qDebug() << "addresses for file count: " << line_addresses.size();
-	x.restart();
-	
-	/*
-	std::map<uint32_t, uint32_t> lines;
-	for (i = 0; i < line_addresses.size(); i ++)
-		lines[line_addresses.at(i).line] ++;
-		*/
-	std::map<uint32_t, struct DebugLine::lineAddress *> lines;
-	for (i = line_addresses.size() - 1; i >= 0; i --)
-	{
-		line_addresses.at(i).next = lines[line_addresses.at(i).line];
-		lines[line_addresses.at(i).line] = & line_addresses.at(i);
-	}
-
-	if (src.open(QFile::ReadOnly))
-	{
-		int i(1);
-		struct DebugLine::lineAddress * dis;
-		l = ui->tableWidgetBacktrace->item(row, 3)->text().toInt();
-		while (!src.atEnd())
-		{
-			if (i == l)
-				cursor_position_for_line = t.length();
-			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
-			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
-			if (ui->actionShow_disassembly_address_ranges->isChecked())
-			{
-				dis = lines[i];
-				while (dis)
-					t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
-			}
-			i ++;
-		}
-	}
-	else
-		t = QString("cannot open source code file ") + src.fileName();
-	ui->plainTextEdit->appendPlainText(t);
-	QTextCursor c(ui->plainTextEdit->textCursor());
-
-#if 0
-	c.movePosition(QTextCursor::Start);
-	dis.setBackground(QBrush(Qt::lightGray));
-	i = 0;
-	while (!c.atEnd())
-	{
-		i ++;
-		if (lines[i])
-			c.setBlockFormat(dis);
-		if (!c.movePosition(QTextCursor::NextBlock))
-			break;
-	}
-#endif
-	c.movePosition(QTextCursor::Start);
-#if 0
-	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
-	qDebug() << "line" << l << "computed position" << cursor_position_for_line << "real position" << c.position() << "delta" << cursor_position_for_line - c.position();
-#else
-	c.setPosition(cursor_position_for_line);
-#endif
-	f.setBackground(QBrush(Qt::cyan));
-	c.setBlockFormat(f);
-	ui->plainTextEdit->setTextCursor(c);
-	ui->plainTextEdit->centerCursor();
-	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_source_code_view_build_time)
-		profiling.max_source_code_view_build_time = x.elapsed();
-	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
-	x.restart();
 	auto context = dwdata->executionContextForAddress(pc);
 	auto locals = dwdata->localDataObjectsForContext(context);
 	for (i = 0; i < locals.size(); i ++)
@@ -571,8 +576,6 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_local_data_objects_view_build_time)
 		profiling.max_local_data_objects_view_build_time = x.elapsed();
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
-	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
-		profiling.max_context_view_generation_time = stime.elapsed();
 }
 
 void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
