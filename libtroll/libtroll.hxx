@@ -598,6 +598,7 @@ private:
 public:
 	struct lineAddress { uint32_t line, address, address_span; struct lineAddress * next; lineAddress(void) { line = address = address_span = -1; next = 0; } 
 	                   bool operator < (const struct lineAddress & rhs) const { return address < rhs.address; } };
+	struct sourceFileNames { const char * file, * directory, * compilation_directory; };
 	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
 	void dump(void)
 	{
@@ -1012,13 +1013,14 @@ public:
 				directory_name = f.s;
 		}
 	}
-	void getFileAndDirectoryNamesPointers(std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > & string_pointers)
+	void getFileAndDirectoryNamesPointers(std::vector<struct sourceFileNames> & sources, const char * compilation_directory)
 	{
 		qDebug() << (uint32_t) (header - debug_line);
 		std::vector<const char *> directories;
 		union { const char * s; const uint8_t * p; } x;
 		x.s = include_directories();
 		size_t l;
+		directories.push_back(compilation_directory);
 		while ((l = strlen(x.s)))
 			directories.push_back(x.s), x.s += l + 1;
 		x.s = file_names();
@@ -1029,8 +1031,7 @@ public:
 			x.s += l + 1;
 			/* skip directory index, file time and file size */
 			index = DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p);
-			if (index) //////////// !!!!!!!!!!!!!!!!!!!!!!!! FIX THIS !!!!!!!!!!!!!!!!!!!!!!!!
-																		string_pointers.push_back(std::pair<const char *, const char *>(s, directories.at(index - 1)));
+			sources.push_back((struct sourceFileNames) { .file = s, .directory = directories.at(index), .compilation_directory = compilation_directory, });
 		}
 	}
 
@@ -1903,7 +1904,7 @@ node.data.push_back("!!! recursion detected !!!");
 		while (l.next());
 		std::sort(line_addresses.begin(), line_addresses.end());
 	}
-	void getFileAndDirectoryNamesPointers(std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > & string_pointers)
+	void getFileAndDirectoryNamesPointers(std::vector<struct DebugLine::sourceFileNames> & sources)
 	{
 		/*! \todo maybe add here the (described in the dwarf standard as implicit, if i undertand correctly) zero-indexed
 		 * file and directory entries of compilation unit line number programs; these (if i understand correctly) are
@@ -1921,13 +1922,22 @@ node.data.push_back("!!! recursion detected !!!");
 		class DebugLine l(debug_line, debug_line_len);
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
 		{
+			const char * filename = 0, * compilation_directory = 0;
 			auto cu_die_offset = cu + /* skip compilation unit header */ 11;
 			auto a = Abbreviation(debug_abbrev + abbreviationOffsetForDieOffset(cu_die_offset));
 			auto x = a.dataForAttribute(DW_AT_stmt_list, debug_info + cu_die_offset);
 			if (!x.first)
 				DwarfUtil::panic();
 			l.skipToOffset(DwarfUtil::formConstant(x));
-			l.getFileAndDirectoryNamesPointers(string_pointers);
+			x = a.dataForAttribute(DW_AT_name, debug_info + cu_die_offset);
+			if (x.first)
+				filename = DwarfUtil::formString(x.first, x.second, debug_str);
+			x = a.dataForAttribute(DW_AT_comp_dir, debug_info + cu_die_offset);
+			if (x.first)
+				compilation_directory = DwarfUtil::formString(x.first, x.second, debug_str);
+			/*! \todo	is this line below necessary??? */
+			//sources.push_back((struct DebugLine::sourceFileNames) { .file = filename, .directory = compilation_directory, .compilation_directory = compilation_directory, });
+			l.getFileAndDirectoryNamesPointers(sources, compilation_directory);
 		}
 	}
 

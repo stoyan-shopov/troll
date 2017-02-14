@@ -45,6 +45,7 @@ class MainWindow : public QMainWindow
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
+	std::vector<DebugLine::sourceFileNames> sources;
 	Disassembly 	* dis;
 	Sforth	* sforth;
 	Target	* target;

@@ -254,8 +254,8 @@ void MainWindow::dumpData(uint32_t address, const QByteArray &data)
 	ui->plainTextEditDataDump->appendPlainText(data.toPercentEncoding());
 }
 
-static bool sortSourcefiles(std::pair<const char *, const char *> & a, std::pair<const char *, const char *> & b)
-{ auto x = strcmp(a.first, b.first); if (x) return x < 0; return strcmp(a.second, b.second) < 0; }
+static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const struct DebugLine::sourceFileNames & b)
+{ auto x = strcmp(a.file, b.file); if (x) return x < 0; return strcmp(a.directory, b.directory) < 0; }
 
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
@@ -429,17 +429,16 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
 	connect(ui->actionShow_disassembly_address_ranges, SIGNAL(triggered(bool)), this, SLOT(on_tableWidgetBacktrace_itemSelectionChanged()));
 	
-	std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > source_files;
-	dwdata->getFileAndDirectoryNamesPointers(source_files);
-	std::sort(source_files.begin(), source_files.end(), sortSourcefiles);
+	dwdata->getFileAndDirectoryNamesPointers(sources);
+	std::sort(sources.begin(), sources.end(), sortSourcefiles);
 	int row;
-	for (row = i = 0; i < source_files.size(); i ++)
+	for (row = i = 0; i < sources.size(); i ++)
 	{
-		if (i && !strcmp(source_files.at(i).first, source_files.at(i - 1).first) && !strcmp(source_files.at(i).second, source_files.at(i - 1).second))
+		if (i && !strcmp(sources.at(i).file, sources.at(i - 1).file) && !strcmp(sources.at(i).directory, sources.at(i - 1).directory))
 			continue;
 		ui->tableWidgetFiles->insertRow(row);
-		ui->tableWidgetFiles->setItem(row, 0, new QTableWidgetItem(source_files.at(i).first));
-		ui->tableWidgetFiles->setItem(row, 1, new QTableWidgetItem(source_files.at(i).second));
+		ui->tableWidgetFiles->setItem(row, 0, new QTableWidgetItem(sources.at(i).file));
+		ui->tableWidgetFiles->setItem(row, 1, new QTableWidgetItem(sources.at(i).directory));
 		row ++;
 	}
 	ui->tableWidgetFiles->sortItems(0);
