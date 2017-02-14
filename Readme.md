@@ -33,4 +33,17 @@ base for a driver, and adopted a **cdc-acm** usb interface in the spirit of
 the *blackmagic* as a means of interfacing with a usb host. Well, my memory
 really serves me bad, it might have been a bit before discovering the
 *blackmagic*, whatever, the name *blackstrike* has ***nothing to do***
-with the *blackmagic*. 
+with the *blackmagic* - I am not proud of it, but, well, I am a smoker...
+I smoked so much when I designed the *blackstrike*, so that I smoked
+black 'Lucky Strike's back then, they have this option of crushing
+a capsule of chemicals, so that the smoke does not irritate you too much,
+and you cough less... Well, that is the shameful truth.
+Anyway, my all attempts with the second system, the *trollgear*, and
+all, until now, 3 revisions of the *vx/blackstrike* failed.
+
+Well, I now am at the fourth revision of the *blackstrike*, and
+the third attempt of the **ELF/DWARF** debugger for ARM microcontrollers.
+For reasons personal, my time is now very short, but I believe
+these fourth and third systems are good, and I will try to explain
+why I believe so.
+
