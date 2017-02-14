@@ -596,7 +596,8 @@ private:
 				current = registers, prev = registers + 1; }
 	void swap(void) { struct line_state * x(current); current = prev; prev = x; }
 public:
-	struct lineAddress { uint32_t line, address, address_span; struct lineAddress * next; lineAddress(void) { line = address = address_span = -1; next = 0; } };
+	struct lineAddress { uint32_t line, address, address_span; struct lineAddress * next; lineAddress(void) { line = address = address_span = -1; next = 0; } 
+	                   bool operator < (const struct lineAddress & rhs) const { return address < rhs.address; } };
 	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
 	void dump(void)
 	{
@@ -1888,6 +1889,7 @@ node.data.push_back("!!! recursion detected !!!");
 		while (l.next())
 			l.dump();
 	}
+	/* the returned vector is sorted by increasing start address */
 	void addressesForFile(const char * filename, std::vector<struct DebugLine::lineAddress> & line_addresses)
 	{
 		class DebugLine l(debug_line, debug_line_len);
@@ -1898,6 +1900,7 @@ node.data.push_back("!!! recursion detected !!!");
 				l.addressesForFile(x, line_addresses);
 		}
 		while (l.next());
+		std::sort(line_addresses.begin(), line_addresses.end());
 	}
 	void getFileAndDirectoryNamesPointers(std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > & string_pointers)
 	{

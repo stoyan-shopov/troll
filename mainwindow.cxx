@@ -295,9 +295,9 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
-	//elf_filename = "KFM224.elf";
+	elf_filename = "KFM224.elf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
+	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
 	//elf_filename = "x:/build-atomic-test-Desktop_Qt_5_7_0_MinGW_32bit-Debug/debug/atomic.elf";
 	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
@@ -428,7 +428,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
 	connect(ui->actionShow_disassembly_address_ranges, SIGNAL(triggered(bool)), this, SLOT(on_tableWidgetBacktrace_itemSelectionChanged()));
 	
-#if XXX
 	std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > source_files;
 	dwdata->getFileAndDirectoryNamesPointers(source_files);
 	for (i = 0; i < source_files.size(); i ++)
@@ -436,9 +435,7 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetFiles->insertRow(i);
 		ui->tableWidgetFiles->setItem(i, 0, new QTableWidgetItem(source_files.at(i).first));
 	}
-	ui->tableWidgetFiles->sortByColumn(0);
-#endif
-	
+	ui->tableWidgetFiles->sortItems(0);
 #endif	
 	
 	if (0)
@@ -518,7 +515,7 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		lines[line_addresses.at(i).line] ++;
 		*/
 	std::map<uint32_t, struct DebugLine::lineAddress *> lines;
-	for (i = 0; i < line_addresses.size(); i ++)
+	for (i = line_addresses.size() - 1; i >= 0; i --)
 	{
 		line_addresses.at(i).next = lines[line_addresses.at(i).line];
 		lines[line_addresses.at(i).line] = & line_addresses.at(i);
