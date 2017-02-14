@@ -240,11 +240,12 @@ struct Die
 	Die(){ tag = offset = abbrev_offset = 0; }
 };
 
-/* !!! warning - this can generally be a circular graph !!! */
+/* !!! warning - this can generally be a circular graph - beware of recursion when processing !!! */
 struct DwarfTypeNode
 {
 	struct Die	die;
 	int		next;
+	/* flag to facilitate recursion when processing this data structure for various purposes */
 	bool		processed;
 	std::vector<uint32_t>	children;
 	std::vector<uint32_t>	array_dimensions;
@@ -1096,7 +1097,8 @@ private:
 		p += len;
 
 		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
-		 * children, while it actually does not... handle this at the condition check at the start of the loop */
+		 * children, while it actually does not - such a die actually considers a single null die child,
+		 * which is explicitly permitted by the dwarf standard. Handle this at the condition check at the start of the loop */
 		while (code)
 		{
 			auto x = abbreviations.find(code);
