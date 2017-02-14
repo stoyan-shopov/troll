@@ -254,6 +254,9 @@ void MainWindow::dumpData(uint32_t address, const QByteArray &data)
 	ui->plainTextEditDataDump->appendPlainText(data.toPercentEncoding());
 }
 
+static bool sortSourcefiles(std::pair<const char *, const char *> & a, std::pair<const char *, const char *> & b)
+{ auto x = strcmp(a.first, b.first); if (x) return x < 0; return strcmp(a.second, b.second) < 0; }
+
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
@@ -428,11 +431,16 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > source_files;
 	dwdata->getFileAndDirectoryNamesPointers(source_files);
-	for (i = 0; i < source_files.size(); i ++)
+	std::sort(source_files.begin(), source_files.end(), sortSourcefiles);
+	int row;
+	for (row = i = 0; i < source_files.size(); i ++)
 	{
-		ui->tableWidgetFiles->insertRow(i);
-		ui->tableWidgetFiles->setItem(i, 0, new QTableWidgetItem(source_files.at(i).first));
-		ui->tableWidgetFiles->setItem(i, 1, new QTableWidgetItem(source_files.at(i).second));
+		if (i && !strcmp(source_files.at(i).first, source_files.at(i - 1).first) && !strcmp(source_files.at(i).second, source_files.at(i - 1).second))
+			continue;
+		ui->tableWidgetFiles->insertRow(row);
+		ui->tableWidgetFiles->setItem(row, 0, new QTableWidgetItem(source_files.at(i).first));
+		ui->tableWidgetFiles->setItem(row, 1, new QTableWidgetItem(source_files.at(i).second));
+		row ++;
 	}
 	ui->tableWidgetFiles->sortItems(0);
 }
@@ -472,7 +480,7 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 	
 	std::vector<struct DebugLine::lineAddress> line_addresses;
 	x.start();
-	dwdata->addressesForFile(ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), line_addresses);
+	dwdata->addressesForFile((ui->tableWidgetBacktrace->item(row, 2)->text().toLatin1().constData(), "core_cmFunc.h"), line_addresses);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
