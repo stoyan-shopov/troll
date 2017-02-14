@@ -15,7 +15,7 @@ int DwarfData::readType(uint32_t die_offset, std::map<uint32_t, uint32_t> & abbr
 		if (TYPE_DEBUG_ENABLED) qDebug() << "!!! type chain recursion detected";
 		return recursion_detector.operator [](saved_die_offset);
 	}
-	auto type = debug_tree_of_die(die_offset, abbreviations);
+	auto type = debug_tree_of_die(die_offset);
 	if (type.size() != 1)
 		DwarfUtil::panic();
 	struct DwarfTypeNode node(type.at(0));

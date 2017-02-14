@@ -1086,6 +1086,21 @@ private:
 		uint32_t	abbrev_offset;
 	};
 	std::vector<struct DieFingerprint> die_fingerprints;
+	uint32_t abbreviationOffsetForDieOffset(uint32_t die_offset)
+	{
+		int l = 0, h = die_fingerprints.size() - 1, m;
+		while (l <= h)
+		{
+			m = (l + h) >> 1;
+			if (die_fingerprints.at(m).offset == die_offset)
+				return die_fingerprints.at(m).abbrev_offset;
+			if (die_fingerprints.at(m).offset < die_offset)
+				l = m + 1;
+			else
+				h = m - 1;
+		}
+		DwarfUtil::panic();
+	}
 	
 	std::vector<struct Die> reapDieFingerprints(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
@@ -1303,52 +1318,6 @@ private:
 		}
 	}
 
-	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
-	 * 		is because of the dwarf die flattenned tree representation */
-	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
-	{
-		if (STATS_ENABLED) stats.dies_read ++;
-		std::vector<struct Die> dies;
-		const uint8_t * p = debug_info + die_offset;
-		int len;
-		uint32_t code = DwarfUtil::uleb128(p, & len);
-		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
-		p += len;
-		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
-		 * children, while it actually does not... handle this at the condition check at the start of the loop */
-		while (code)
-		{
-			auto x = abbreviations.find(code);
-			if (x == abbreviations.end())
-				DwarfUtil::panic("abbreviation code not found");
-			struct Abbreviation a(debug_abbrev + x->second);
-			struct Die die(a.tag(), die_offset, x->second);
-			
-			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
-			while (attr.first)
-			{
-				p += DwarfUtil::skip_form_bytes(attr.second, p);
-				attr = a.next_attribute();
-			}
-			die_offset = p - debug_info;
-			if (a.has_children())
-			{
-				die.children = debug_tree_of_die(die_offset, abbreviations, depth + 1);
-				p = debug_info + die_offset;
-			}
-			dies.push_back(die);
-			
-			if (depth == 0)
-				return dies;
-				
-			code = DwarfUtil::uleb128(p, & len);
-			if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
-			p += len;
-		}
-		die_offset = p - debug_info;
-
-		return dies;
-	}
 	uint32_t compilation_unit_base_address(const struct Die & compilation_unit_die)
 	{
 		struct Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
@@ -1389,20 +1358,56 @@ private:
 		return false;
 	}
 public:
+	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
+	 * 		is because of the dwarf die flattenned tree representation */
+	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, int depth = 0)
+	{
+		if (STATS_ENABLED) stats.dies_read ++;
+		std::vector<struct Die> dies;
+		const uint8_t * p = debug_info + die_offset;
+		int len;
+		uint32_t code = DwarfUtil::uleb128(p, & len);
+		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+		p += len;
+		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
+		 * children, while it actually does not... handle this at the condition check at the start of the loop */
+		while (code)
+		{
+			auto x = abbreviationOffsetForDieOffset(die_offset);
+			struct Abbreviation a(debug_abbrev + x);
+			struct Die die(a.tag(), die_offset, x);
+			
+			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
+			while (attr.first)
+			{
+				p += DwarfUtil::skip_form_bytes(attr.second, p);
+				attr = a.next_attribute();
+			}
+			die_offset = p - debug_info;
+			if (a.has_children())
+			{
+				die.children = debug_tree_of_die(die_offset, depth + 1);
+				p = debug_info + die_offset;
+			}
+			dies.push_back(die);
+			
+			if (depth == 0)
+				return dies;
+				
+			code = DwarfUtil::uleb128(p, & len);
+			if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
+			p += len;
+		}
+		die_offset = p - debug_info;
+
+		return dies;
+	}
 	uint32_t next_compilation_unit(uint32_t compilation_unit_offset)
 	{
 		uint32_t x = compilation_unit_header(debug_info + compilation_unit_offset).next().data - debug_info;
 		if (x >= debug_info_len)
 			x = -1;
 		return x;
-	}
-	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
-	 * 		is because of the dwarf die flattenned tree representation */
-	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset)
-	{
-		std::map<uint32_t, uint32_t> abbreviations;
-		get_abbreviations_of_compilation_unit(compilationUnitOffsetForOffsetInDebugInfo(die_offset), abbreviations);
-		return debug_tree_of_die(die_offset, abbreviations);
 	}
 	int compilation_unit_count(void)
 	{
@@ -1514,7 +1519,7 @@ private:
 			auto i = compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
 			std::map<uint32_t, uint32_t> abbreviations;
 			get_abbreviations_of_compilation_unit(i, abbreviations);
-			referred_die = debug_tree_of_die(referred_die_offset, abbreviations).at(0);
+			referred_die = debug_tree_of_die(referred_die_offset).at(0);
 		}
 		return true;
 	}
