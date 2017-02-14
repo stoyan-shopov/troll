@@ -1921,7 +1921,11 @@ private:
 	{
 		struct Die referred_die(die);
 		if (hasAbstractOrigin(die, referred_die))
-			return fillStaticObjectDetails(referred_die, x);
+		{
+			fillStaticObjectDetails(referred_die, x);
+			x.die_offset = die.offset;
+			return;
+		}
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto t = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
 		x.file = ((t.first) ? DwarfUtil::formConstant(t) : -1);
@@ -1952,7 +1956,7 @@ private:
 	                       const struct Die & die)
 	{
 		int i;
-		if (DwarfUtil::isDataObject(die.tag)/** && die.offset == 0x3ef945/**/)
+		if (DwarfUtil::isDataObject(die.tag))
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			uint32_t address;
