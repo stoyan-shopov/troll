@@ -45,7 +45,6 @@ class MainWindow : public QMainWindow
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
-	std::vector<DebugLine::sourceFileNames> sources;
 	Disassembly 	* dis;
 	Sforth	* sforth;
 	Target	* target;
@@ -93,6 +92,8 @@ private slots:
 	void on_actionHalt_triggered();
 	
 	void on_actionRead_state_triggered();
+	
+	void on_tableWidgetFiles_itemSelectionChanged();
 	
 protected:
 	void closeEvent(QCloseEvent * e);

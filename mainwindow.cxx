@@ -514,6 +514,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
 	connect(ui->actionShow_disassembly_address_ranges, SIGNAL(triggered(bool)), this, SLOT(on_tableWidgetBacktrace_itemSelectionChanged()));
 	
+	std::vector<DebugLine::sourceFileNames> sources;
 	dwdata->getFileAndDirectoryNamesPointers(sources);
 	std::sort(sources.begin(), sources.end(), sortSourcefiles);
 	int row;
@@ -524,6 +525,7 @@ MainWindow::MainWindow(QWidget *parent) :
 		ui->tableWidgetFiles->insertRow(row);
 		ui->tableWidgetFiles->setItem(row, 0, new QTableWidgetItem(sources.at(i).file));
 		ui->tableWidgetFiles->setItem(row, 1, new QTableWidgetItem(sources.at(i).directory));
+		ui->tableWidgetFiles->setItem(row, 2, new QTableWidgetItem(sources.at(i).compilation_directory));
 		row ++;
 	}
 	ui->tableWidgetFiles->sortItems(0);
@@ -807,4 +809,10 @@ void MainWindow::on_actionRead_state_triggered()
 {
 	if (target->haltReason())
 		backtrace();
+}
+
+void MainWindow::on_tableWidgetFiles_itemSelectionChanged()
+{
+int row(ui->tableWidgetFiles->currentRow());
+	displaySourceCodeFile(ui->tableWidgetFiles->item(row, 0)->text(), ui->tableWidgetFiles->item(row, 2)->text() + "/" + ui->tableWidgetFiles->item(row, 1)->text(), 0);
 }

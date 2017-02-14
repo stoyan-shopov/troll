@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>troll debugger</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
@@ -554,6 +554,15 @@
      </property>
      <item>
       <widget class="QTableWidget" name="tableWidgetFiles">
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SingleSelection</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectRows</enum>
+       </property>
        <column>
         <property name="text">
          <string>file</string>
@@ -562,6 +571,11 @@
        <column>
         <property name="text">
          <string>directory</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>compile directory</string>
         </property>
        </column>
       </widget>
