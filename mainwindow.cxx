@@ -296,8 +296,10 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
+	elf_filename = "KFM224.elf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
+	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
+	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
 	//elf_filename = "x:/build-atomic-test-Desktop_Qt_5_7_0_MinGW_32bit-Debug/debug/atomic.elf";
 	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
 	//elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
@@ -310,6 +312,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->splitterMain->restoreGeometry(s.value("main-splitter/geometry").toByteArray());
 	ui->splitterMain->restoreState(s.value("main-splitter/state").toByteArray());
 	ui->actionHack_mode->setChecked(s.value("hack-mode", true).toBool());
+	ui->actionShow_disassembly_address_ranges->setChecked(s.value("show-disassembly-ranges", true).toBool());
 	ui->comboBoxDataDisplayNumericBase->setCurrentIndex(s.value("data-display-numeric-base", 1).toUInt());
 	on_actionHack_mode_triggered();
 #if MAIN_APS
@@ -385,7 +388,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 #if 1
 	
-if (0) for (i = 0; i < subprograms.size(); i++)
+	for (i = 0; i < subprograms.size(); i++)
 	{
 		int row(ui->tableWidgetFunctions->rowCount());
 		ui->tableWidgetFunctions->insertRow(row);
@@ -404,7 +407,9 @@ if (0) for (i = 0; i < subprograms.size(); i++)
 		ui->tableWidgetStaticDataObjects->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).file)));
 		ui->tableWidgetStaticDataObjects->setItem(row, 4, new QTableWidgetItem(QString("%1").arg(data_objects.at(i).line)));
 		ui->tableWidgetStaticDataObjects->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(data_objects.at(i).die_offset, 0, 16)));
+qDebug() << __func__ << __LINE__ << data_objects.size() - i << "remaining" << "index" << i;
 	}
+qDebug() << __func__ << __LINE__;
 	ui->tableWidgetFunctions->sortItems(0);
 	ui->tableWidgetFunctions->resizeColumnsToContents();
 	ui->tableWidgetFunctions->resizeRowsToContents();
@@ -418,6 +423,8 @@ if (0) for (i = 0; i < subprograms.size(); i++)
 	qDebug() << "debugger startup time:" << profiling.debugger_startup_time << "milliseconds";
 
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
+	connect(ui->actionShow_disassembly_address_ranges, SIGNAL(triggered(bool)), this, SLOT(on_tableWidgetBacktrace_itemSelectionChanged()));
+	
 #if XXX
 	std::vector<std::pair<const char * /* file name pointer */, const char * /* directory name pointer */> > source_files;
 	dwdata->getFileAndDirectoryNamesPointers(source_files);
@@ -525,9 +532,12 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 				cursor_position_for_line = t.length();
 			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
 			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
-			dis = lines[i];
-			while (dis)
-				t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
+			if (ui->actionShow_disassembly_address_ranges->isChecked())
+			{
+				dis = lines[i];
+				while (dis)
+					t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
+			}
 			i ++;
 		}
 	}
@@ -611,6 +621,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
 	s.setValue("main-splitter/state", ui->splitterMain->saveState());
 	s.setValue("hack-mode", ui->actionHack_mode->isChecked());
+	s.setValue("show-disassembly-ranges", ui->actionShow_disassembly_address_ranges->isChecked());
 	s.setValue("data-display-numeric-base", ui->comboBoxDataDisplayNumericBase->currentIndex());
 	qDebug() << "";
 	qDebug() << "";

@@ -76,6 +76,7 @@
    <addaction name="actionHalt"/>
    <addaction name="actionRead_state"/>
    <addaction name="actionCore_dump"/>
+   <addaction name="actionShow_disassembly_address_ranges"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -645,6 +646,14 @@
   <action name="actionRead_state">
    <property name="text">
     <string>read state</string>
+   </property>
+  </action>
+  <action name="actionShow_disassembly_address_ranges">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>show disassembly address ranges</string>
    </property>
   </action>
  </widget>
