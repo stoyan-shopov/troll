@@ -1062,7 +1062,7 @@ private:
 	struct debug_arange arange;
 	/* cached for performance reasons */
 	const uint8_t	* last_searched_arange;
-	const struct compilation_unit_header * last_searched_compilation_unit;
+	struct compilation_unit_header last_searched_compilation_unit;
 	std::map<uint32_t, uint32_t> last_abbreviations_fetched;
 	uint32_t last_abbreviations_fetched_debug_info_offset;
 	
@@ -1132,7 +1132,7 @@ public:
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
 		  const void * debug_str, uint32_t debug_str_len,
 		  const void * debug_line, uint32_t debug_line_len,
-		  const void * debug_loc, uint32_t debug_loc_len) : arange((const uint8_t *) debug_aranges)
+		  const void * debug_loc, uint32_t debug_loc_len) : arange((const uint8_t *) debug_aranges), last_searched_compilation_unit((const uint8_t *) 0)
 	{
 		this->debug_aranges = (const uint8_t *) debug_aranges;
 		this->debug_aranges_len = debug_aranges_len;
@@ -1149,7 +1149,7 @@ public:
 		this->debug_loc = (const uint8_t *) debug_loc;
 		this->debug_loc_len = debug_loc_len;
 
-		last_searched_compilation_unit = (const struct compilation_unit_header *) debug_info;
+		last_searched_compilation_unit.data = this->debug_info;
 		last_searched_arange = arange.data;
 		memset(& stats, 0, sizeof stats);
 		last_abbreviations_fetched_debug_info_offset = -1;
@@ -1180,17 +1180,17 @@ private:
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
 	{
-		if (last_searched_compilation_unit->data - debug_info <= debug_info_offset && debug_info_offset < last_searched_compilation_unit->data - debug_info + last_searched_compilation_unit->unit_length())
+		if (last_searched_compilation_unit.data - debug_info <= debug_info_offset && debug_info_offset < last_searched_compilation_unit.data - debug_info + last_searched_compilation_unit.unit_length())
 		{
 			if (STATS_ENABLED) stats.compilation_unit_header_hits ++;
-			return last_searched_compilation_unit->data - debug_info;
+			return last_searched_compilation_unit.data - debug_info;
 		}
 		if (STATS_ENABLED) stats.compilation_unit_header_misses ++;
 		compilation_unit_header h(debug_info);
 		while (h.data - debug_info < debug_info_len)
 			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
 			{
-				last_searched_compilation_unit = & h;
+				last_searched_compilation_unit.data = (const uint8_t *) & h;
 				return h.data - debug_info;
 			}
 			else h.next();
@@ -1499,7 +1499,11 @@ private:
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_abstract_origin, debug_info + die.offset);
 		if (!x.first)
-			return false;
+		{
+			x = a.dataForAttribute(DW_AT_specification, debug_info + die.offset);
+			if (!x.first)
+				return false;
+		}
 		auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
 		std::map<uint32_t, uint32_t> abbreviations;
 		get_abbreviations_of_compilation_unit(i, abbreviations);
