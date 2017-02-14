@@ -39,10 +39,11 @@ black 'Lucky Strike's back then, they have this option of crushing
 a capsule of chemicals, so that the smoke does not irritate you too much,
 and you cough less... Well, that is the shameful truth.
 Anyway, my all attempts with the second system, the *trollgear*, and
-all, until now, 3 revisions of the *vx/blackstrike* failed.
+all, until now, 3 revisions of the *vx/blackstrike*, failed.
 
-Well, I now am at the fourth revision of the *blackstrike*, and
-the third attempt of the **ELF/DWARF** debugger for ARM microcontrollers.
+I now am at the fourth revision of the *blackstrike*, and
+the third attempt of the **ELF/DWARF** debugger for ARM
+microcontrollers - the *troll*.
 For reasons personal, my time is now very short, but I believe
 these fourth and third systems are good, and I will try to explain
 why I believe so.
