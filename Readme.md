@@ -11,105 +11,6 @@ Note that this is a very special case of a debugger:
 - only the C language is supported for source-level debugging
 - only the *blackmagic* and *blackstrike* hardware debug probes are supported
 
-### History and motivation
-
-I am working with embedded systems, it just happened to be so.
-In embedded systems, the predominant language used is *C*.
-I have mostly worked with *ARM* systems, *ARM7TDMI-S* a long
-time ago, and currently *Cortex-M*. I am used to working on a lower level than most
-of my colleagues are accustomed to. I mostly use *vim* and *make* instead
-of some integrated development environment. I mainly use the *gcc*
-compiler, and do my debugging in command-line *gdb*. This is a
-very fast and convenient work flow for me. Years ago, I used
-*j-link* clones with *gdb*. I did give *OpenOCD* a try once,
-then after a week of hunting witches I found that *OpenOCD*
-misprogrammed the chips I was using, I used a *wiggler* clone.
-I gave up in disgust, and never bothered to look at *OpenOCD*
-again, maybe things are better now. Anyway, I felt it is a
-shame that no one had created an affordable, easy to build,
-modify and use hardware debug probe for *ARM* targets, I
-alredy knew that all the information to do so is publicly
-available directly from *ARM*. My first attempts were with
-a parallel port *wiggler* targeting an *ARM7TDMI-S* *LPC* chip,
-I intended this as a proof-of-concept system, and to then
-make some more convenient to use custom board. Some things
-happened back then and I halted work on this project for
-a couple of years. When I decided to resume work on the
-project, there were already available demonstration boards
-from various manufacturers, I purchased some *ST* demonstration
-board with an embedded *st-link* system, and used it as
-a development board to reprogram the *st-link* chip itself.
-I already had working serial-wire-debug (*SWD*) code for accessing the target,
-and an embedded gdb server, but I enumerated over usb as
-a custom usb device, and for that reason I needed a small
-proxy program to make connection from *gdb* to the debug
-probe possible. This was very inconvenient.
-Around that time I discovered the excellent *blackmagic* probe.
-  
-The *troll* is my third attempt to write an *ELF/DWARF* debugger for *ARM*
-targets. My first attempt (more than 10 years ago) was a system I named
-the *gear*, I wrote it purely in *C*, it targeted *ARM7TDMI* systems,
-and the only hardware probe I had back then was a parallel port *wiggler*
-clone from *Olimex*. I failed at this attempt. My second attempt was
-some 4 years ago, I named it the *trollgear*, I coded it in *C++* this
-time, with some parts taken from the first system, the *gear*. At that time,
-*st-link* fitted boards were already abundant, I had some *stm32f103* based
-board, I read the *ARM ADIv5* documents, and successfully reprogrammed
-the board with firmware I wrote to access *ARM Cortex-M* chips over the
-serial-wire-debug (*SWD*) protocol. That worked, but was inconvenient to use,
-mainly because I used a custom usb-class device, for which I used the *WinUsb*
-library. My memory does not serve me too well aready, but it must have been
-about that time that I discovered the *blackmagic* project, and the *libopencm3*
-library. About that time, I made a simple board with an *stm32f103rb* chip,
-which I named the *vortex*, or *vx* for short - a hardware debug probe for
-*Cortex* systems. I used a stock *gdbserver* template from the *gdb* source-code
-base for a driver, and adopted a *cdc-acm* usb interface in the spirit of
-the *blackmagic* as a means of interfacing with a usb host. 
-I worked intermittenlty on the *blackstrike* for a couple more years before deciding
-to give up this project, and instead use the *blackmagic* firmware,
-customized for my board.
-
-The principal differences between the *blackmagic* and *blackstrike* firmwares,
-at the time I abandoned the *blackstrike* project, were these:
-- the *blackstrike* only supported *SWD* for target access,
-I never envisioned adding *JTAG* support
-
-- the *blackstrike* board was a bit more general purpose; it
-had an *Olimex* *UEXT* connector for making connection to test
-various devices; for that reason, the *blackstrike* did not operate solely
-as a debug probe, but also as a more general purpose board for doing simple
-tests and providing control over the microcotroller pins;
-this other mode of operation launched an embedded *FORTH*
-system which then used the usb *cdc-acm* endpoints for
-user interaction
-
-- the *blackstrike* also had a 16 Mb flash memory onboard, and actually
-operated as a usb *cdc-acm/msc* composite device; the flash
-was accessible from the firmware by means of the Chan's FatFs in
-read-only mode; It was used for conveniently holding *FORTH* source
-code files when hacking on something with *FORTH*
-
-- the target flash programming algorithms were not in the main
-firmware, but instead resided in files in the external flash
-memory; a main file in *FORTH* was executed on startup in order
-to detect the target, and then compile the appropriate file
-supplying the *FORTH* flash accessing words for the concrete
-target; I am not sure this is a good idea at all, but wanted to test
-it, I only worked with two *ST* chips, though, so I have no idea
-if this is a good idea in the long run; this was very convenient
-when first writing a flash access algorithm for an unsupported
-target, but then it really makes more sense to put the algorithm
-in the firmware, and forget about it altogether
-
-
-Why write a source-level debugger from scratch instead of use some
-*gdb* frontend and adjust it to one's specific needs?
-Remember, that the *troll* actually attempts to be a very specialized, limited
-debugger. It turns out that, with the specific goals that the *troll*
-attempts to achieve, it is easier to write a debugger from scratch,
-instead of attempting to modify some *gdb* frontend or *gdb* itself.
-I will attempt to explain and show why I believe this is so.
-
 ### How source-level debuggers work
 
 When a compiler generates an object file from a source code file,
@@ -126,10 +27,335 @@ about to be executed or a certain variable is accessed, and many other
 useful and helpful things.
 
 The debug information format that nowadays is the de-facto standard
-is the *DWARF* format, documents describing it are freely available.
+is the *DWARF* format, the documents of the *DWARF* standard are
+freely available for download [here](http://www.dwarfstd.org/).
 
 ### How to perform source-level debugging, without a source-level debugger
 
 Following is a description how debug information generated by the
 compiler can be used to manually perform the tasks that are usually
 done with the aid of a debugger.
+To illustrate this technique, I will try to explain the generated
+debug information for the following simple program:
+
+```c
+
+volatile int x = 10;
+
+static int fib(int n)
+{
+	if (n < 2)
+		return n;
+	return fib(n - 1) + fib(n - 2);
+}
+
+int main (void)
+{
+	return fib(2);
+}
+
+```
+
+To understand the debug information generated by the compiler, a
+basic understanding of the *DWARF* debug format is needed.
+I will try to briefly explain how the *DWARF* debug information
+is organized in the *ELF* file of the compiled program.
+
+First thing to know is that the generated debug information
+for even the simple program above, can be ***large***.
+This cannot be overstressed. Let us have a look at some numbers.
+
+File 'Qt5Guid.dll' of my Qt 5.7.0 installation is a windows dynamic
+library (*dll*). Technically, it is not an *ELF* formatted file,
+but as it was compiled with the *gcc* compiler, the generated
+debug information is in the *DWARF* format. The size of this
+file on my machine is about **200 megabytes**. The size of the
+generated machine code and data that take up space in this file
+is about **5 (five) megabytes**. The remaining **195
+megabytes** is debug information. That basically means, that
+for this code sample, about***2.5%*** of the data in the file
+is for use by the machine, and the remaining about ***97.5***
+of the data in the file are for use by a debugger. I.e., for
+this code sample, almost ***1000%*** of the file, created
+by the compiler, is for use by a debugger. This is not a
+contrived example, it is as real as life and death themselves.
+
+
+As of time of writing this
+document (15022017) the *DWARF* standard is in its 5-th
+revision. The first publicly available revision of the
+*DWARF* standard - revision *1.1.0* - was created in year
+1992, 3 years before I even had my first machine, a 4.77 MHz PC/XT, with a
+*10 (ten) megabyte* hard disk drive. This
+was a long time ago. The people who devised the *DWARF*
+standard were undoubtedly very well aware of the disproportionately ***large***
+debug information that is needed to faithfully represent the
+mapping between human-created source code and compiler-generated
+machine code and data, and these people were also very well
+aware of the costs of disk space and random-access memory,
+and of the threshold of patience and tolerance of debugger users,
+I am pretty sure they themselves were debugger users.    
+The people who devised the *DWARF* standard thought from the beginning
+how to balance between generated debug information size,
+burden on producers (mainly compilers) and consumers (mainly debuggers)
+of debug information, and usability of debuggers by humans.
+These are the reasons that the *DWARF* debug information
+is structured the way it is.
+
+The *DWARF* debug information, that maps human-created source code
+to machine-consumable code, is based on some common observations
+of how humans expect such a mapping to behave:
+- (assumption 1) a line of source code corresponds to machine-code instruction(s)
+that the target machine understands
+- (assumption 2) a variable in the human-created program exists somewhere in the memory
+of the target machine
+
+
+
+
+
+
+Let us compile this program, and inspect the debug information generated
+by the compiler. I compiled the program with the following options:
+```sh
+arm-none-eabi-gcc -c -o test.o test.c -mcpu=cortex-m3 -mthumb -g -O0
+```
+Let us now decode the generated debug information, and see what it looks like.
+This is done with the `objdump` utility:
+```sh
+objdump -W test.o
+```
+Note that, because the *DWARF* debug information is by design independent
+of the target for which the program is compiled, I can use my native
+`objdump` utility (which in this case is for *x86* targets, instead
+of the longer to type `arm-none-eabi-objdump` compiled to target
+*Cortex-M* systems. When generating disassembly dumps later, though,
+I must of course use the 'proper objdump'.
+
+This is the decoded debug information:
+```
+
+test.o:     file format elf32-little
+
+Contents of the .debug_info section:
+
+  Compilation Unit @ offset 0x0:
+   Length:        0x78 (32-bit)
+   Version:       4
+   Abbrev Offset: 0x0
+   Pointer Size:  4
+ <0><b>: Abbrev Number: 1 (DW_TAG_compile_unit)
+    <c>   DW_AT_producer    : (indirect string, offset: 0x0): GNU C 4.9.3 20141119 (release) [ARM/embedded-4_9-branch revision 218278] -mcpu=cortex-m3 -mthumb -g -O0	
+    <10>   DW_AT_language    : 1	(ANSI C)
+    <11>   DW_AT_name        : (indirect string, offset: 0x7b): test.c	
+    <15>   DW_AT_comp_dir    : (indirect string, offset: 0x68): X:\troll\cxx-tests	
+    <19>   DW_AT_low_pc      : 0x0	
+    <1d>   DW_AT_high_pc     : 0x44	
+    <21>   DW_AT_stmt_list   : 0x0	
+ <1><25>: Abbrev Number: 2 (DW_TAG_subprogram)
+    <26>   DW_AT_name        : fib	
+    <2a>   DW_AT_decl_file   : 1	
+    <2b>   DW_AT_decl_line   : 4	
+    <2c>   DW_AT_prototyped  : 1	
+    <2c>   DW_AT_type        : <0x4b>	
+    <30>   DW_AT_low_pc      : 0x0	
+    <34>   DW_AT_high_pc     : 0x34	
+    <38>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+    <3a>   DW_AT_GNU_all_tail_call_sites: 1	
+    <3a>   DW_AT_sibling     : <0x4b>	
+ <2><3e>: Abbrev Number: 3 (DW_TAG_formal_parameter)
+    <3f>   DW_AT_name        : n	
+    <41>   DW_AT_decl_file   : 1	
+    <42>   DW_AT_decl_line   : 4	
+    <43>   DW_AT_type        : <0x4b>	
+    <47>   DW_AT_location    : 2 byte block: 91 6c 	(DW_OP_fbreg: -20)
+ <1><4b>: Abbrev Number: 4 (DW_TAG_base_type)
+    <4c>   DW_AT_byte_size   : 4	
+    <4d>   DW_AT_encoding    : 5	(signed)
+    <4e>   DW_AT_name        : int	
+ <1><52>: Abbrev Number: 5 (DW_TAG_subprogram)
+    <53>   DW_AT_external    : 1	
+    <53>   DW_AT_name        : (indirect string, offset: 0x82): main	
+    <57>   DW_AT_decl_file   : 1	
+    <58>   DW_AT_decl_line   : 11	
+    <59>   DW_AT_prototyped  : 1	
+    <59>   DW_AT_type        : <0x4b>	
+    <5d>   DW_AT_low_pc      : 0x34	
+    <61>   DW_AT_high_pc     : 0x10	
+    <65>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+    <67>   DW_AT_GNU_all_tail_call_sites: 1	
+ <1><67>: Abbrev Number: 6 (DW_TAG_variable)
+    <68>   DW_AT_name        : x	
+    <6a>   DW_AT_decl_file   : 1	
+    <6b>   DW_AT_decl_line   : 2	
+    <6c>   DW_AT_type        : <0x76>	
+    <70>   DW_AT_external    : 1	
+    <70>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
+ <1><76>: Abbrev Number: 7 (DW_TAG_volatile_type)
+    <77>   DW_AT_type        : <0x4b>	
+
+Contents of the .debug_abbrev section:
+
+  Number TAG (0x0)
+   1      DW_TAG_compile_unit    [has children]
+    DW_AT_producer     DW_FORM_strp
+    DW_AT_language     DW_FORM_data1
+    DW_AT_name         DW_FORM_strp
+    DW_AT_comp_dir     DW_FORM_strp
+    DW_AT_low_pc       DW_FORM_addr
+    DW_AT_high_pc      DW_FORM_data4
+    DW_AT_stmt_list    DW_FORM_sec_offset
+   2      DW_TAG_subprogram    [has children]
+    DW_AT_name         DW_FORM_string
+    DW_AT_decl_file    DW_FORM_data1
+    DW_AT_decl_line    DW_FORM_data1
+    DW_AT_prototyped   DW_FORM_flag_present
+    DW_AT_type         DW_FORM_ref4
+    DW_AT_low_pc       DW_FORM_addr
+    DW_AT_high_pc      DW_FORM_data4
+    DW_AT_frame_base   DW_FORM_exprloc
+    DW_AT_GNU_all_tail_call_sites DW_FORM_flag_present
+    DW_AT_sibling      DW_FORM_ref4
+   3      DW_TAG_formal_parameter    [no children]
+    DW_AT_name         DW_FORM_string
+    DW_AT_decl_file    DW_FORM_data1
+    DW_AT_decl_line    DW_FORM_data1
+    DW_AT_type         DW_FORM_ref4
+    DW_AT_location     DW_FORM_exprloc
+   4      DW_TAG_base_type    [no children]
+    DW_AT_byte_size    DW_FORM_data1
+    DW_AT_encoding     DW_FORM_data1
+    DW_AT_name         DW_FORM_string
+   5      DW_TAG_subprogram    [no children]
+    DW_AT_external     DW_FORM_flag_present
+    DW_AT_name         DW_FORM_strp
+    DW_AT_decl_file    DW_FORM_data1
+    DW_AT_decl_line    DW_FORM_data1
+    DW_AT_prototyped   DW_FORM_flag_present
+    DW_AT_type         DW_FORM_ref4
+    DW_AT_low_pc       DW_FORM_addr
+    DW_AT_high_pc      DW_FORM_data4
+    DW_AT_frame_base   DW_FORM_exprloc
+    DW_AT_GNU_all_tail_call_sites DW_FORM_flag_present
+   6      DW_TAG_variable    [no children]
+    DW_AT_name         DW_FORM_string
+    DW_AT_decl_file    DW_FORM_data1
+    DW_AT_decl_line    DW_FORM_data1
+    DW_AT_type         DW_FORM_ref4
+    DW_AT_external     DW_FORM_flag_present
+    DW_AT_location     DW_FORM_exprloc
+   7      DW_TAG_volatile_type    [no children]
+    DW_AT_type         DW_FORM_ref4
+
+Contents of the .debug_aranges section:
+
+  Length:                   28
+  Version:                  2
+  Offset into .debug_info:  0x0
+  Pointer Size:             4
+  Segment Size:             0
+
+    Address    Length
+    00000000 00000044 
+    00000000 00000000 
+
+Raw dump of debug contents of section .debug_line:
+
+  Offset:                      0x0
+  Length:                      55
+  DWARF Version:               2
+  Prologue Length:             29
+  Minimum Instruction Length:  2
+  Initial value of 'is_stmt':  1
+  Line Base:                   -5
+  Line Range:                  14
+  Opcode Base:                 13
+
+ Opcodes:
+  Opcode 1 has 0 args
+  Opcode 2 has 1 args
+  Opcode 3 has 1 args
+  Opcode 4 has 1 args
+  Opcode 5 has 1 args
+  Opcode 6 has 0 args
+  Opcode 7 has 0 args
+  Opcode 8 has 0 args
+  Opcode 9 has 1 args
+  Opcode 10 has 0 args
+  Opcode 11 has 0 args
+  Opcode 12 has 1 args
+
+ The Directory Table is empty.
+
+ The File Name Table:
+  Entry	Dir	Time	Size	Name
+  1	0	0	0	test.c
+
+ Line Number Statements:
+  Extended opcode 2: set Address to 0x0
+  Special opcode 9: advance Address by 0 to 0x0 and Line by 4 to 5
+  Special opcode 62: advance Address by 8 to 0x8 and Line by 1 to 6
+  Special opcode 48: advance Address by 6 to 0xe and Line by 1 to 7
+  Special opcode 34: advance Address by 4 to 0x12 and Line by 1 to 8
+  Special opcode 188: advance Address by 26 to 0x2c and Line by 1 to 9
+  Special opcode 64: advance Address by 8 to 0x34 and Line by 3 to 12
+  Special opcode 34: advance Address by 4 to 0x38 and Line by 1 to 13
+  Special opcode 62: advance Address by 8 to 0x40 and Line by 1 to 14
+  Advance PC by 4 to 0x44
+  Extended opcode 1: End of Sequence
+
+
+Contents of the .debug_str section:
+
+  0x00000000 474e5520 4320342e 392e3320 32303134 GNU C 4.9.3 2014
+  0x00000010 31313139 20287265 6c656173 6529205b 1119 (release) [
+  0x00000020 41524d2f 656d6265 64646564 2d345f39 ARM/embedded-4_9
+  0x00000030 2d627261 6e636820 72657669 73696f6e -branch revision
+  0x00000040 20323138 3237385d 202d6d63 70753d63  218278] -mcpu=c
+  0x00000050 6f727465 782d6d33 202d6d74 68756d62 ortex-m3 -mthumb
+  0x00000060 202d6720 2d4f3000 583a5c74 726f6c6c  -g -O0.X:\troll
+  0x00000070 5c637878 2d746573 74730074 6573742e \cxx-tests.test.
+  0x00000080 63006d61 696e00                     c.main.
+
+Contents of the .debug_frame section:
+
+00000000 0000000c ffffffff CIE
+  Version:               1
+  Augmentation:          ""
+  Code alignment factor: 2
+  Data alignment factor: -4
+  Return address column: 14
+
+  DW_CFA_def_cfa: r13 ofs 0
+
+00000010 00000024 00000000 FDE cie=00000000 pc=00000000..00000034
+  DW_CFA_advance_loc: 2 to 00000002
+  DW_CFA_def_cfa_offset: 12
+  DW_CFA_offset: r4 at cfa-12
+  DW_CFA_offset: r7 at cfa-8
+  DW_CFA_offset: r14 at cfa-4
+  DW_CFA_advance_loc: 2 to 00000004
+  DW_CFA_def_cfa_offset: 24
+  DW_CFA_advance_loc: 2 to 00000006
+  DW_CFA_def_cfa_register: r7
+  DW_CFA_advance_loc: 42 to 00000030
+  DW_CFA_def_cfa_offset: 12
+  DW_CFA_advance_loc: 2 to 00000032
+  DW_CFA_def_cfa_register: r13
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+
+00000038 00000018 00000000 FDE cie=00000000 pc=00000034..00000044
+  DW_CFA_advance_loc: 2 to 00000036
+  DW_CFA_def_cfa_offset: 8
+  DW_CFA_offset: r7 at cfa-8
+  DW_CFA_offset: r14 at cfa-4
+  DW_CFA_advance_loc: 2 to 00000038
+  DW_CFA_def_cfa_register: r7
+  DW_CFA_nop
+  DW_CFA_nop
+
+```
+
+
