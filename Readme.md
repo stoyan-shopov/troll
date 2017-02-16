@@ -421,46 +421,46 @@ corresponds to the source code:
 |    <1d>   DW_AT_high_pc     : 0x4c	
 |    <21>   DW_AT_stmt_list   : 0x0	
 +------> <1><25>: Abbrev Number: 2 (DW_TAG_subprogram)
-|	|   <26>   DW_AT_name        : fib	
-|	|   <2a>   DW_AT_decl_file   : 1	
-|	|   <2b>   DW_AT_decl_line   : 4	
-|	|   <2c>   DW_AT_prototyped  : 1	
-|	|   <2c>   DW_AT_type        : <0x4b>	
-|	|   <30>   DW_AT_low_pc      : 0x0	
-|	|   <34>   DW_AT_high_pc     : 0x34	
-|	|   <38>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
-|	|   <3a>   DW_AT_GNU_all_tail_call_sites: 1	
-|	|   <3a>   DW_AT_sibling     : <0x4b>	
-|	+------> <2><3e>: Abbrev Number: 3 (DW_TAG_formal_parameter)
-|		    <3f>   DW_AT_name        : n	
-|		    <41>   DW_AT_decl_file   : 1	
-|		    <42>   DW_AT_decl_line   : 4	
-|		    <43>   DW_AT_type        : <0x4b>	
-|		    <47>   DW_AT_location    : 2 byte block: 91 6c 	(DW_OP_fbreg: -20)
+|       |   <26>   DW_AT_name        : fib	
+|       |   <2a>   DW_AT_decl_file   : 1	
+|       |   <2b>   DW_AT_decl_line   : 4	
+|       |   <2c>   DW_AT_prototyped  : 1	
+|       |   <2c>   DW_AT_type        : <0x4b>	
+|       |   <30>   DW_AT_low_pc      : 0x0	
+|       |   <34>   DW_AT_high_pc     : 0x34	
+|       |   <38>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+|       |   <3a>   DW_AT_GNU_all_tail_call_sites: 1	
+|       |   <3a>   DW_AT_sibling     : <0x4b>	
+|       +------> <2><3e>: Abbrev Number: 3 (DW_TAG_formal_parameter)
+|                   <3f>   DW_AT_name        : n	
+|                   <41>   DW_AT_decl_file   : 1	
+|                   <42>   DW_AT_decl_line   : 4	
+|                   <43>   DW_AT_type        : <0x4b>	
+|                   <47>   DW_AT_location    : 2 byte block: 91 6c 	(DW_OP_fbreg: -20)
 +------> <1><4b>: Abbrev Number: 4 (DW_TAG_base_type)
-|	    <4c>   DW_AT_byte_size   : 4	
-|	    <4d>   DW_AT_encoding    : 5	(signed)
-|	    <4e>   DW_AT_name        : int	
+|           <4c>   DW_AT_byte_size   : 4	
+|           <4d>   DW_AT_encoding    : 5	(signed)
+|           <4e>   DW_AT_name        : int	
 +------> <1><52>: Abbrev Number: 5 (DW_TAG_subprogram)
-|	    <53>   DW_AT_external    : 1	
-|	    <53>   DW_AT_name        : (indirect string, offset: 0x82): main	
-|	    <57>   DW_AT_decl_file   : 1	
-|	    <58>   DW_AT_decl_line   : 11	
-|	    <59>   DW_AT_prototyped  : 1	
-|	    <59>   DW_AT_type        : <0x4b>	
-|	    <5d>   DW_AT_low_pc      : 0x34	
-|	    <61>   DW_AT_high_pc     : 0x18	
-|	    <65>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
-|	    <67>   DW_AT_GNU_all_tail_call_sites: 1	
+|           <53>   DW_AT_external    : 1	
+|           <53>   DW_AT_name        : (indirect string, offset: 0x82): main	
+|           <57>   DW_AT_decl_file   : 1	
+|           <58>   DW_AT_decl_line   : 11	
+|           <59>   DW_AT_prototyped  : 1	
+|           <59>   DW_AT_type        : <0x4b>	
+|           <5d>   DW_AT_low_pc      : 0x34	
+|           <61>   DW_AT_high_pc     : 0x18	
+|           <65>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+|           <67>   DW_AT_GNU_all_tail_call_sites: 1	
 +------> <1><67>: Abbrev Number: 6 (DW_TAG_variable)
-|	    <68>   DW_AT_name        : x	
-|	    <6a>   DW_AT_decl_file   : 1	
-|	    <6b>   DW_AT_decl_line   : 2	
-|	    <6c>   DW_AT_type        : <0x76>	
-|	    <70>   DW_AT_external    : 1	
-|	    <70>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
+|           <68>   DW_AT_name        : x	
+|           <6a>   DW_AT_decl_file   : 1	
+|           <6b>   DW_AT_decl_line   : 2	
+|           <6c>   DW_AT_type        : <0x76>	
+|           <70>   DW_AT_external    : 1	
+|           <70>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
 +------> <1><76>: Abbrev Number: 7 (DW_TAG_volatile_type)
-|	    <77>   DW_AT_type        : <0x4b>	
+|           <77>   DW_AT_type        : <0x4b>	
 +------> <1><7b>: Abbrev Number: 6 (DW_TAG_variable)
 	    <7c>   DW_AT_name        : y	
 	    <7e>   DW_AT_decl_file   : 1	
