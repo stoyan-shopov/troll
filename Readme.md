@@ -40,7 +40,7 @@ debug information for the following simple program:
 
 ```c
 
-volatile int x = 10;
+volatile int x = 10, y = 5;
 
 static int fib(int n)
 {
@@ -51,7 +51,7 @@ static int fib(int n)
 
 int main (void)
 {
-	return fib(2);
+	return fib(x);
 }
 
 ```
@@ -136,7 +136,7 @@ test.o:     file format elf32-little
 Contents of the .debug_info section:
 
   Compilation Unit @ offset 0x0:
-   Length:        0x78 (32-bit)
+   Length:        0x87 (32-bit)
    Version:       4
    Abbrev Offset: 0x0
    Pointer Size:  4
@@ -146,7 +146,7 @@ Contents of the .debug_info section:
     <11>   DW_AT_name        : (indirect string, offset: 0x7b): test.c	
     <15>   DW_AT_comp_dir    : (indirect string, offset: 0x68): X:\troll\cxx-tests	
     <19>   DW_AT_low_pc      : 0x0	
-    <1d>   DW_AT_high_pc     : 0x44	
+    <1d>   DW_AT_high_pc     : 0x4c	
     <21>   DW_AT_stmt_list   : 0x0	
  <1><25>: Abbrev Number: 2 (DW_TAG_subprogram)
     <26>   DW_AT_name        : fib	
@@ -177,7 +177,7 @@ Contents of the .debug_info section:
     <59>   DW_AT_prototyped  : 1	
     <59>   DW_AT_type        : <0x4b>	
     <5d>   DW_AT_low_pc      : 0x34	
-    <61>   DW_AT_high_pc     : 0x10	
+    <61>   DW_AT_high_pc     : 0x18	
     <65>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
     <67>   DW_AT_GNU_all_tail_call_sites: 1	
  <1><67>: Abbrev Number: 6 (DW_TAG_variable)
@@ -189,6 +189,13 @@ Contents of the .debug_info section:
     <70>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
  <1><76>: Abbrev Number: 7 (DW_TAG_volatile_type)
     <77>   DW_AT_type        : <0x4b>	
+ <1><7b>: Abbrev Number: 6 (DW_TAG_variable)
+    <7c>   DW_AT_name        : y	
+    <7e>   DW_AT_decl_file   : 1	
+    <7f>   DW_AT_decl_line   : 2	
+    <80>   DW_AT_type        : <0x76>	
+    <84>   DW_AT_external    : 1	
+    <84>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
 
 Contents of the .debug_abbrev section:
 
@@ -252,7 +259,7 @@ Contents of the .debug_aranges section:
   Segment Size:             0
 
     Address    Length
-    00000000 00000044 
+    00000000 0000004c 
     00000000 00000000 
 
 Raw dump of debug contents of section .debug_line:
@@ -296,8 +303,8 @@ Raw dump of debug contents of section .debug_line:
   Special opcode 188: advance Address by 26 to 0x2c and Line by 1 to 9
   Special opcode 64: advance Address by 8 to 0x34 and Line by 3 to 12
   Special opcode 34: advance Address by 4 to 0x38 and Line by 1 to 13
-  Special opcode 62: advance Address by 8 to 0x40 and Line by 1 to 14
-  Advance PC by 4 to 0x44
+  Special opcode 90: advance Address by 12 to 0x44 and Line by 1 to 14
+  Advance PC by 8 to 0x4c
   Extended opcode 1: End of Sequence
 
 
@@ -342,7 +349,7 @@ Contents of the .debug_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-00000038 00000018 00000000 FDE cie=00000000 pc=00000034..00000044
+00000038 00000018 00000000 FDE cie=00000000 pc=00000034..0000004c
   DW_CFA_advance_loc: 2 to 00000036
   DW_CFA_def_cfa_offset: 8
   DW_CFA_offset: r7 at cfa-8
@@ -355,88 +362,121 @@ Contents of the .debug_frame section:
 ```
 
 This is quite a lot of debug information generated for such a small program.
-I have indentted and reformatted the debug information tree for the
-program, so that it is more clear how the generated debug information
-corresponds to the source code:
+Let me repeat how the *DWARF* standard describes *DIEs*:
 
-```
-***<0><b>: Abbrev Number: 1 (DW_TAG_compile_unit)***
-	<c>   DW_AT_producer    : (indirect string, offset: 0x0): GNU C 4.9.3 20141119 (release) [ARM/embedded-4_9-branch revision 218278] -mcpu=cortex-m3 -mthumb -g -O0	
-	<10>   DW_AT_language    : 1	(ANSI C)
-	<11>   DW_AT_name        : (indirect string, offset: 0x7b): test.c	
-	<15>   DW_AT_comp_dir    : (indirect string, offset: 0x68): X:\troll\cxx-tests	
-	<19>   DW_AT_low_pc      : 0x0	
-	<1d>   DW_AT_high_pc     : 0x44	
-	<21>   DW_AT_stmt_list   : 0x0	
-
-		***<1><25>: Abbrev Number: 2 (DW_TAG_subprogram)***
-			<26>   DW_AT_name        : fib	
-			<2a>   DW_AT_decl_file   : 1	
-			<2b>   DW_AT_decl_line   : 4	
-			<2c>   DW_AT_prototyped  : 1	
-			<2c>   DW_AT_type        : <0x4b>	
-			<30>   DW_AT_low_pc      : 0x0	
-			<34>   DW_AT_high_pc     : 0x34	
-			<38>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
-			<3a>   DW_AT_GNU_all_tail_call_sites: 1	
-			<3a>   DW_AT_sibling     : <0x4b>	
-
-				***<2><3e>: Abbrev Number: 3 (DW_TAG_formal_parameter)***
-					<3f>   DW_AT_name        : n	
-					<41>   DW_AT_decl_file   : 1	
-					<42>   DW_AT_decl_line   : 4	
-					<43>   DW_AT_type        : <0x4b>	
-					<47>   DW_AT_location    : 2 byte block: 91 6c 	(DW_OP_fbreg: -20)
-
-		<1><4b>: Abbrev Number: 4 (DW_TAG_base_type)
-			<4c>   DW_AT_byte_size   : 4	
-			<4d>   DW_AT_encoding    : 5	(signed)
-			<4e>   DW_AT_name        : int	
-
-		<1><52>: Abbrev Number: 5 (DW_TAG_subprogram)
-			<53>   DW_AT_external    : 1	
-			<53>   DW_AT_name        : (indirect string, offset: 0x82): main	
-			<57>   DW_AT_decl_file   : 1	
-			<58>   DW_AT_decl_line   : 11	
-			<59>   DW_AT_prototyped  : 1	
-			<59>   DW_AT_type        : <0x4b>	
-			<5d>   DW_AT_low_pc      : 0x34	
-			<61>   DW_AT_high_pc     : 0x10	
-			<65>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
-			<67>   DW_AT_GNU_all_tail_call_sites: 1	
-
-		<1><67>: Abbrev Number: 6 (DW_TAG_variable)
-			<68>   DW_AT_name        : x	
-			<6a>   DW_AT_decl_file   : 1	
-			<6b>   DW_AT_decl_line   : 2	
-			<6c>   DW_AT_type        : <0x76>	
-			<70>   DW_AT_external    : 1	
-			<70>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
-
-		<1><76>: Abbrev Number: 7 (DW_TAG_volatile_type)
-			<77>   DW_AT_type        : <0x4b>	
-
-
-
-
-```
-
-
-
-
-
-
-
-
-
-
+> DWARF uses a series of debugging information entries (DIEs) to define a low-level
+> representation of a source program. Each debugging information entry consists of an identifying
+> ***tag*** and a series of ***attributes***. An entry, or group of entries together, provide a description of a
+> corresponding entity in the source program. The tag specifies the class to which an entry belongs
+> and the attributes define the specific characteristics of the entry.
 
 The debug information generated by the compiler resides in several
 sections in the *ELF* file created for a program. The most
-important sections of debug infomration are:
+important sections of debug information are:
 - .debug_info
 - .debug_abbrev
 - .debug_line
 - .debug_frame
 - .debug_loc
+These sections will be described in more detail below.
+
+In the `objdump` output of the decoded debug information, a *DIE* looks like this:
+```
+<0><b>: Abbrev Number: 1 (DW_TAG_compile_unit)
+```
+In this example, we have a compilation unit *DIE*.
+The first angle-bracketed number, in this example `<0>`, is the nesting level
+of the *DIE* in the debug information tree. As already said, a
+compilation unit *DIE* is the root of the debug information tree
+generated for a source code file during compilation, so
+as a root of the tree, the compilation unit *DIE* is at
+the outermost nesting level *0*. The second angle-bracketed number,
+in this example `<b>` (the number is in hexadecimal) is the
+offset of the *DIE* in the *.debug_info* section in the *ELF*
+file generated by the compiler. Because *DIEs* cannot physically
+overlap, ***it is important to understand that the DIE offset in
+the .debug_info section uniquely and unambiguously identifies
+a DIE***. Following in the `objdump` generated output is
+the *abbreviation number* of the *DIE*, in this case this
+is *abbreviation* number 1. As already said, a *DIE* has
+a ***tag***, and a series of ***attributes***. The ***tag***
+of a *DIE* denotes its type (e.g. a compilation unit, a subprogram,
+a variable, and many others). The ***attributes*** of a *DIE*
+give details relevant for the *DIE* - e.g. the name of the source
+code file that was compiled in order to generate the debug information
+tree of a compilation unit, the address of a variable,
+the name of a subprogram, and so on.
+
+I have reformatted the debug information tree for the sample
+program from above, so that it is more clear how the generated debug information
+corresponds to the source code:
+
+```
+| <0><b>: Abbrev Number: 1 (DW_TAG_compile_unit)
+|    <c>   DW_AT_producer    : (indirect string, offset: 0x0): GNU C 4.9.3 20141119 (release) [ARM/embedded-4_9-branch revision 218278] -mcpu=cortex-m3 -mthumb -g -O0	
+|    <10>   DW_AT_language    : 1	(ANSI C)
+|    <11>   DW_AT_name        : (indirect string, offset: 0x7b): test.c	
+|    <15>   DW_AT_comp_dir    : (indirect string, offset: 0x68): X:\troll\cxx-tests	
+|    <19>   DW_AT_low_pc      : 0x0	
+|    <1d>   DW_AT_high_pc     : 0x4c	
+|    <21>   DW_AT_stmt_list   : 0x0	
++------> <1><25>: Abbrev Number: 2 (DW_TAG_subprogram)
+|	|   <26>   DW_AT_name        : fib	
+|	|   <2a>   DW_AT_decl_file   : 1	
+|	|   <2b>   DW_AT_decl_line   : 4	
+|	|   <2c>   DW_AT_prototyped  : 1	
+|	|   <2c>   DW_AT_type        : <0x4b>	
+|	|   <30>   DW_AT_low_pc      : 0x0	
+|	|   <34>   DW_AT_high_pc     : 0x34	
+|	|   <38>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+|	|   <3a>   DW_AT_GNU_all_tail_call_sites: 1	
+|	|   <3a>   DW_AT_sibling     : <0x4b>	
+|	+------> <2><3e>: Abbrev Number: 3 (DW_TAG_formal_parameter)
+|		    <3f>   DW_AT_name        : n	
+|		    <41>   DW_AT_decl_file   : 1	
+|		    <42>   DW_AT_decl_line   : 4	
+|		    <43>   DW_AT_type        : <0x4b>	
+|		    <47>   DW_AT_location    : 2 byte block: 91 6c 	(DW_OP_fbreg: -20)
++------> <1><4b>: Abbrev Number: 4 (DW_TAG_base_type)
+|	    <4c>   DW_AT_byte_size   : 4	
+|	    <4d>   DW_AT_encoding    : 5	(signed)
+|	    <4e>   DW_AT_name        : int	
++------> <1><52>: Abbrev Number: 5 (DW_TAG_subprogram)
+|	    <53>   DW_AT_external    : 1	
+|	    <53>   DW_AT_name        : (indirect string, offset: 0x82): main	
+|	    <57>   DW_AT_decl_file   : 1	
+|	    <58>   DW_AT_decl_line   : 11	
+|	    <59>   DW_AT_prototyped  : 1	
+|	    <59>   DW_AT_type        : <0x4b>	
+|	    <5d>   DW_AT_low_pc      : 0x34	
+|	    <61>   DW_AT_high_pc     : 0x18	
+|	    <65>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+|	    <67>   DW_AT_GNU_all_tail_call_sites: 1	
++------> <1><67>: Abbrev Number: 6 (DW_TAG_variable)
+|	    <68>   DW_AT_name        : x	
+|	    <6a>   DW_AT_decl_file   : 1	
+|	    <6b>   DW_AT_decl_line   : 2	
+|	    <6c>   DW_AT_type        : <0x76>	
+|	    <70>   DW_AT_external    : 1	
+|	    <70>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
++------> <1><76>: Abbrev Number: 7 (DW_TAG_volatile_type)
+|	    <77>   DW_AT_type        : <0x4b>	
++------> <1><7b>: Abbrev Number: 6 (DW_TAG_variable)
+	    <7c>   DW_AT_name        : y	
+	    <7e>   DW_AT_decl_file   : 1	
+	    <7f>   DW_AT_decl_line   : 2	
+	    <80>   DW_AT_type        : <0x76>	
+	    <84>   DW_AT_external    : 1	
+	    <84>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
+```
+
+
+
+
+
+
+
+
+
+
 
