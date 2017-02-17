@@ -522,13 +522,48 @@ corresponds to the source code:
 	    <84>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
 ```
 
+Note that the sample program was compiled to an object file, and
+not to an executable file. That was done in order to prevent
+the linkage editor from running and linking in some necessary
+runtime code for the target, which would make the generated debug information
+larger. Compiling to an object file creates only debug
+information about the source code file being compiled, which is
+more convenient when first getting acquainted with *DWARF*.
+Also, as an object file contains unrelocated addresses,
+addresses of different entities in the debug information may coincide.
+This is normal, these addresses will get relocated when finally
+linking different object files to an executable file,
+and will then have distinct values.
 
-
-
-
-
-
-
-
-
+From looking at the debug information, we can conclude that the
+debug information tree is of a compilation unit that has been
+created from the source code file *test.c*
+(DW_AT_name : (indirect string, offset: 0x7b): test.c).
+The compilation unit was produced by the *gcc* compiler
+(DW_AT_producer : (indirect string, offset: 0x0): GNU C 4.9.3 20141119 (release) [ARM/embedded-4_9-branch revision 218278] -mcpu=cortex-m3 -mthumb -g -O0).
+The range of memory that this compilation unit occupies
+in the target is from address *0* to address *0x4c*
+(DW_AT_low_pc : 0x0, DW_AT_high_pc : 0x4c).
+The compilation unit contains:
+- a subprogram (at *DIE* offset *$25*) named **fib**,
+declared in file number *1*, on source code line number *4*,
+the range of machine-code instructions that the compiler
+has generated for this subprogram spans from address *0*
+to address *$34*. The return data type of this subprogram is
+described, by the *DIE* at offset *$4b* in the *.debug_info* section
+(DW_AT_type : <0x4b>). This subprogram has one child in the *DWARF*
+debug information tree, at offset *$3e*, and this child is a formal parameter with 
+the name **n**, which is stored in target memory at offset
+*-20* from the target-specific *frame base* register.
+(DW_AT_location : 2 byte block: 91 6c (DW_OP_fbreg: -20)).
+The data type of this formal parameter is described
+by the *DIE* at offset *$4b*
+- a *base type* at offset *$4b*, which in the source code has the
+name *int* (DW_AT_name : int), and is encoded in the target
+as a 4-byte signed integer (DW_AT_byte_size : 4, DW_AT_encoding : 5 (signed)).
+We already saw above that this *DIE* is referred from the
+subprogram **fib** and its formal parameter **n**, so it turns out
+that the return type of subprogram **fib**, as well as the
+type of its formal parameter **n**, is actually the *C* language
+type *int*						  
 
