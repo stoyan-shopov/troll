@@ -433,7 +433,7 @@ In this example, the bracketed number `<10>` is the offset in the
 `.debug_info` section, where the ***value*** of the specific
 *DWARF* ***attribute*** resides (remember, in the `objdump` dumps,
 all offsets in the `.debug_info` section are in hexadecimal, so in
-this example the hexadecimal number *$10* is the decimal number *#10*).
+this example the hexadecimal number *$10* is the decimal number *#16*).
 In this example, the string *DW_AT_language* is the ***attribute***
 ***name***. The ***attribute*** ***name*** is actually a constant
 defined in the *DWARF* standard (in this specific case, this is
@@ -514,12 +514,12 @@ corresponds to the source code:
 +------> <1><76>: Abbrev Number: 7 (DW_TAG_volatile_type)
 |           <77>   DW_AT_type        : <0x4b>	
 +------> <1><7b>: Abbrev Number: 6 (DW_TAG_variable)
-	    <7c>   DW_AT_name        : y	
-	    <7e>   DW_AT_decl_file   : 1	
-	    <7f>   DW_AT_decl_line   : 2	
-	    <80>   DW_AT_type        : <0x76>	
-	    <84>   DW_AT_external    : 1	
-	    <84>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
+            <7c>   DW_AT_name        : y	
+            <7e>   DW_AT_decl_file   : 1	
+            <7f>   DW_AT_decl_line   : 2	
+            <80>   DW_AT_type        : <0x76>	
+            <84>   DW_AT_external    : 1	
+            <84>   DW_AT_location    : 5 byte block: 3 0 0 0 0 	(DW_OP_addr: 0)
 ```
 
 Note that the sample program was compiled to an object file, and
