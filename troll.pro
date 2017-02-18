@@ -26,7 +26,8 @@ SOURCES +=\
     cortexm0-sfext.c \
     target-corefile.cxx \
     blackstrike.cxx \
-    registercache.cxx
+    registercache.cxx \
+    dwarf-evaluator.cxx
 
 HEADERS  += mainwindow.hxx \
     libtroll/dwarf.h \
@@ -41,7 +42,8 @@ HEADERS  += mainwindow.hxx \
     memory.hxx \
     s-record.hxx \
     flash-memory-writer.hxx \
-    disassembly.hxx
+    disassembly.hxx \
+    dwarf-evaluator.hxx
 
 FORMS    += mainwindow.ui \
     notification.ui
@@ -51,7 +53,8 @@ INCLUDEPATH += libtroll/ sforth/
 DEFINES += ENGINE_32BIT CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32
 
 DISTFILES += \
-    unwinder.fs
+    unwinder.fs \
+    dwarf-expression.fs
 
 RESOURCES += \
     resources.qrc

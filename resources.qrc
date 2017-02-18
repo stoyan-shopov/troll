@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/sforth">
         <file>unwinder.fs</file>
+        <file>dwarf-evaluator.fs</file>
     </qresource>
     <qresource prefix="/">
         <file>resources/images/stylesheet-branch-closed.png</file>

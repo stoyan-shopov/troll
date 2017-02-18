@@ -8,6 +8,7 @@
 #include "target-corefile.hxx"
 #include "blackstrike.hxx"
 #include "cortexm0.hxx"
+#include "dwarf-evaluator.hxx"
 #include "registercache.hxx"
 #include <QSerialPort>
 #include "s-record.hxx"
@@ -51,6 +52,7 @@ class MainWindow : public QMainWindow
 	RegisterCache	* register_cache;
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
+	DwarfEvaluator	* dwarf_evaluator;
 	SRecordMemoryData s_record_file;
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	void displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString &compilation_directory, int highlighted_line);

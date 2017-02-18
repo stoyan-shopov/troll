@@ -25,6 +25,8 @@ swap constant register-count
 -1 value cfa-register-offset
 \ the computed cfa value
 -1 value cfa-value
+: fetch-cfa-value ( -- cfa-value)
+	cfa-value ;
 0 value cfa-rule-xt
 : invalid-unwind-rule ( --)
 	panic ;

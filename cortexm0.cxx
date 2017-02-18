@@ -65,7 +65,7 @@ uint32_t cfa;
 	}
 	if (r.size() != 1 || r.at(0) != 0xffffffff)
 		return false;
-	sforth->evaluate("cfa-value\n");
+	sforth->evaluate("fetch-cfa-value\n");
 	if ((r = sforth->getResults(1)).size() != 1)
 		return false;
 	cfa = r.at(0);

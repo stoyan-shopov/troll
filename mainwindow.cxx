@@ -460,6 +460,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 	cortexm0 = new CortexM0(sforth, target);
+	dwarf_evaluator = new DwarfEvaluator(sforth);
 	register_cache = new RegisterCache();
 	cortexm0->primeUnwinder();
 	for (int row(0); row < CortexM0::registerCount(); row ++)
