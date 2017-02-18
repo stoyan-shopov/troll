@@ -1389,13 +1389,13 @@ public:
 		cu_die_offset += /* discard the compilation unit header */ 11;
 		auto debug_tree = debug_tree_of_die(cu_die_offset);
 		int i(0);
-		std::vector<struct Die> & die_list(debug_tree);
-		while (i < die_list.size())
-			if (isAddressInRange(die_list.at(i), address, debug_tree.at(0)))
+		std::vector<struct Die> * die_list(& debug_tree);
+		while (i < die_list->size())
+			if (isAddressInRange(die_list->at(i), address, debug_tree.at(0)))
 			{
-				context.push_back(die_list.at(i));
+				context.push_back(die_list->at(i));
+				die_list = & die_list->at(i).children;
 				i = 0;
-				die_list = die_list.at(i).children;
 			}
 			else
 				i ++;
