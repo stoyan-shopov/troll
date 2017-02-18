@@ -62,7 +62,7 @@ break;
 	return n;
 }
 
-void MainWindow::displaySourceCodeFile(const QString & source_filename, const QString & directory_name, int highlighted_line)
+void MainWindow::displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString & compilation_directory, int highlighted_line)
 {
 QTime stime;
 stime.start();
@@ -71,10 +71,14 @@ QString t;
 QTextBlockFormat f;
 QTime x;
 int i, cursor_position_for_line(0);
-int row(ui->tableWidgetBacktrace->currentRow());
+QFileInfo finfo(directory_name + "/" + source_filename);
 
+	if (!finfo.exists())
+		finfo.setFile(compilation_directory + "/" + source_filename);
+	if (!finfo.exists())
+		finfo.setFile(compilation_directory + "/" + directory_name + "/" + source_filename);
 	ui->plainTextEdit->clear();
-	src.setFileName(directory_name + "/" + source_filename);
+	src.setFileName(finfo.canonicalFilePath());
 	
 	std::vector<struct DebugLine::lineAddress> line_addresses;
 	x.start();
@@ -383,7 +387,9 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
-	elf_filename = "KFM224.elf";
+	elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
+	//elf_filename = "x:/troll/cxx-tests/test-opt";
+	//elf_filename = "KFM224.elf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
@@ -556,7 +562,7 @@ if (!ui->tableWidgetBacktrace->item(row, 0))
 }
 uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
 
-	displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt());
+	displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), QString(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt());
 	x.start();
 	auto context = dwdata->executionContextForAddress(pc);
 	auto locals = dwdata->localDataObjectsForContext(context);
@@ -814,5 +820,7 @@ void MainWindow::on_actionRead_state_triggered()
 void MainWindow::on_tableWidgetFiles_itemSelectionChanged()
 {
 int row(ui->tableWidgetFiles->currentRow());
-	displaySourceCodeFile(ui->tableWidgetFiles->item(row, 0)->text(), ui->tableWidgetFiles->item(row, 2)->text() + "/" + ui->tableWidgetFiles->item(row, 1)->text(), 0);
+	displaySourceCodeFile(ui->tableWidgetFiles->item(row, 0)->text(),
+		ui->tableWidgetFiles->item(row, 1)->text(),
+		ui->tableWidgetFiles->item(row, 2)->text(), 0);
 }
