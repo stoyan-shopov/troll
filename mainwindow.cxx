@@ -13,7 +13,7 @@
 
 #include "flash-memory-writer.hxx"
 
-#define DEBUG_BACKTRACE		0
+#define DEBUG_BACKTRACE		1
 
 
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
@@ -158,8 +158,9 @@ void MainWindow::backtrace()
 	cortexm0->primeUnwinder();
 	register_cache->clear();
 	register_cache->pushFrame(cortexm0->getRegisters());
-	uint32_t last_pc;
+	uint32_t last_pc, last_cfa;
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
+	last_cfa = cortexm0->cfaValue();
 	int row;
 	
 	if (DEBUG_BACKTRACE) qDebug() << "backtrace:";
@@ -171,6 +172,7 @@ void MainWindow::backtrace()
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
 		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
 		if (DEBUG_BACKTRACE) qDebug() << x.file_name << (signed) x.line;
+		if (DEBUG_BACKTRACE) qDebug() << "dwarf unwind program:" << QString::fromStdString(unwind_data.first) << "address:" << unwind_data.second;
 
 		if (DEBUG_BACKTRACE) qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(context.back()));
 		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
@@ -194,9 +196,10 @@ void MainWindow::backtrace()
 				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("architecture-specific unwinding performed"));
 			}
 		}
-		if (last_pc == cortexm0->programCounter())
+		if (last_pc == cortexm0->programCounter() && last_cfa == cortexm0->cfaValue())
 			break;
 		last_pc = cortexm0->programCounter();
+		last_cfa = cortexm0->cfaValue();
 	}
 	if (DEBUG_BACKTRACE) qDebug() << "registers: " << cortexm0->getRegisters();
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
@@ -457,7 +460,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 	cortexm0 = new CortexM0(sforth, target);
-	register_cache = new RegisterCache(cortexm0->cfaRegisterNumber());
+	register_cache = new RegisterCache();
 	cortexm0->primeUnwinder();
 	for (int row(0); row < CortexM0::registerCount(); row ++)
 	{
