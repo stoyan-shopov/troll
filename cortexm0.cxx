@@ -12,7 +12,9 @@ void do_target_fetch(void)	{ auto x = sforth->getResults(1); if (x.size() != 1) 
 void do_panic(void)		{ Util::panic(); }
 }
 
-const int CortexM0::register_count = 16, CortexM0::program_counter_register_number = 15,
+const int CortexM0::register_count = 16,
+	CortexM0::program_counter_register_number = 15,
+	CortexM0::stack_pointer_register_number = 13,
 	CortexM0::return_address_register_number = /*! \todo	extract this from the .debug_frame dwarf cie program */ 14,
 	CortexM0::cfa_register_number = /*! \todo	extract this from the .debug_frame dwarf cie program */ 13;
 

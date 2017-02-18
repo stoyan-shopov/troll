@@ -3,8 +3,6 @@
 .( compiling dwarf expression evaluator)cr
 unused
 
-
-
 : vector ( --)
 	create 0 , does> @ execute ;
 : >vector ( xt name --)
@@ -36,5 +34,9 @@ vector frame-base-rule
 : DW_OP_stack_value ( x -- x)
 	depth 1 <> abort" bad stack"
 	true to ?stack-value ;
+	
+: init-dwarf-evaluator ( --)
+	['] frame-base-undefined ['] frame-base-rule >body !
+	false to ?stack-value ;
 
 .( dwarf expression evaluator compiled ) unused - . .( bytes used) cr

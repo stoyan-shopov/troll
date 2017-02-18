@@ -7,9 +7,10 @@
 class DwarfEvaluator
 {
 private:
-	Sforth	* sforh;
+	Sforth	* sforth;
 public:
 	DwarfEvaluator(class Sforth * sforth);
+	void evaluateLocation(uint32_t cfa_value, const QString & frameBaseSforthCode, const QString & locationSforthCode);
 };
 
 #endif // DWARFEXPRESSION_HXX

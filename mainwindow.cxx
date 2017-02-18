@@ -158,9 +158,9 @@ void MainWindow::backtrace()
 	cortexm0->primeUnwinder();
 	register_cache->clear();
 	register_cache->pushFrame(cortexm0->getRegisters());
-	uint32_t last_pc, last_cfa;
+	uint32_t last_pc, last_stack_pointer;
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
-	last_cfa = cortexm0->cfaValue();
+	last_stack_pointer = cortexm0->stackPointerValue();
 	int row;
 	
 	if (DEBUG_BACKTRACE) qDebug() << "backtrace:";
@@ -196,10 +196,10 @@ void MainWindow::backtrace()
 				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("architecture-specific unwinding performed"));
 			}
 		}
-		if (last_pc == cortexm0->programCounter() && last_cfa == cortexm0->cfaValue())
+		if (last_pc == cortexm0->programCounter() && last_stack_pointer == cortexm0->stackPointerValue())
 			break;
 		last_pc = cortexm0->programCounter();
-		last_cfa = cortexm0->cfaValue();
+		last_stack_pointer = cortexm0->stackPointerValue();
 	}
 	if (DEBUG_BACKTRACE) qDebug() << "registers: " << cortexm0->getRegisters();
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
@@ -564,6 +564,9 @@ if (!ui->tableWidgetBacktrace->item(row, 0))
 	ui->plainTextEdit->appendPlainText("singularity; context undefined");
 	return;
 }
+uint32_t cfa_value = register_cache->registerFrame(row + 1).at(13);
+auto frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 6)->text();
+QString locationSforthCode;
 uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
 
 	displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), QString(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt());
@@ -577,11 +580,18 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		std::vector<DwarfTypeNode> type_cache;
 		dwdata->readType(locals.at(i).offset, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
-		ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc))));
-		if (ui->tableWidgetLocalVariables->item(row, 2)->text().isEmpty())
+		locationSforthCode = QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc));
+		dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
+		auto x = sforth->getResults(1);
+		if (x.size() != 1)
+			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem("cannot evaluate"));
+		else
+			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(x.at(0))));
+		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(locationSforthCode));
+		if (ui->tableWidgetLocalVariables->item(row, 3)->text().isEmpty())
 			/* the data object may have been evaluated as a compile-time constant - try that */
-			ui->tableWidgetLocalVariables->item(row, 2)->setText(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc, DW_AT_const_value)));
-		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
+			ui->tableWidgetLocalVariables->item(row, 3)->setText(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc, DW_AT_const_value)));
+		ui->tableWidgetLocalVariables->setItem(row, 4, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
 	}
 	ui->tableWidgetLocalVariables->resizeColumnsToContents();
 	ui->tableWidgetLocalVariables->resizeRowsToContents();

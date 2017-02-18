@@ -14,7 +14,7 @@
    <string>troll debugger</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <property name="spacing">
      <number>0</number>
     </property>
@@ -31,7 +31,21 @@
      <number>0</number>
     </property>
     <item>
-     <widget class="QLineEdit" name="lineEditSforthCommand"/>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLineEdit" name="lineEditSforthCommand"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton">
+        <property name="text">
+         <string>clear</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item>
      <widget class="QSplitter" name="splitterMain">
@@ -431,6 +445,11 @@
        </column>
        <column>
         <property name="text">
+         <string>location</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
          <string>dwarf location</string>
         </property>
        </column>
@@ -673,7 +692,24 @@
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>pushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>plainTextEditSforthConsole</receiver>
+   <slot>clear()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>568</x>
+     <y>56</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>566</x>
+     <y>140</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
  <slots>
   <slot>blackstrikeConnect(QAction*)</slot>
   <slot>on_tableWidgetStaticDataObjects_itemSelectionChanged()</slot>

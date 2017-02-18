@@ -1424,7 +1424,8 @@ public:
 		qDebug() << QString::fromStdString(frame_base);
 		return frame_base;
 	}
-	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, const struct Die & compilation_unit_die)
+	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, 
+		/*! \todo	remove this parameter!!! */const struct Die & compilation_unit_die)
 	{
 		SourceCodeCoordinates s;
 		uint32_t file_number;
