@@ -20,6 +20,16 @@ vector frame-base-rule
 	frame-base-value ;
 : frame-base-undefined ( --)
 	panic ;
+	
+\ these constants define the type of the computed expression:
+\ a constant, a memory address, or a register number
+1 constant expression-is-a-constant
+2 constant expression-is-a-memory-address
+3 constant expression-is-a-register-number
+\ at the end of an expression evaluation, this variable
+\ holds the computed expression type
+0 value expression-value-type
+
 
 0 value cfa-value
 : DW_OP_call_frame_cfa ( -- cfa-value)
@@ -32,14 +42,17 @@ vector frame-base-rule
 : DW_OP_plus_uconst ( x y -- x + y)
 	+ ;
 	
-: DW_OP_regx ( register-number -- register-value)
-	tr@ ;
+: DW_OP_regx ( register-number -- register-number)
+	expression-is-a-register-number to expression-value-type ;
 : DW_OP_stack_value ( x -- x)
 	depth 1 <> abort" bad stack"
+	expression-is-a-constant to expression-value-type
 	true to ?stack-value ;
 	
 : init-dwarf-evaluator ( --)
 	['] frame-base-undefined ['] frame-base-rule >body !
+	\ by default - make the dwarf expression value a memory address
+	expression-is-a-memory-address to expression-value-type
 	false to ?stack-value ;
 
 .( dwarf expression evaluator compiled, ) unused - . .( bytes used) cr

@@ -407,8 +407,9 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
-	elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
+	//elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
 	//elf_filename = "x:/troll/cxx-tests/test-opt";
+	elf_filename = "usb-cdc-acm.elf";
 	//elf_filename = "KFM224.elf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
@@ -598,12 +599,21 @@ uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0
 		dwdata->readType(locals.at(i).offset, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
 		locationSforthCode = QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc));
-		dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
-		auto x = sforth->getResults(1);
-		if (x.size() != 1)
+		auto x = dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
+		if (x.type == DwarfEvaluator::INVALID)
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem("cannot evaluate"));
 		else
-			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(x.at(0))));
+		{
+			QString prefix;
+			int base = 16, width = 0;
+			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
+				prefix = "@$", width = 8;
+			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
+				prefix = "#r";
+			else
+				base = 10;
+			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem((prefix + "%1").arg(x.value, width, base)));
+		}
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(locationSforthCode));
 		if (ui->tableWidgetLocalVariables->item(row, 3)->text().isEmpty())
 			/* the data object may have been evaluated as a compile-time constant - try that */
