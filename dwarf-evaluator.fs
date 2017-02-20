@@ -31,6 +31,9 @@ vector frame-base-rule
 	t@ ;
 : DW_OP_plus_uconst ( x y -- x + y)
 	+ ;
+	
+: DW_OP_regx ( register-number -- register-value)
+	tr@ ;
 : DW_OP_stack_value ( x -- x)
 	depth 1 <> abort" bad stack"
 	true to ?stack-value ;
@@ -39,4 +42,4 @@ vector frame-base-rule
 	['] frame-base-undefined ['] frame-base-rule >body !
 	false to ?stack-value ;
 
-.( dwarf expression evaluator compiled ) unused - . .( bytes used) cr
+.( dwarf expression evaluator compiled, ) unused - . .( bytes used) cr
