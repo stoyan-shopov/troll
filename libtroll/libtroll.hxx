@@ -203,8 +203,6 @@ public:
 			panic();
 		}
 	}
-	static bool isDataObject(uint32_t tag) { return tag == DW_TAG_variable; }
-	static bool isSubprogram(uint32_t tag) { return tag == DW_TAG_subprogram || tag == DW_TAG_inlined_subroutine; }
 	static bool isLocationConstant(uint32_t location_attribute_form, const uint8_t * debug_info_bytes, uint32_t & address)
 	{
 		switch (location_attribute_form)
@@ -238,7 +236,9 @@ struct Die
 	std::vector<struct Die> children;
 	Die(uint32_t tag, uint32_t offset, uint32_t abbrev_offset){ this->tag = tag, this->offset = offset, this->abbrev_offset = abbrev_offset; }
 	Die(){ tag = offset = abbrev_offset = 0; }
-	bool isSubprogram(void) { return tag == DW_TAG_subprogram || tag == DW_TAG_inlined_subroutine; }
+	bool isSubprogram(void) const { return tag == DW_TAG_subprogram || tag == DW_TAG_inlined_subroutine; }
+	bool isDataObject(void) const { return tag == DW_TAG_variable || tag == DW_TAG_formal_parameter; }
+	bool isLexicalBlock(void) const { return tag == DW_TAG_lexical_block; }
 };
 
 /* !!! warning - this can generally be a circular graph - beware of recursion when processing !!! */
@@ -1405,16 +1405,12 @@ public:
 	std::vector<struct Die> localDataObjectsForContext(const std::vector<struct Die> & context)
 	{
 	std::vector<struct Die> locals;
-	int i, j, tag;
+	int i, j;
 		for (i = context.size() - 1; i >= 0; i --)
-			if ((tag = context.at(i).tag == DW_TAG_subprogram) || tag == DW_TAG_lexical_block)
+			if (context.at(i).isSubprogram() || context.at(i).isLexicalBlock() )
 				for (j = 0; j < context.at(i).children.size(); j ++)
-					switch (context.at(i).children.at(j).tag)
-					{
-						case DW_TAG_variable:
-						case DW_TAG_formal_parameter:
-							locals.push_back(context.at(i).children.at(j));
-					}
+					if (context.at(i).children.at(j).isDataObject())
+						locals.push_back(context.at(i).children.at(j));
 		return locals;
 	}
 	std::string sforthCodeFrameBaseForContext(const std::vector<struct Die> & context)
@@ -1736,8 +1732,10 @@ if (is_prefix_printed)
 		 * DW_AT_byte_size value for pointers */
 		if (type.at(node_number).die.tag == DW_TAG_pointer_type)
 			return sizeof(uint32_t);
+		/*! \todo	why is this here??? remove this!!!
 		if (type.at(node_number).die.tag == DW_TAG_subprogram)
 			return sizeof(uint32_t);
+			*/
 		
 		return sizeOf(type, type.at(node_number).next);
 	}
@@ -1983,7 +1981,7 @@ private:
 	                       const struct Die & die)
 	{
 		int i;
-		if (DwarfUtil::isDataObject(die.tag))
+		if (die.isDataObject())
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			uint32_t address;
@@ -1996,7 +1994,7 @@ private:
 				data_objects.push_back(x);
 			}
 		}
-		else if (DwarfUtil::isSubprogram(die.tag))
+		else if (die.isSubprogram())
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			auto x = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
