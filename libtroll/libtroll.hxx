@@ -237,6 +237,8 @@ struct Die
 	Die(uint32_t tag, uint32_t offset, uint32_t abbrev_offset){ this->tag = tag, this->offset = offset, this->abbrev_offset = abbrev_offset; }
 	Die(){ tag = offset = abbrev_offset = 0; }
 	bool isSubprogram(void) const { return tag == DW_TAG_subprogram || tag == DW_TAG_inlined_subroutine; }
+	bool isInlinedSubprogram(void) const { return tag == DW_TAG_inlined_subroutine; }
+	bool isNonInlinedSubprogram(void) const { return tag == DW_TAG_subprogram; }
 	bool isDataObject(void) const { return tag == DW_TAG_variable || tag == DW_TAG_formal_parameter; }
 	bool isLexicalBlock(void) const { return tag == DW_TAG_lexical_block; }
 };
@@ -1401,6 +1403,23 @@ public:
 			else
 				i ++;
 		return context;
+	}
+	std::vector<struct Die> inliningChainOfContext(const std::vector<struct Die> & context)
+	{
+		std::vector<struct Die> inlining_chain;
+		int i;
+		for (i = context.size() - 1; i >= 0 && !context.at(i).isNonInlinedSubprogram(); i --)
+			if (context.at(i).isInlinedSubprogram())
+				inlining_chain.push_back(context.at(i));
+		return inlining_chain;
+	}
+	const struct Die & topLevelSubprogramOfContext(const std::vector<struct Die> & context)
+	{
+		int i;
+		for (i = 0; i < context.size(); i++)
+			if (context.at(i).isNonInlinedSubprogram())
+				return context.at(i);
+		DwarfUtil::panic();
 	}
 	std::vector<struct Die> localDataObjectsForContext(const std::vector<struct Die> & context)
 	{

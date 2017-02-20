@@ -169,45 +169,48 @@ void MainWindow::backtrace()
 	ui->tableWidgetBacktrace->blockSignals(false);
 	while (context.size())
 	{
+		auto subprogram = dwdata->topLevelSubprogramOfContext(context);
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
 		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
 		if (DEBUG_BACKTRACE) qDebug() << x.file_name << (signed) x.line;
 		if (DEBUG_BACKTRACE) qDebug() << "dwarf unwind program:" << QString::fromStdString(unwind_data.first) << "address:" << unwind_data.second;
 
-		if (DEBUG_BACKTRACE) qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(context.back()));
+		if (DEBUG_BACKTRACE) qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(subprogram));
 		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 		ui->tableWidgetBacktrace->setItem(row, 0, new QTableWidgetItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0'))));
-		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString(dwdata->nameOfDie(context.back()))));
+		ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem(QString("%1").arg(register_cache->frameCount())));
+		ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache->frameCount() - 1);
+		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString(dwdata->nameOfDie(subprogram))));
 		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.file_name)));
 		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
 		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.compilation_directory_name) + "/" + QString::fromStdString(x.directory_name)));
-		ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(context.back().offset, 0, 16)));
+		ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(subprogram.offset, 0, 16)));
 		ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context))));
 		
+		int i;
+		auto inlining_chain = dwdata->inliningChainOfContext(context);
+		for (i = inlining_chain.size() - 1; i >= 0; i --)
 		{
-			int i;
-			for (i = context.size() - 1; i >= 0; i --)
-				if (context.at(i).isSubprogram())
-				{
-					ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
-					ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(dwdata->nameOfDie(context.at(i))));
-					ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(context.at(i).offset, 0, 16)));
-					/* for inlined subprograms - create a dummy stack frame - duplicate the current stack frame */
-					register_cache->pushFrame(cortexm0->getRegisters());
-				}
+			ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
+			ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem("inlined"));
+			ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache->frameCount() - 1);
+			ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(dwdata->nameOfDie(inlining_chain.at(i))));
+			ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(inlining_chain.at(i).offset, 0, 16)));
 		}
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter()), register_cache->pushFrame(cortexm0->getRegisters());
 		if (context.empty() && cortexm0->architecturalUnwind())
 		{
-			register_cache->pushFrame(cortexm0->getRegisters());
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 			if (!context.empty())
 			{
 				if (DEBUG_BACKTRACE) qDebug() << "architecture-specific unwinding performed";
+				register_cache->pushFrame(cortexm0->getRegisters());
 				ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("architecture-specific unwinding performed"));
+				ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem(QString("%1 (singularity)").arg(register_cache->frameCount() - 1)));
+				ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache->frameCount() - 2);
 			}
 		}
 		if (last_pc == cortexm0->programCounter() && last_stack_pointer == cortexm0->stackPointerValue())
@@ -570,15 +573,15 @@ void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 {
 QTime x;
 int i;
-int row(ui->tableWidgetBacktrace->currentRow());
-updateRegisterView(row);
+int row(ui->tableWidgetBacktrace->currentRow()), frame_number = ui->tableWidgetBacktrace->verticalHeaderItem(row)->data(Qt::UserRole).toInt();
+updateRegisterView(frame_number);
 ui->tableWidgetLocalVariables->setRowCount(0);
 if (!ui->tableWidgetBacktrace->item(row, 0))
 {
 	ui->plainTextEdit->setPlainText("singularity; context undefined");
 	return;
 }
-uint32_t cfa_value = register_cache->registerFrame(row + 1).at(13);
+uint32_t cfa_value = register_cache->registerFrame(frame_number + 1).at(13);
 auto frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 6)->text();
 QString locationSforthCode;
 uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
