@@ -181,7 +181,21 @@ void MainWindow::backtrace()
 		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.file_name)));
 		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
 		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.compilation_directory_name) + "/" + QString::fromStdString(x.directory_name)));
+		ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(context.back().offset, 0, 16)));
 		ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context))));
+		
+		{
+			int i;
+			for (i = context.size() - 1; i >= 0; i --)
+				if (context.at(i).isSubprogram())
+				{
+					ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
+					ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(dwdata->nameOfDie(context.at(i))));
+					ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(context.at(i).offset, 0, 16)));
+					/* for inlined subprograms - create a dummy stack frame - duplicate the current stack frame */
+					register_cache->pushFrame(cortexm0->getRegisters());
+				}
+		}
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
 			context = dwdata->executionContextForAddress(cortexm0->programCounter()), register_cache->pushFrame(cortexm0->getRegisters());
@@ -561,7 +575,7 @@ updateRegisterView(row);
 ui->tableWidgetLocalVariables->setRowCount(0);
 if (!ui->tableWidgetBacktrace->item(row, 0))
 {
-	ui->plainTextEdit->appendPlainText("singularity; context undefined");
+	ui->plainTextEdit->setPlainText("singularity; context undefined");
 	return;
 }
 uint32_t cfa_value = register_cache->registerFrame(row + 1).at(13);

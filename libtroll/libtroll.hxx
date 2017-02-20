@@ -238,6 +238,7 @@ struct Die
 	std::vector<struct Die> children;
 	Die(uint32_t tag, uint32_t offset, uint32_t abbrev_offset){ this->tag = tag, this->offset = offset, this->abbrev_offset = abbrev_offset; }
 	Die(){ tag = offset = abbrev_offset = 0; }
+	bool isSubprogram(void) { return tag == DW_TAG_subprogram || tag == DW_TAG_inlined_subroutine; }
 };
 
 /* !!! warning - this can generally be a circular graph - beware of recursion when processing !!! */
