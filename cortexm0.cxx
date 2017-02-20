@@ -8,7 +8,8 @@ static Sforth		* sforth;
 
 extern "C"
 {
-void do_target_fetch(void)	{ auto x = sforth->getResults(1); if (x.size() != 1) Util::panic(); sforth->push(target->readWord(x.at(0))); }
+void do_target_fetch(void)		{ auto x = sforth->getResults(1); if (x.size() != 1) Util::panic(); sforth->push(target->readWord(x.at(0))); }
+void do_target_register_fetch(void)	{ auto x = sforth->getResults(1); if (x.size() != 1) Util::panic(); sforth->push(target->readRegister(x.at(0))); }
 void do_panic(void)		{ Util::panic(); }
 }
 
