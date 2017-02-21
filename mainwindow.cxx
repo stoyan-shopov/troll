@@ -153,6 +153,7 @@ QFileInfo finfo(directory_name + "/" + source_filename);
 	last_source_filename = source_filename;
 	last_directory_name = directory_name;
 	last_compilation_directory = compilation_directory;
+	last_highlighted_line = highlighted_line;
 }
 
 void MainWindow::backtrace()
@@ -414,7 +415,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	//elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
 	//elf_filename = "x:/troll/cxx-tests/test-opt";
 	//elf_filename = "usb-cdc-acm.elf";
-	elf_filename = "KFM224.elf";
+	//elf_filename = "KFM224.elf";
+	elf_filename = "X:/sforth-troll/sf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
@@ -544,7 +546,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "debugger startup time:" << profiling.debugger_startup_time << "milliseconds";
 
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
-	connect(ui->actionShow_disassembly_address_ranges, SIGNAL(triggered(bool)), this, SLOT(on_tableWidgetBacktrace_itemSelectionChanged()));
 	
 	std::vector<DebugLine::sourceFileNames> sources;
 	dwdata->getFileAndDirectoryNamesPointers(sources);
@@ -682,9 +683,12 @@ QSettings s("troll.rc", QSettings::IniFormat);
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
 bool result = true;
+static unsigned accumulator;
 	if (event->type() == QEvent::KeyPress)
 	{
 		QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+		if (Qt::Key_0 <= keyEvent->key() && keyEvent->key() <= Qt::Key_9)
+			accumulator *= 10, accumulator += keyEvent->key() - Qt::Key_0;
 		switch (keyEvent->key())
 		{
 			case Qt::Key_Space:
@@ -702,9 +706,20 @@ bool result = true;
 					auto x = dwdata->addressesForFileAndNumber(last_source_filename.toLocal8Bit().constData(), i);
 					for (i = 0; i < x.size(); i ++)
 						qDebug() << QString("$%1").arg(x.at(i), 0, 16);
+					qDebug() << x.size() << "total";
 				}
 			}
 				break;
+		case Qt::Key_G:
+			{
+			auto c = ui->plainTextEdit->textCursor();
+				c.movePosition(QTextCursor::Start);
+				c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, -- accumulator);
+				ui->plainTextEdit->setTextCursor(c);
+				ui->plainTextEdit->centerCursor();
+				accumulator = 0;
+			}
+			break;
 			default:
 				result = false;
 		}
@@ -904,4 +919,9 @@ int row(ui->tableWidgetFiles->currentRow());
 	displaySourceCodeFile(ui->tableWidgetFiles->item(row, 0)->text(),
 		ui->tableWidgetFiles->item(row, 1)->text(),
 		ui->tableWidgetFiles->item(row, 2)->text(), 0);
+}
+
+void MainWindow::on_actionShow_disassembly_address_ranges_triggered()
+{
+	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line);
 }
