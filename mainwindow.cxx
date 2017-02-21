@@ -10,6 +10,7 @@
 #include <QSerialPortInfo>
 #include <QSettings>
 #include <QDir>
+#include <QTextBlock>
 
 #include "flash-memory-writer.hxx"
 
@@ -149,6 +150,9 @@ QFileInfo finfo(directory_name + "/" + source_filename);
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
 		profiling.max_context_view_generation_time = stime.elapsed();
+	last_source_filename = source_filename;
+	last_directory_name = directory_name;
+	last_compilation_directory = compilation_directory;
 }
 
 void MainWindow::backtrace()
@@ -409,8 +413,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	//elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
 	//elf_filename = "x:/troll/cxx-tests/test-opt";
-	elf_filename = "usb-cdc-acm.elf";
-	//elf_filename = "KFM224.elf";
+	//elf_filename = "usb-cdc-acm.elf";
+	elf_filename = "KFM224.elf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
@@ -557,6 +561,8 @@ MainWindow::MainWindow(QWidget *parent) :
 		row ++;
 	}
 	ui->tableWidgetFiles->sortItems(0);
+	
+	ui->plainTextEdit->installEventFilter(this);
 }
 
 MainWindow::~MainWindow()
@@ -671,6 +677,40 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	qDebug() << "maximum time for generating a backtrace:" << profiling.max_backtrace_generation_time;
 	qDebug() << "maximum time for generating a context view:" << profiling.max_context_view_generation_time;
 	QMainWindow::closeEvent(e);
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+bool result = true;
+	if (event->type() == QEvent::KeyPress)
+	{
+		QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+		switch (keyEvent->key())
+		{
+			case Qt::Key_Space:
+			{
+				QString l = ui->plainTextEdit->textCursor().block().text();
+				qDebug() << l;
+				QRegExp rx("^\\**\\s*(\\w+)\\|");
+				if (rx.indexIn(l) != -1)
+				{
+					bool ok;
+					int i = rx.cap(1).toUInt(& ok);
+					if (!ok)
+						break;
+					qDebug() << "requesting breakpoint for source file" << last_source_filename << "line number" << i;
+					auto x = dwdata->addressesForFileAndNumber(last_source_filename.toLocal8Bit().constData(), i);
+					for (i = 0; i < x.size(); i ++)
+						qDebug() << QString("$%1").arg(x.at(i), 0, 16);
+				}
+			}
+				break;
+			default:
+				result = false;
+		}
+
+		return result;
+	}
 }
 
 void MainWindow::on_actionSingle_step_triggered()

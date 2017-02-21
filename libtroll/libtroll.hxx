@@ -603,6 +603,7 @@ public:
 	                   bool operator < (const struct lineAddress & rhs) const { return address < rhs.address; } };
 	struct sourceFileNames { const char * file, * directory, * compilation_directory; };
 	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
+	/*! \todo	refactor here, the same code is duplicated several times with minor differences */
 	void dump(void)
 	{
 		if (version() != 2) DwarfUtil::panic();
@@ -1922,6 +1923,18 @@ node.data.push_back("!!! recursion detected !!!");
 		}
 		while (l.next());
 		std::sort(line_addresses.begin(), line_addresses.end());
+	}
+	std::vector<uint32_t> addressesForFileAndNumber(const char * filename, int line_number)
+	{
+		std::vector<uint32_t> addresses;
+		std::vector<struct DebugLine::lineAddress> line_addresses;
+		addressesForFile(filename, line_addresses);
+		int i;
+		for (i = 0; i < line_addresses.size(); i ++)
+			if (line_addresses.at(i).line == line_number)
+				addresses.push_back(line_addresses.at(i).address);
+		return addresses;
+				
 	}
 	void getFileAndDirectoryNamesPointers(std::vector<struct DebugLine::sourceFileNames> & sources)
 	{

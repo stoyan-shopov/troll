@@ -55,6 +55,7 @@ class MainWindow : public QMainWindow
 	DwarfEvaluator	* dwarf_evaluator;
 	SRecordMemoryData s_record_file;
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
+	QString last_source_filename, last_directory_name, last_compilation_directory;
 	void displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString &compilation_directory, int highlighted_line);
 	void backtrace(void);
 	bool readElfSections(void);
@@ -99,6 +100,7 @@ private slots:
 	
 protected:
 	void closeEvent(QCloseEvent * e);
+	bool eventFilter(QObject * watched, QEvent * event);
 	
 private:
 	Ui::MainWindow *ui;
