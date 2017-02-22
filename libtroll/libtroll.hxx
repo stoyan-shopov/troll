@@ -1393,7 +1393,6 @@ there:
 				DwarfUtil::panic();
 		return i;
 	}
-	/*! \todo	!!! this is *gross* inefficient - read and process only immediate die children instead !!! */
 	std::vector<struct Die> executionContextForAddress(uint32_t address)
 	{
 		std::vector<struct Die> context;
@@ -1401,7 +1400,7 @@ there:
 		if (cu_die_offset == -1)
 			return context;
 		cu_die_offset += /* discard the compilation unit header */ 11;
-		auto debug_tree = debug_tree_of_die(cu_die_offset, 0, 1);
+		auto debug_tree = debug_tree_of_die(cu_die_offset, /* read just the compilation unit die */ 0, 1);
 		int i(0);
 		std::vector<struct Die> * die_list(& debug_tree);
 		while (i < die_list->size())
@@ -1409,7 +1408,7 @@ there:
 			{
 				uint32_t die_offset(die_list->at(i).offset);
 				context.push_back(die_list->at(i));
-				die_list->at(i).children = debug_tree_of_die(die_offset, 0, 2).at(0).children;
+				die_list->at(i).children = debug_tree_of_die(die_offset, /* read only immediate die children */ 0, 2).at(0).children;
 				die_list = & die_list->at(i).children;
 				i = 0;
 			}
