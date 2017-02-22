@@ -677,6 +677,8 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	qDebug() << "maximum time for building a local data view:" << profiling.max_local_data_objects_view_build_time;
 	qDebug() << "maximum time for generating a backtrace:" << profiling.max_backtrace_generation_time;
 	qDebug() << "maximum time for generating a context view:" << profiling.max_context_view_generation_time;
+	qDebug() << "maximum time for retrieving breakpoint addresses for a source code line(filtered):" << profiling.max_time_for_retrieving_breakpoint_addresses_for_line;
+	qDebug() << "maximum time for retrieving breakpoint addresses for a source code line(unfiltered):" << profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line;
 	QMainWindow::closeEvent(e);
 }
 
@@ -703,7 +705,15 @@ static unsigned accumulator;
 					if (!ok)
 						break;
 					qDebug() << "requesting breakpoint for source file" << last_source_filename << "line number" << i;
-					auto x = dwdata->addressesForFileAndNumber(last_source_filename.toLocal8Bit().constData(), i);
+					QTime t;
+					t.start();
+					qDebug() << "filtered addresses:" << dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i).size();
+					if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
+						profiling.max_time_for_retrieving_breakpoint_addresses_for_line = t.elapsed();
+					t.restart();
+					auto x = dwdata->unfilteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
+					if (t.elapsed() > profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line)
+						profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line = t.elapsed();
 					for (i = 0; i < x.size(); i ++)
 						qDebug() << QString("$%1").arg(x.at(i), 0, 16);
 					qDebug() << x.size() << "total";

@@ -1924,17 +1924,34 @@ node.data.push_back("!!! recursion detected !!!");
 		while (l.next());
 		std::sort(line_addresses.begin(), line_addresses.end());
 	}
-	std::vector<uint32_t> addressesForFileAndNumber(const char * filename, int line_number)
+	std::vector<uint32_t> unfilteredAddressesForFileAndLineNumber(const char * filename, int line_number)
 	{
 		std::vector<uint32_t> addresses;
 		std::vector<struct DebugLine::lineAddress> line_addresses;
 		addressesForFile(filename, line_addresses);
 		int i;
 		for (i = 0; i < line_addresses.size(); i ++)
-			if (line_addresses.at(i).line == line_number)
+			if (line_addresses.at(i).line == line_number && line_addresses.at(i).address_span - line_addresses.at(i).address)
 				addresses.push_back(line_addresses.at(i).address);
+		/* at this point, the addresses are already sorted in ascending order */
 		return addresses;
 				
+	}
+	std::vector<uint32_t> filteredAddressesForFileAndLineNumber(const char * filename, int line_number)
+	{
+		auto addresses = unfilteredAddressesForFileAndLineNumber(filename, line_number);
+		std::vector<uint32_t> filtered_addresses;
+		std::map<uint32_t /* context die offset */, int> contexts;
+		int i;
+		for (i = 0; i < addresses.size(); i ++)
+		{
+			auto x = executionContextForAddress(addresses.at(i));
+			if (!x.size())
+				filtered_addresses.push_back(addresses.at(i));
+			else if (contexts.find(x.back().offset) == contexts.end())
+				contexts.operator [](x.back().offset) = 1, filtered_addresses.push_back(addresses.at(i));
+		}
+		return filtered_addresses;
 	}
 	void getFileAndDirectoryNamesPointers(std::vector<struct DebugLine::sourceFileNames> & sources)
 	{

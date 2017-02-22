@@ -122,6 +122,8 @@ private:
 		unsigned	max_addresses_for_file_retrieval_time;
 		unsigned	max_source_code_view_build_time;
 		unsigned	max_local_data_objects_view_build_time;
+		unsigned	max_time_for_retrieving_breakpoint_addresses_for_line;
+		unsigned	max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line;
 	}
 	profiling;
 };
