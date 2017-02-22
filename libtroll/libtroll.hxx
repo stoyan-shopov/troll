@@ -1323,7 +1323,7 @@ private:
 public:
 	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
 	 * 		is because of the dwarf die flattenned tree representation */
-	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, int depth = 0)
+	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, int depth = 0, int max_depth = -1)
 	{
 		if (STATS_ENABLED) stats.dies_read ++;
 		std::vector<struct Die> dies;
@@ -1350,14 +1350,25 @@ public:
 			die_offset = p - debug_info;
 			if (a.has_children())
 			{
-				die.children = debug_tree_of_die(die_offset, depth + 1);
+				if (depth + 1 == max_depth)
+				{
+					if (/* special case for reading a single die */ depth == 0)
+						goto there;
+					auto x = a.dataForAttribute(DW_AT_sibling, debug_info + die.offset);
+					if (x.first)
+					{
+						die_offset = DwarfUtil::formReference(x.first, x.second, compilationUnitOffsetForOffsetInDebugInfo(die.offset));
+						goto there;
+					}
+				}
+				die.children = debug_tree_of_die(die_offset, depth + 1, max_depth);
+there:
 				p = debug_info + die_offset;
 			}
 			dies.push_back(die);
 			
 			if (depth == 0)
 				return dies;
-				
 			code = DwarfUtil::uleb128(p, & len);
 			if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 			p += len;
@@ -1390,13 +1401,15 @@ public:
 		if (cu_die_offset == -1)
 			return context;
 		cu_die_offset += /* discard the compilation unit header */ 11;
-		auto debug_tree = debug_tree_of_die(cu_die_offset);
+		auto debug_tree = debug_tree_of_die(cu_die_offset, 0, 1);
 		int i(0);
 		std::vector<struct Die> * die_list(& debug_tree);
 		while (i < die_list->size())
 			if (isAddressInRange(die_list->at(i), address, debug_tree.at(0)))
 			{
+				uint32_t die_offset(die_list->at(i).offset);
 				context.push_back(die_list->at(i));
+				die_list->at(i).children = debug_tree_of_die(die_offset, 0, 2).at(0).children;
 				die_list = & die_list->at(i).children;
 				i = 0;
 			}
