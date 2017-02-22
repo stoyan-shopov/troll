@@ -65,6 +65,15 @@ class MainWindow : public QMainWindow
 	void updateRegisterView(int frame_number);
 	std::string typeStringForDieOffset(uint32_t die_offset);
 	void dumpData(uint32_t address, const QByteArray & data);
+	void updateBreakpoints(void);
+	struct Breakpoint
+	{
+		QString source_filename, directory_name, compilation_directory;
+		int line_number;
+		QVector<uint32_t> addresses;
+	};
+	QVector<struct Breakpoint> breakpoints;
+
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

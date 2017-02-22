@@ -1133,10 +1133,9 @@ private:
 		}
 	}
 
-	std::vector<struct Die> reapDieFingerprints(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
+	void reapDieFingerprints(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
 		stats.total_dies ++;
-		std::vector<struct Die> dies;
 		const uint8_t * p = debug_info + die_offset;
 		int len;
 		uint32_t code = DwarfUtil::uleb128(p, & len);
@@ -1168,7 +1167,7 @@ private:
 			}
 			
 			if (depth == 0)
-				return dies;
+				return;
 				
 			code = DwarfUtil::uleb128(p, & len);
 			p += len;

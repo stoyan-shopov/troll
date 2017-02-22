@@ -368,6 +368,30 @@ void MainWindow::dumpData(uint32_t address, const QByteArray &data)
 	ui->plainTextEditDataDump->appendPlainText(data.toPercentEncoding());
 }
 
+void MainWindow::updateBreakpoints(void)
+{
+int i, j;
+	ui->treeWidgetBreakpoints->clear();
+	for (i = 0; i < breakpoints.size(); i ++)
+	{
+		const Breakpoint & b(breakpoints.at(i));
+		auto t = new QTreeWidgetItem(QStringList() << b.source_filename << QString("%1").arg(b.line_number));
+		if (b.addresses.size() == 1)
+			t->setText(2, QString("$%1").arg(b.addresses.at(0), 8, 16, QChar('0')));
+		else
+		{
+			t->setText(2, t->text(2) + QString("%1 locations").arg(b.addresses.size()));
+			for (j = 0; j < b.addresses.size(); j ++)
+			{
+				auto n = new QTreeWidgetItem(t);
+				n->setText(2, QString("$%1").arg(b.addresses.at(j), 8, 16, QChar('0')));
+			}
+		}
+		ui->treeWidgetBreakpoints->addTopLevelItem(t);
+	}
+	
+}
+
 static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const struct DebugLine::sourceFileNames & b)
 { auto x = strcmp(a.file, b.file); if (x) return x < 0; return strcmp(a.directory, b.directory) < 0; }
 
@@ -707,16 +731,19 @@ static unsigned accumulator;
 					qDebug() << "requesting breakpoint for source file" << last_source_filename << "line number" << i;
 					QTime t;
 					t.start();
-					qDebug() << "filtered addresses:" << dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i).size();
+					auto x = dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
+					qDebug() << "filtered addresses:" << x.size();
+					struct Breakpoint b = { .source_filename = last_source_filename, .directory_name = last_directory_name, .compilation_directory = last_compilation_directory, .line_number = i, };
+					b.addresses = QVector<uint32_t>::fromStdVector(x);
+					breakpoints.push_back(b);
 					if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
 						profiling.max_time_for_retrieving_breakpoint_addresses_for_line = t.elapsed();
 					t.restart();
-					auto x = dwdata->unfilteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
+					x = dwdata->unfilteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
 					if (t.elapsed() > profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line)
 						profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line = t.elapsed();
-					for (i = 0; i < x.size(); i ++)
-						qDebug() << QString("$%1").arg(x.at(i), 0, 16);
-					qDebug() << x.size() << "total";
+					qDebug() << "total addresses:" << x.size();
+					updateBreakpoints();
 				}
 			}
 				break;
@@ -733,9 +760,10 @@ static unsigned accumulator;
 			default:
 				result = false;
 		}
-
-		return result;
 	}
+	else
+		result = false;
+	return result;
 }
 
 void MainWindow::on_actionSingle_step_triggered()
