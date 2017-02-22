@@ -73,6 +73,9 @@ QTextBlockFormat f;
 QTime x;
 int i, cursor_position_for_line(0);
 QFileInfo finfo(directory_name + "/" + source_filename);
+struct SourceLevelBreakpoint b = { .source_filename = source_filename, .directory_name = directory_name, .compilation_directory = compilation_directory, };
+				 
+QVector<uint32_t> breakpoint_positions;
 
 	if (!finfo.exists())
 		finfo.setFile(compilation_directory + "/" + source_filename);
@@ -105,6 +108,9 @@ QFileInfo finfo(directory_name + "/" + source_filename);
 		{
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
+			b.line_number = i;
+			if (breakpointIndex(b) != -1)
+				breakpoint_positions.push_back(t.length());
 			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
 			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
 			if (ui->actionShow_disassembly_address_ranges->isChecked())
@@ -120,6 +126,9 @@ QFileInfo finfo(directory_name + "/" + source_filename);
 		t = QString("cannot open source code file ") + src.fileName();
 	ui->plainTextEdit->appendPlainText(t);
 	QTextCursor c(ui->plainTextEdit->textCursor());
+	f.setBackground(QBrush(Qt::red));
+	for (i = 0; i < breakpoint_positions.size(); i ++)
+		c.setPosition(breakpoint_positions.at(i)), c.setBlockFormat(f);
 
 #if 0
 	c.movePosition(QTextCursor::Start);
@@ -374,7 +383,7 @@ int i, j;
 	ui->treeWidgetBreakpoints->clear();
 	for (i = 0; i < breakpoints.size(); i ++)
 	{
-		const Breakpoint & b(breakpoints.at(i));
+		const SourceLevelBreakpoint & b(breakpoints.at(i));
 		auto t = new QTreeWidgetItem(QStringList() << b.source_filename << QString("%1").arg(b.line_number));
 		if (b.addresses.size() == 1)
 			t->setText(2, QString("$%1").arg(b.addresses.at(0), 8, 16, QChar('0')));
@@ -725,25 +734,31 @@ static unsigned accumulator;
 				if (rx.indexIn(l) != -1)
 				{
 					bool ok;
-					int i = rx.cap(1).toUInt(& ok);
+					int i = rx.cap(1).toUInt(& ok), j;
 					if (!ok)
 						break;
 					qDebug() << "requesting breakpoint for source file" << last_source_filename << "line number" << i;
 					QTime t;
 					t.start();
-					auto x = dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
-					qDebug() << "filtered addresses:" << x.size();
-					struct Breakpoint b = { .source_filename = last_source_filename, .directory_name = last_directory_name, .compilation_directory = last_compilation_directory, .line_number = i, };
-					b.addresses = QVector<uint32_t>::fromStdVector(x);
-					breakpoints.push_back(b);
-					if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
-						profiling.max_time_for_retrieving_breakpoint_addresses_for_line = t.elapsed();
-					t.restart();
-					x = dwdata->unfilteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
-					if (t.elapsed() > profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line)
-						profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line = t.elapsed();
-					qDebug() << "total addresses:" << x.size();
+					struct SourceLevelBreakpoint b = { .source_filename = last_source_filename, .directory_name = last_directory_name, .compilation_directory = last_compilation_directory, .line_number = i, };
+					if ((j = breakpointIndex(b)) == -1)
+					{
+						auto x = dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
+						qDebug() << "filtered addresses:" << x.size();
+						b.addresses = QVector<uint32_t>::fromStdVector(x);
+						breakpoints.push_back(b);
+						if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
+							profiling.max_time_for_retrieving_breakpoint_addresses_for_line = t.elapsed();
+						t.restart();
+						x = dwdata->unfilteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
+						if (t.elapsed() > profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line)
+							profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line = t.elapsed();
+						qDebug() << "total addresses:" << x.size();
+					}
+					else
+						breakpoints.removeAt(j);
 					updateBreakpoints();
+					refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
 				}
 			}
 				break;
@@ -962,4 +977,14 @@ int row(ui->tableWidgetFiles->currentRow());
 void MainWindow::on_actionShow_disassembly_address_ranges_triggered()
 {
 	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line);
+}
+
+void MainWindow::refreshSourceCodeView(int center_line)
+{
+auto c = ui->plainTextEdit->textCursor();
+	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line); 
+	c.movePosition(QTextCursor::Start);
+	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, center_line);
+	ui->plainTextEdit->setTextCursor(c);
+	ui->plainTextEdit->centerCursor();
 }

@@ -58,6 +58,7 @@ class MainWindow : public QMainWindow
 	QString last_source_filename, last_directory_name, last_compilation_directory;
 	int last_highlighted_line;
 	void displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString &compilation_directory, int highlighted_line);
+	void refreshSourceCodeView(int center_line = -1);
 	void backtrace(void);
 	bool readElfSections(void);
 	bool loadSRecordFile(void);
@@ -66,13 +67,26 @@ class MainWindow : public QMainWindow
 	std::string typeStringForDieOffset(uint32_t die_offset);
 	void dumpData(uint32_t address, const QByteArray & data);
 	void updateBreakpoints(void);
-	struct Breakpoint
+	struct SourceLevelBreakpoint
 	{
 		QString source_filename, directory_name, compilation_directory;
 		int line_number;
 		QVector<uint32_t> addresses;
+		bool operator == (const struct SourceLevelBreakpoint & other) const
+		{
+			return line_number == other.line_number && source_filename == other.source_filename
+					&& directory_name == other.directory_name && compilation_directory == other.compilation_directory;
+		}
 	};
-	QVector<struct Breakpoint> breakpoints;
+	QVector<struct SourceLevelBreakpoint> breakpoints;
+	int breakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
+	{
+		int i;
+		for (i = 0; i < breakpoints.size(); i ++)
+			if (breakpoints.at(i) == breakpoint)
+				return i;
+		return -1;
+	}
 
 public:
 	explicit MainWindow(QWidget *parent = 0);
