@@ -1065,7 +1065,7 @@ auto c = ui->plainTextEdit->textCursor();
 
 void MainWindow::on_tableWidgetLocalVariables_itemSelectionChanged()
 {
-int row(ui->tableWidgetStaticDataObjects->currentRow());
+int row(ui->tableWidgetLocalVariables->currentRow());
 	if (row < 0)
 		return;
 	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetLocalVariables->item(row, 4)->text().remove(0, 1).toUInt(0, 16));
