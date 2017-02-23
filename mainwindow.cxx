@@ -141,7 +141,7 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 			breakpointed_addresses.insert(breakpoints.at(i).addresses.at(j));
 	}
 	for (i = 0; i < machine_level_breakpoints.size(); i ++)
-		breakpointed_addresses.insert(machine_level_breakpoints.at(i));
+		breakpointed_addresses.insert(machine_level_breakpoints.at(i).address);
 	QSet<uint32_t>::const_iterator bset = breakpointed_addresses.constBegin();
 	while (bset != breakpointed_addresses.constEnd())
 	{
@@ -410,7 +410,7 @@ int i, j;
 	for (i = 0; i < breakpoints.size(); i ++)
 	{
 		const SourceLevelBreakpoint & b(breakpoints.at(i));
-		auto t = new QTreeWidgetItem(QStringList() << b.source_filename << QString("%1").arg(b.line_number));
+		auto t = new QTreeWidgetItem(ui->treeWidgetBreakpoints, QStringList() << b.source_filename << QString("%1").arg(b.line_number));
 		if (b.addresses.size() == 1)
 			t->setText(2, QString("$%1").arg(b.addresses.at(0), 8, 16, QChar('0')));
 		else
@@ -422,7 +422,16 @@ int i, j;
 				n->setText(2, QString("$%1").arg(b.addresses.at(j), 8, 16, QChar('0')));
 			}
 		}
-		ui->treeWidgetBreakpoints->addTopLevelItem(t);
+	}
+	if (machine_level_breakpoints.size())
+	{
+		auto t = new QTreeWidgetItem(ui->treeWidgetBreakpoints, QStringList() << "machine-level breakpoints");
+		for (i = 0; i < machine_level_breakpoints.size(); i ++)
+			new QTreeWidgetItem(t, QStringList()
+				<< machine_level_breakpoints.at(i).inferred_breakpoint.source_filename
+				<< QString("%1").arg(machine_level_breakpoints.at(i).inferred_breakpoint.line_number)
+				<< QString("$%1").arg(machine_level_breakpoints.at(i).address, 8, 16, QChar('0')));
+		ui->treeWidgetBreakpoints->expandItem(t);
 	}
 	
 }
@@ -623,17 +632,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->tableWidgetFiles->sortItems(0);
 	
 	ui->plainTextEdit->installEventFilter(this);
-	{
-		machine_level_breakpoints.push_back(0x9328);
-		auto x = dwdata->sourceCodeCoordinatesForAddress(0x9328);
-		SourceLevelBreakpoint b;
-		b.source_filename = QString::fromStdString(x.file_name);
-		b.directory_name = QString::fromStdString(x.directory_name);
-		b.compilation_directory = QString::fromStdString(x.compilation_directory_name);
-		b.line_number = x.line;
-		b.addresses.push_back(0x9328);
-		inferred_source_level_breakpoints.push_back(b);
-	}
 }
 
 MainWindow::~MainWindow()
@@ -765,13 +763,15 @@ static unsigned accumulator;
 		{
 			case Qt::Key_Space:
 			{
+				bool ok;
+				int i;
 				QString l = ui->plainTextEdit->textCursor().block().text();
 				qDebug() << l;
 				QRegExp rx("^\\**\\s*(\\w+)\\|");
 				if (rx.indexIn(l) != -1)
 				{
-					bool ok;
-					int i = rx.cap(1).toUInt(& ok), j;
+					int j;
+					i = rx.cap(1).toUInt(& ok);
 					if (!ok)
 						break;
 					qDebug() << "requesting breakpoint for source file" << last_source_filename << "line number" << i;
@@ -794,9 +794,31 @@ static unsigned accumulator;
 					}
 					else
 						breakpoints.removeAt(j);
-					updateBreakpoints();
-					refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
 				}
+				else
+				{
+					rx.setPattern("^\\$(\\w+)");
+					uint32_t address;
+					qDebug() << rx.indexIn(l);
+					if (rx.indexIn(l) != -1 && (address = rx.cap(1).toUInt(& ok, 16), ok))
+					{
+						if ((i = machineBreakpointIndex(address)) == -1)
+						{
+							auto x = dwdata->sourceCodeCoordinatesForAddress(address);
+							SourceLevelBreakpoint b;
+							b.source_filename = QString::fromStdString(x.file_name);
+							b.directory_name = QString::fromStdString(x.directory_name);
+							b.compilation_directory = QString::fromStdString(x.compilation_directory_name);
+							b.line_number = x.line;
+							b.addresses.push_back(address);
+							machine_level_breakpoints.push_back((struct MachineLevelBreakpoint){ .address = address, .inferred_breakpoint = b, });
+						}
+						else
+							machine_level_breakpoints.removeAt(i);
+					}
+				}
+				updateBreakpoints();
+				refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
 			}
 				break;
 		case Qt::Key_G:
