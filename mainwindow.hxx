@@ -147,6 +147,8 @@ private slots:
 	
 	void on_actionShow_disassembly_address_ranges_triggered();
 	
+	void on_tableWidgetLocalVariables_itemSelectionChanged();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);

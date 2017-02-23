@@ -951,6 +951,10 @@ QString numeric_prefix;
 	ui->treeWidgetDataObjects->expandAll();
 	ui->treeWidgetDataObjects->resizeColumnToContents(0);
 	dumpData(address, data);
+
+	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetStaticDataObjects->item(row, 5)->text().remove(0, 1).toUInt(0, 16));
+	if (source_coordinates.line != -1)
+		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
 }
 
 void MainWindow::on_actionHack_mode_triggered()
@@ -1057,4 +1061,14 @@ auto c = ui->plainTextEdit->textCursor();
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, center_line);
 	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
+}
+
+void MainWindow::on_tableWidgetLocalVariables_itemSelectionChanged()
+{
+int row(ui->tableWidgetStaticDataObjects->currentRow());
+	if (row < 0)
+		return;
+	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetLocalVariables->item(row, 4)->text().remove(0, 1).toUInt(0, 16));
+	if (source_coordinates.line != -1)
+		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
 }
