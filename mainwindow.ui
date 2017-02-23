@@ -246,6 +246,11 @@
        </column>
        <column>
         <property name="text">
+         <string>compilation directory</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
          <string>die offset</string>
         </property>
        </column>

@@ -1377,6 +1377,7 @@ there:
 
 		return dies;
 	}
+	struct Die read_die(uint32_t die_offset) { return debug_tree_of_die(die_offset, 0, 1).at(0); }
 	uint32_t next_compilation_unit(uint32_t compilation_unit_offset)
 	{
 		uint32_t x = compilation_unit_header(debug_info + compilation_unit_offset).next().data - debug_info;
@@ -1400,11 +1401,11 @@ there:
 		if (cu_die_offset == -1)
 			return context;
 		cu_die_offset += /* discard the compilation unit header */ 11;
-		auto debug_tree = debug_tree_of_die(cu_die_offset, /* read just the compilation unit die */ 0, 1);
+		auto compilation_unit_die = debug_tree_of_die(cu_die_offset, 0, 1);
 		int i(0);
-		std::vector<struct Die> * die_list(& debug_tree);
+		std::vector<struct Die> * die_list(& compilation_unit_die);
 		while (i < die_list->size())
-			if (isAddressInRange(die_list->at(i), address, debug_tree.at(0)))
+			if (isAddressInRange(die_list->at(i), address, compilation_unit_die.at(0)))
 			{
 				uint32_t die_offset(die_list->at(i).offset);
 				context.push_back(die_list->at(i));
@@ -1452,6 +1453,37 @@ there:
 		qDebug() << QString::fromStdString(frame_base);
 		return frame_base;
 	}
+	struct SourceCodeCoordinates sourceCodeCoordinatesForDieOffset(uint32_t die_offset)
+	{
+		SourceCodeCoordinates s;
+		auto die = read_die(die_offset);
+		Abbreviation a(debug_abbrev + die.abbrev_offset);
+		auto file = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
+		auto line = a.dataForAttribute(DW_AT_decl_line, debug_info + die.offset);
+		if (!file.first || !line.first)
+		{
+			struct Die referred_die(die);
+			if (hasAbstractOrigin(die, referred_die))
+				return sourceCodeCoordinatesForDieOffset(referred_die.offset);
+			return s;
+		}
+		auto compilation_unit_die = read_die(compilationUnitOffsetForOffsetInDebugInfo(die.offset) + /* skip compilation unit header */ 11);
+		Abbreviation b(debug_abbrev + compilation_unit_die.abbrev_offset);
+		auto statement_list = b.dataForAttribute(DW_AT_stmt_list, debug_info + compilation_unit_die.offset);
+		auto compilation_directory = b.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
+		if (!statement_list.first)
+			return s;
+		DebugLine l(debug_line, debug_line_len);
+		const char * compilation_directory_string = 0;
+		if (compilation_directory.first)
+			compilation_directory_string = DwarfUtil::formString(compilation_directory.first, compilation_directory.second, debug_str);
+		l.skipToOffset(DwarfUtil::formConstant(statement_list));
+		l.stringsForFileNumber(DwarfUtil::formConstant(file), s.file_name, s.directory_name, compilation_directory_string);
+		s.compilation_directory_name = compilation_directory_string;
+		s.line = DwarfUtil::formConstant(line);
+		return s;
+	}
+
 	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, 
 		/*! \todo	remove this parameter!!! */const struct Die & compilation_unit_die)
 	{
@@ -1476,7 +1508,7 @@ there:
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address) + /* skip compilation unit header */ 11;
 		if (cu_die_offset == -1)
 			return SourceCodeCoordinates();
-		return sourceCodeCoordinatesForAddress(address, debug_tree_of_die(cu_die_offset, 0, 1).at(0));
+		return sourceCodeCoordinatesForAddress(address, read_die(cu_die_offset));
 	}
 
 private:
@@ -1512,7 +1544,7 @@ private:
 		auto referred_die_offset = DwarfUtil::formReference(x.first, x.second, i);
 		{
 			auto i = compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
-			referred_die = debug_tree_of_die(referred_die_offset).at(0);
+			referred_die = read_die(referred_die_offset);
 		}
 		return true;
 	}

@@ -78,7 +78,6 @@ QTime x;
 int i, cursor_position_for_line(0);
 QFileInfo finfo(directory_name + "/" + source_filename);
 struct SourceLevelBreakpoint b = { .source_filename = source_filename, .directory_name = directory_name, .compilation_directory = compilation_directory, };
-				 
 QVector<uint32_t> breakpoint_positions;
 QMap<uint32_t /* address */, int /* line position in text document */> addresses;
 
@@ -223,9 +222,10 @@ void MainWindow::backtrace()
 		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString(dwdata->nameOfDie(subprogram))));
 		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.file_name)));
 		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
-		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(x.compilation_directory_name) + "/" + QString::fromStdString(x.directory_name)));
-		ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(subprogram.offset, 0, 16)));
-		ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context))));
+		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(x.directory_name));
+		ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(x.compilation_directory_name));
+		ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString("$%1").arg(subprogram.offset, 0, 16)));
+		ui->tableWidgetBacktrace->setItem(row, 7, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context))));
 		
 		int i;
 		auto inlining_chain = dwdata->inliningChainOfContext(context);
@@ -235,7 +235,7 @@ void MainWindow::backtrace()
 			ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem("inlined"));
 			ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache->frameCount() - 1);
 			ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(dwdata->nameOfDie(inlining_chain.at(i))));
-			ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(inlining_chain.at(i).offset, 0, 16)));
+			ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString("$%1").arg(inlining_chain.at(i).offset, 0, 16)));
 		}
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
@@ -480,11 +480,11 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
-	//elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
+	elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
 	//elf_filename = "x:/troll/cxx-tests/test-opt";
 	//elf_filename = "usb-cdc-acm.elf";
 	//elf_filename = "KFM224.elf";
-	elf_filename = "X:/sforth-troll/sf";
+	//elf_filename = "X:/sforth-troll/sf";
 	//elf_filename = "X:/blackstrike-github/src/blackmagic";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
 	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
@@ -652,17 +652,28 @@ int i;
 int row(ui->tableWidgetBacktrace->currentRow()), frame_number = ui->tableWidgetBacktrace->verticalHeaderItem(row)->data(Qt::UserRole).toInt();
 updateRegisterView(frame_number);
 ui->tableWidgetLocalVariables->setRowCount(0);
-if (!ui->tableWidgetBacktrace->item(row, 0))
+if (!ui->tableWidgetBacktrace->item(row, 6))
 {
 	ui->plainTextEdit->setPlainText("singularity; context undefined");
 	return;
 }
 uint32_t cfa_value = register_cache->registerFrame(frame_number + 1).at(13);
-auto frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 6)->text();
+QString frameBaseSforthCode;
 QString locationSforthCode;
-uint32_t pc(ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16));
+uint32_t pc = -1;
 
-	displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), QString(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt());
+	if (!ui->tableWidgetBacktrace->item(row, 0))
+	{
+		auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetBacktrace->item(row, 6)->text().remove(0, 1).toUInt(0, 16));
+		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
+	}
+	else 
+	{
+		displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), ui->tableWidgetBacktrace->item(row, 5)->text(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt());
+		frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 7)->text();
+		pc = ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16);
+	}
+
 	x.start();
 	auto context = dwdata->executionContextForAddress(pc);
 	auto locals = dwdata->localDataObjectsForContext(context);
