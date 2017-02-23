@@ -55,6 +55,10 @@ n->setText(2, "<<< UNKNOWN SIZE >>>");
 break;
 				Util::panic();
 		}
+		/*
+		else
+			Util::panic();
+			*/
 	}
 	if (node.array_dimensions.size())
 		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0), data, data_pos + i * node.children.at(0).bytesize, numeric_base, numeric_prefix)), i ++);
@@ -76,6 +80,7 @@ QFileInfo finfo(directory_name + "/" + source_filename);
 struct SourceLevelBreakpoint b = { .source_filename = source_filename, .directory_name = directory_name, .compilation_directory = compilation_directory, };
 				 
 QVector<uint32_t> breakpoint_positions;
+QMap<uint32_t /* address */, int /* line position in text document */> addresses;
 
 	if (!finfo.exists())
 		finfo.setFile(compilation_directory + "/" + source_filename);
@@ -117,13 +122,34 @@ QVector<uint32_t> breakpoint_positions;
 			{
 				dis = lines[i];
 				while (dis)
+				{
+					addresses.insert(dis->address, t.length());
 					t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
+				}
 			}
 			i ++;
 		}
 	}
 	else
 		t = QString("cannot open source code file ") + src.fileName();
+	
+	QSet<uint32_t> breakpointed_addresses;
+	for (i = 0; i < breakpoints.size(); i ++)
+	{
+		int j;
+		for (j = 0; j < breakpoints.at(i).addresses.size(); j ++)
+			breakpointed_addresses.insert(breakpoints.at(i).addresses.at(j));
+	}
+	for (i = 0; i < machine_level_breakpoints.size(); i ++)
+		breakpointed_addresses.insert(machine_level_breakpoints.at(i));
+	QSet<uint32_t>::const_iterator bset = breakpointed_addresses.constBegin();
+	while (bset != breakpointed_addresses.constEnd())
+	{
+		if (addresses.contains(* bset))
+			breakpoint_positions.push_back(addresses.operator [](*bset));
+		bset ++;
+	}
+
 	ui->plainTextEdit->appendPlainText(t);
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	f.setBackground(QBrush(Qt::red));

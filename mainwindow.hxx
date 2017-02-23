@@ -78,6 +78,13 @@ class MainWindow : public QMainWindow
 					&& directory_name == other.directory_name && compilation_directory == other.compilation_directory;
 		}
 	};
+	struct MachineLevelBreakpoint
+	{
+		uint32_t	address;
+		QVector<struct SourceLevelBreakpoint> inferred_source_level_breakpoints;
+	};
+	QVector<uint32_t> machine_level_breakpoints;
+
 	QVector<struct SourceLevelBreakpoint> breakpoints;
 	int breakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
 	{
