@@ -125,7 +125,7 @@ objdump -W test.o
 ```
 Note that, because the *DWARF* debug information is by design independent
 of the target for which the program is compiled, I can use my native
-`objdump` utility (which in this case is for *x86* targets, instead
+`objdump` utility (which in this case is for *x86* targets), instead
 of the longer to type `arm-none-eabi-objdump` compiled to target
 *Cortex-M* systems. When generating disassembly dumps later, though,
 I must of course use the 'proper objdump'.
