@@ -86,11 +86,20 @@ class MainWindow : public QMainWindow
 	QVector<uint32_t> machine_level_breakpoints;
 
 	QVector<struct SourceLevelBreakpoint> breakpoints;
+	QVector<struct SourceLevelBreakpoint> inferred_source_level_breakpoints;
 	int breakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
 	{
 		int i;
 		for (i = 0; i < breakpoints.size(); i ++)
 			if (breakpoints.at(i) == breakpoint)
+				return i;
+		return -1;
+	}
+	int inferredBreakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
+	{
+		int i;
+		for (i = 0; i < inferred_source_level_breakpoints.size(); i ++)
+			if (inferred_source_level_breakpoints.at(i) == breakpoint)
 				return i;
 		return -1;
 	}

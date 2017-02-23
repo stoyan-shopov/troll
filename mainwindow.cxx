@@ -114,7 +114,7 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
 			b.line_number = i;
-			if (breakpointIndex(b) != -1)
+			if (breakpointIndex(b) != -1 || inferredBreakpointIndex(b) != -1)
 				breakpoint_positions.push_back(t.length());
 			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
 			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
@@ -623,6 +623,17 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->tableWidgetFiles->sortItems(0);
 	
 	ui->plainTextEdit->installEventFilter(this);
+	{
+		machine_level_breakpoints.push_back(0x9328);
+		auto x = dwdata->sourceCodeCoordinatesForAddress(0x9328);
+		SourceLevelBreakpoint b;
+		b.source_filename = QString::fromStdString(x.file_name);
+		b.directory_name = QString::fromStdString(x.directory_name);
+		b.compilation_directory = QString::fromStdString(x.compilation_directory_name);
+		b.line_number = x.line;
+		b.addresses.push_back(0x9328);
+		inferred_source_level_breakpoints.push_back(b);
+	}
 }
 
 MainWindow::~MainWindow()

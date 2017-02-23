@@ -986,7 +986,7 @@ public:
 		return 0;
 		
 	}
-	void stringsForFileNumber(uint32_t file_number, const char * & file_name, const char * & directory_name)
+	void stringsForFileNumber(uint32_t file_number, const char * & file_name, const char * & directory_name, const char * compilation_directory)
 	{
 		file_name = "<<< unknown file >>>";
 		directory_name = "<<< unknown directory >>>";
@@ -1006,7 +1006,7 @@ public:
 		file_name = f.s, f.s += strlen(f.s) + 1, i = DwarfUtil::uleb128x(f.p);
 		if (!i)
 			/* use the default compilation directory */
-			directory_name = "" ;
+			directory_name = compilation_directory;
 		else
 		{
 			i --;
@@ -1465,11 +1465,18 @@ there:
 			return s;
 		class DebugLine l(debug_line, debug_line_len);
 		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x), file_number);
-		l.stringsForFileNumber(file_number, s.file_name, s.directory_name);
 		x = a.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
 		if (x.first)
 			s.compilation_directory_name = DwarfUtil::formString(x.first, x.second, debug_str);
+		l.stringsForFileNumber(file_number, s.file_name, s.directory_name, s.compilation_directory_name);
 		return s;
+	}
+	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address)
+	{
+		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address) + /* skip compilation unit header */ 11;
+		if (cu_die_offset == -1)
+			return SourceCodeCoordinates();
+		return sourceCodeCoordinatesForAddress(address, debug_tree_of_die(cu_die_offset, 0, 1).at(0));
 	}
 
 private:
