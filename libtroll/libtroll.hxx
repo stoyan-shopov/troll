@@ -1972,6 +1972,12 @@ node.data.push_back("!!! recursion detected !!!");
 				l.addressesForFile(x, line_addresses);
 		}
 		while (l.next());
+		int i;
+		for (i = 0; i < line_addresses.size();)
+			if (line_addresses.at(i).address == line_addresses.at(i).address_span)
+				line_addresses.erase(line_addresses.begin() + i);
+			else
+				i ++;
 		std::sort(line_addresses.begin(), line_addresses.end());
 	}
 	std::vector<uint32_t> unfilteredAddressesForFileAndLineNumber(const char * filename, int line_number)

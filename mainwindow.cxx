@@ -469,7 +469,6 @@ MainWindow::MainWindow(QWidget *parent) :
 {
 	QTime startup_time;
 	int i;
-	startup_time.start();
 	QCoreApplication::setOrganizationName("shopov instruments");
 	QCoreApplication::setApplicationName("troll");
 	QSettings s("troll.rc", QSettings::IniFormat);
@@ -530,6 +529,7 @@ MainWindow::MainWindow(QWidget *parent) :
 there:
 		elf_filename = QFileDialog::getOpenFileName(0, "select an elf file for debugging");
 	}
+	startup_time.start();
 	if (!readElfSections())
 		exit(1);
 	debug_file.setFileName(elf_filename);
