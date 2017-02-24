@@ -94,7 +94,7 @@ public:
 			return QString("<<< no disassembly for address $%1 >>>\n").arg(start, 8, 16, QChar('0'));
 		while (start < end && i < index_table.size() - 1)
 		{
-			dis += disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second) - index_table.at(i).second) + "\n";
+			dis += disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second) - index_table.at(i).second - 1) + "\n";
 			start = index_table.at(++ i).first;
 		}
 		return dis;

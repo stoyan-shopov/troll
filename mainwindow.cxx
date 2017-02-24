@@ -125,7 +125,7 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 				{
 					addresses.insert(dis->address, t.length());
 					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
-					t += disassembly->disassemblyForRange(dis->address, dis->address_span);
+					t += disassembly->disassemblyForRange(dis->address, dis->address_span).replace('\r', "");
 					t += "...\n";
 					dis = dis->next;
 				}
@@ -852,9 +852,12 @@ static unsigned accumulator;
 				}
 				else
 				{
+					/* internal disassembly range format */
 					rx.setPattern("^\\$(\\w+)");
 					uint32_t address;
-					qDebug() << rx.indexIn(l);
+					if (rx.indexIn(l) == -1)
+						/* objdump disassembly dump format */
+						rx.setPattern("^\\s*(\\w+):");
 					if (rx.indexIn(l) != -1 && (address = rx.cap(1).toUInt(& ok, 16), ok))
 					{
 						if ((i = machineBreakpointIndex(address)) == -1)
