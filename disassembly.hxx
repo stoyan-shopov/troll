@@ -22,7 +22,10 @@ public:
 		QFile f(disassembly_filename);
 		QRegExp rx("^\\s*(\\w+):");
 		if (!f.open(QFile::ReadOnly))
-			Util::panic();
+		{
+			qDebug() << "warning: disassembly unavailable";
+			return;
+		}
 		disassembly_text = f.readAll();
 		f.close();
 		while (i < disassembly_text.size())

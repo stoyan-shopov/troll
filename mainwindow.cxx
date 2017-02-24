@@ -11,6 +11,7 @@
 #include <QSettings>
 #include <QDir>
 #include <QTextBlock>
+#include <QFileDialog>
 
 #include "flash-memory-writer.hxx"
 
@@ -295,7 +296,16 @@ bool ok1, ok2;
 	objdump.start("objdump.exe", QStringList() << "-h" << elf_filename);
 	objdump.waitForFinished();
 	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
-		Util::panic();
+	{
+		QMessageBox::critical(0, "error reading DWARF debug sections",
+			"error running the 'objdump' utility in order to read the DWARF\n"
+			"debug information from the target ELF file!\n\n"
+			"please, make sure that the 'objdump' utility is accessible\n"
+			"in your path environment, and that the file you have specified\n"
+			"is indeed an ELF file!"
+		      );
+		return false;
+	}
 	qDebug() << (output = objdump.readAll());
 	if (rx.indexIn(output) != -1)
 	{
@@ -359,6 +369,17 @@ bool ok1, ok2;
 		debug_loc_offset = rx.cap(2).toInt(&ok1, 16);
 		debug_loc_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
+	}
+	if (!debug_info_len || !debug_abbrev_len)
+	{
+		QMessageBox::critical(0, "error reading DWARF debug sections",
+		                      "could not load the DWARF sections of debug information\n"
+		                      "from the target ELF file!\n\n"
+		                      "make sure that the target ELF file does\n"
+		                      "contain DWARF debug information - if necessary\n"
+		                      "recompile your program with debug information included!\n"
+		                      );
+		return false;
 	}
 	return true;
 }
@@ -480,20 +501,6 @@ MainWindow::MainWindow(QWidget *parent) :
 "}"
 	              );
 	
-	elf_filename = "X:/vx-cdc-acm-troll-tests/src/usb-cdc-acm.elf";
-	//elf_filename = "x:/troll/cxx-tests/test-opt";
-	//elf_filename = "usb-cdc-acm.elf";
-	//elf_filename = "KFM224.elf";
-	//elf_filename = "X:/sforth-troll/sf";
-	//elf_filename = "X:/blackstrike-github/src/blackmagic";
-	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Guid.elf";
-	//elf_filename = "C:/Qt/Qt5.7.0/5.7/mingw53_32/bin/Qt5Networkd.elf";
-	//elf_filename = "x:/build-atomic-test-Desktop_Qt_5_7_0_MinGW_32bit-Debug/debug/atomic.elf";
-	//elf_filename = "X:/aps-electronics.xs236-gcc/KFM224.elf";
-	//elf_filename = "X:/ivan-project/libopencm3-examples/examples/stm32/f4/stm32f4-discovery/usb_cdcacm/cdcacm.elf";
-	//elf_filename = "X:/ivan-project/stm32f405-bootloader/src/bootloader.elf";
-	//elf_filename = "X:/ivan-project/can-example/STM32-P405_CAN_example/Project/STM32F4xx_StdPeriph_Examples/CAN/Networking/STM324xG_EVAL/Exe/CAN_networking.out";
-//QString elf("X:/build-troll-Desktop_Qt_5_7_0_MinGW_32bit-Debug/main_aps.elf");
 	ui->setupUi(this);
 	restoreGeometry(s.value("window-geometry").toByteArray());
 	restoreState(s.value("window-state").toByteArray());
@@ -503,21 +510,32 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->actionHack_mode->setText(!ui->actionHack_mode->isChecked() ? "to hack mode" : "to user mode");
 	ui->actionShow_disassembly_address_ranges->setChecked(s.value("show-disassembly-ranges", true).toBool());
 	ui->comboBoxDataDisplayNumericBase->setCurrentIndex(s.value("data-display-numeric-base", 1).toUInt());
+	elf_filename = s.value("last-elf-file", QString("???")).toString();
 	on_actionHack_mode_triggered();
-#if MAIN_APS
-	QFile debug_file(elf_filename);
-#else
-	QFile debug_file("Qt5Guid.dll");
-#endif
+	QFile debug_file;
+	while (1)
+	{
+		while (!QFileInfo(elf_filename).exists())
+		{
+			QMessageBox::warning(0, "file not found", QString("file ") + elf_filename + " not found\nplease select an elf file for debugging");
+			elf_filename = QFileDialog::getOpenFileName(0, "select an elf file for debugging");
+		}
+		if (!readElfSections())
+		{
+			elf_filename = "";
+			continue;
+		}
+		debug_file.setFileName(elf_filename);
+		dis = new Disassembly("bdis.txt");
+		if (!debug_file.open(QFile::ReadOnly))
+		{
+			QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
+			exit(1);
+		}
+		break;
+	}
 	QTime t;
 	t.start();
-	dis = new Disassembly("bdis.txt");
-	readElfSections();
-	if (!debug_file.open(QFile::ReadOnly))
-	{
-		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
-		exit(1);
-	}
 	debug_file.seek(debug_aranges_offset);
 	debug_aranges = debug_file.read(debug_aranges_len);
 	debug_file.seek(debug_info_offset);
@@ -739,6 +757,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("hack-mode", ui->actionHack_mode->isChecked());
 	s.setValue("show-disassembly-ranges", ui->actionShow_disassembly_address_ranges->isChecked());
 	s.setValue("data-display-numeric-base", ui->comboBoxDataDisplayNumericBase->currentIndex());
+	//s.setValue("last-elf-file", elf_filename);
 	qDebug() << "";
 	qDebug() << "";
 	qDebug() << "";
