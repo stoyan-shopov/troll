@@ -46,7 +46,7 @@ class MainWindow : public QMainWindow
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
-	Disassembly 	* dis;
+	Disassembly 	* disassembly;
 	Sforth	* sforth;
 	Target	* target;
 	RegisterCache	* register_cache;

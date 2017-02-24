@@ -124,7 +124,9 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 				while (dis)
 				{
 					addresses.insert(dis->address, t.length());
-					t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
+					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
+					t += disassembly->disassemblyForRange(dis->address, dis->address_span);
+					dis = dis->next;
 				}
 			}
 			i ++;
@@ -263,7 +265,7 @@ void MainWindow::backtrace()
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
 	int line_in_disassembly;
-	ui->plainTextEdit->setPlainText(dis->disassemblyAroundAddress(register_cache->registerFrame(0).at(15), & line_in_disassembly));
+	ui->plainTextEdit->setPlainText(disassembly->disassemblyAroundAddress(register_cache->registerFrame(0).at(15), & line_in_disassembly));
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, line_in_disassembly);
 	QTextBlockFormat f;
@@ -513,26 +515,45 @@ MainWindow::MainWindow(QWidget *parent) :
 	elf_filename = s.value("last-elf-file", QString("???")).toString();
 	on_actionHack_mode_triggered();
 	QFile debug_file;
-	while (1)
+	QFileInfo file_info(elf_filename);
+	
+	if (file_info.exists())
 	{
-		while (!QFileInfo(elf_filename).exists())
-		{
-			QMessageBox::warning(0, "file not found", QString("file ") + elf_filename + " not found\nplease select an elf file for debugging");
-			elf_filename = QFileDialog::getOpenFileName(0, "select an elf file for debugging");
-		}
-		if (!readElfSections())
-		{
-			elf_filename = "";
-			continue;
-		}
-		debug_file.setFileName(elf_filename);
-		dis = new Disassembly("bdis.txt");
-		if (!debug_file.open(QFile::ReadOnly))
-		{
-			QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
-			exit(1);
-		}
-		break;
+		if (QMessageBox::question(0, "Reopen last file", "Reopen last file, or select a new file?", QString("Reopen\n")
+		                      + file_info.fileName(), "Select new") == 1)
+			goto there;
+	}
+	else
+	{
+		QMessageBox::warning(0, "file not found", QString("file ") + elf_filename + " not found\nplease select an elf file for debugging");
+there:
+		elf_filename = QFileDialog::getOpenFileName(0, "select an elf file for debugging");
+	}
+	if (!readElfSections())
+		exit(1);
+	debug_file.setFileName(elf_filename);
+	QProcess objdump;
+	objdump.start("arm-none-eabi-objdump.exe", QStringList() << "-d" << elf_filename);
+	objdump.waitForFinished();
+
+	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
+	{
+		QMessageBox::critical(0, "error disassembling the target ELF file",
+			"error running the 'objdump' utility in order to disassemble\n"
+			"the target ELF file!\n\n"
+			"please, make sure that the 'objdump' utility is accessible\n"
+			"in your path environment, and that the file you have specified\n"
+			"is indeed an ELF file!\n\n"
+			"disassembly will be unavailable in this session!"
+		      );
+		disassembly = new Disassembly(QByteArray());
+	}
+	else
+		disassembly = new Disassembly(objdump.readAll());
+	if (!debug_file.open(QFile::ReadOnly))
+	{
+		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
+		exit(2);
 	}
 	QTime t;
 	t.start();
@@ -561,7 +582,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
 	dwdata->dumpStats();
 	
-	//loadSRecordFile();
+	loadSRecordFile();
 	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())
@@ -757,7 +778,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("hack-mode", ui->actionHack_mode->isChecked());
 	s.setValue("show-disassembly-ranges", ui->actionShow_disassembly_address_ranges->isChecked());
 	s.setValue("data-display-numeric-base", ui->comboBoxDataDisplayNumericBase->currentIndex());
-	//s.setValue("last-elf-file", elf_filename);
+	s.setValue("last-elf-file", elf_filename);
 	qDebug() << "";
 	qDebug() << "";
 	qDebug() << "";

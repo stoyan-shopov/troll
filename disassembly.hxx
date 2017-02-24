@@ -14,20 +14,31 @@ class Disassembly
 private:
 	QByteArray	disassembly_text;
 	QVector<QPair<uint32_t /* address */, int /* index in disassembly text */> > index_table;
+	int indexOfAddress(uint32_t address)
+	{
+		int l = 0, h = index_table.size() - 1, m;
+		while (l <= h)
+		{
+			m = (l + h) >> 1;
+			if (index_table.at(m).first == address)
+				break;
+			if (index_table.at(m).first < address)
+				l = m + 1;
+			else
+				h = m - 1;
+		}
+		if (l > h)
+			return -1;
+		return m;
+	}
 public:
-	Disassembly(const QString & disassembly_filename)
+	Disassembly(QByteArray disassembly)
 	{
 		int i = 0, x;
 		bool ok;
-		QFile f(disassembly_filename);
 		QRegExp rx("^\\s*(\\w+):");
-		if (!f.open(QFile::ReadOnly))
-		{
-			qDebug() << "warning: disassembly unavailable";
-			return;
-		}
-		disassembly_text = f.readAll();
-		f.close();
+
+		disassembly_text = disassembly;
 		while (i < disassembly_text.size())
 		{
 			QString s(disassembly_text.mid(i, (x = disassembly_text.indexOf('\n', i)) - i));
@@ -47,18 +58,8 @@ public:
 	}
 	QString disassemblyAroundAddress(uint32_t address, int * line_for_address = 0)
 	{
-		int l = 0, h = index_table.size() - 1, m;
-		while (l <= h)
-		{
-			m = (l + h) >> 1;
-			if (index_table.at(m).first == address)
-				break;
-			if (index_table.at(m).first < address)
-				l = m + 1;
-			else
-				h = m - 1;
-		}
-		if (l > h)
+		int l, m = indexOfAddress(address), h;
+		if (m == -1)
 			return QString("<<< no disassembly for address $%1 >>>").arg(address, 8, 16, QChar('0'));
 		if ((l = m - 5) < 0)
 			l = 0;
@@ -67,9 +68,37 @@ public:
 		if (line_for_address)
 		{
 			* line_for_address = disassembly_text.mid(index_table.at(l).second, index_table.at(m).second - index_table.at(l).second).count('\n');
-			disassembly_text.mid(0);
 		}
 		return disassembly_text.mid(index_table.at(l).second, disassembly_text.indexOf('\n', index_table.at(h).second) - index_table.at(l).second);
+	}
+	/*
+	QStringList disassemblyForRange(uint32_t start, uint32_t end)
+	{
+		QStringList dis;
+		int i = indexOfAddress(start);
+		if (i == -1)
+			return dis << QString("<<< no disassembly for address $%1 >>>").arg(start, 8, 16, QChar('0'));
+		while (start < end && i < index_table.size() - 1)
+		{
+			dis << disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second));
+			start = index_table.at(++ i).first;
+		}
+		return dis;
+	}
+	*/
+	QString disassemblyForRange(uint32_t start, uint32_t end)
+	{
+		QString dis;
+		int i = indexOfAddress(start);
+		if (i == -1)
+			return QString("<<< no disassembly for address $%1 >>>\n").arg(start, 8, 16, QChar('0'));
+		while (start < end && i < index_table.size() - 1)
+		{
+			dis += disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second) - index_table.at(i).second) + "\n";
+			dis += "...\n";
+			start = index_table.at(++ i).first;
+		}
+		return dis;
 	}
 };
 
