@@ -149,6 +149,8 @@ private slots:
 	
 	void on_tableWidgetLocalVariables_itemSelectionChanged();
 	
+	void on_tableWidgetFunctions_itemSelectionChanged();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);

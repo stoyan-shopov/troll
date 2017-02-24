@@ -500,6 +500,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->splitterMain->restoreGeometry(s.value("main-splitter/geometry").toByteArray());
 	ui->splitterMain->restoreState(s.value("main-splitter/state").toByteArray());
 	ui->actionHack_mode->setChecked(s.value("hack-mode", true).toBool());
+	ui->actionHack_mode->setText(!ui->actionHack_mode->isChecked() ? "to hack mode" : "to user mode");
 	ui->actionShow_disassembly_address_ranges->setChecked(s.value("show-disassembly-ranges", true).toBool());
 	ui->comboBoxDataDisplayNumericBase->setCurrentIndex(s.value("data-display-numeric-base", 1).toUInt());
 	on_actionHack_mode_triggered();
@@ -793,6 +794,8 @@ static unsigned accumulator;
 					{
 						auto x = dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
 						qDebug() << "filtered addresses:" << x.size();
+						if (x.empty())
+							break;
 						b.addresses = QVector<uint32_t>::fromStdVector(x);
 						breakpoints.push_back(b);
 						if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
@@ -963,6 +966,7 @@ bool hack_mode(ui->actionHack_mode->isChecked());
 	ui->tableWidgetBacktrace->setColumnHidden(4, !hack_mode);
 	ui->tableWidgetBacktrace->setColumnHidden(5, !hack_mode);
 	ui->tableWidgetBacktrace->setColumnHidden(6, !hack_mode);
+	ui->tableWidgetBacktrace->setColumnHidden(7, !hack_mode);
 	
 	ui->tableWidgetStaticDataObjects->setColumnHidden(3, !hack_mode);
 	ui->tableWidgetStaticDataObjects->setColumnHidden(4, !hack_mode);
@@ -971,6 +975,20 @@ bool hack_mode(ui->actionHack_mode->isChecked());
 	ui->treeWidgetDataObjects->setColumnHidden(1, !hack_mode);
 	ui->treeWidgetDataObjects->setColumnHidden(3, !hack_mode);
 	ui->treeWidgetDataObjects->setColumnHidden(4, !hack_mode);
+	
+	ui->tableWidgetLocalVariables->setColumnHidden(1, !hack_mode);
+	ui->tableWidgetLocalVariables->setColumnHidden(2, !hack_mode);
+	ui->tableWidgetLocalVariables->setColumnHidden(3, !hack_mode);
+	ui->tableWidgetLocalVariables->setColumnHidden(4, !hack_mode);
+	
+	ui->tableWidgetFunctions->setColumnHidden(1, !hack_mode);
+	ui->tableWidgetFunctions->setColumnHidden(2, !hack_mode);
+	ui->tableWidgetFunctions->setColumnHidden(3, !hack_mode);
+	
+	ui->tableWidgetFiles->setColumnHidden(1, !hack_mode);
+	ui->tableWidgetFiles->setColumnHidden(2, !hack_mode);
+	
+	ui->actionHack_mode->setText(!hack_mode ? "to hack mode" : "to user mode");
 }
 
 void MainWindow::on_actionReset_target_triggered()
@@ -1069,6 +1087,16 @@ int row(ui->tableWidgetLocalVariables->currentRow());
 	if (row < 0)
 		return;
 	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetLocalVariables->item(row, 4)->text().remove(0, 1).toUInt(0, 16));
+	if (source_coordinates.line != -1)
+		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
+}
+
+void MainWindow::on_tableWidgetFunctions_itemSelectionChanged()
+{
+int row(ui->tableWidgetFunctions->currentRow());
+	if (row < 0)
+		return;
+	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetFunctions->item(row, 3)->text().remove(0, 1).toUInt(0, 16));
 	if (source_coordinates.line != -1)
 		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
 }
