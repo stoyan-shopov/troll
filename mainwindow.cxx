@@ -278,8 +278,8 @@ void MainWindow::backtrace()
 
 bool MainWindow::readElfSections(void)
 {
-QRegExp rx("\\.debug_info\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
-QProcess readelf;
+QRegExp rx("\\.debug_info\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
+QProcess objdump;
 QString output;
 bool ok1, ok2;
 
@@ -291,73 +291,73 @@ bool ok1, ok2;
 	debug_str_offset = debug_str_len =
 	debug_line_offset = debug_line_len =
 	debug_loc_offset = debug_loc_len = 0;
-	
-	readelf.start("readelf.exe", QStringList() << "-S" << elf_filename);
-	readelf.waitForFinished();
-	if (readelf.error() != QProcess::UnknownError || readelf.exitCode() || readelf.exitStatus() != QProcess::NormalExit)
+
+	objdump.start("objdump.exe", QStringList() << "-h" << elf_filename);
+	objdump.waitForFinished();
+	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
 		Util::panic();
-	qDebug() << (output = readelf.readAll());
+	qDebug() << (output = objdump.readAll());
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_info at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_info_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_info_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_info at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_info_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_info_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_abbrev\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	rx.setPattern("\\.debug_abbrev\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_abbrev at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_abbrev_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_abbrev_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_abbrev at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_abbrev_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_abbrev_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_aranges\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	rx.setPattern("\\.debug_aranges\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_aranges at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_aranges_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_aranges_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_aranges at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_aranges_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_aranges_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_ranges\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	rx.setPattern("\\.debug_aranges\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_ranges at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_ranges_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_ranges_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_ranges at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_ranges_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_ranges_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_frame\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	rx.setPattern("\\.debug_frame\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_frame at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_frame_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_frame_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_frame at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_frame_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_frame_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_str\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	rx.setPattern("\\.debug_str\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_str at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_str_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_str_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_str at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_str_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_str_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_line\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	rx.setPattern("\\.debug_line\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_line at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_line_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_line_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_line at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_line_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_line_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_loc\\s+\\w+\\s+\\w+\\s+(\\w+)\\s+(\\w+)");
+	rx.setPattern("\\.debug_loc\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
-		qDebug() << ".debug_loc at" << rx.cap(1) << "size" << rx.cap(2);
-		debug_loc_offset = rx.cap(1).toInt(&ok1, 16);
-		debug_loc_len = rx.cap(2).toInt(&ok2, 16);
+		qDebug() << ".debug_loc at" << rx.cap(2) << "size" << rx.cap(1);
+		debug_loc_offset = rx.cap(2).toInt(&ok1, 16);
+		debug_loc_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
 	return true;
