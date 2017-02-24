@@ -71,30 +71,15 @@ public:
 		}
 		return disassembly_text.mid(index_table.at(l).second, disassembly_text.indexOf('\n', index_table.at(h).second) - index_table.at(l).second);
 	}
-	/*
-	QStringList disassemblyForRange(uint32_t start, uint32_t end)
+	QList<QPair<uint32_t /* address */, QString /* disassembly */> > disassemblyForRange(uint32_t start, uint32_t end)
 	{
-		QStringList dis;
+		QList<QPair<uint32_t , QString > > dis;
 		int i = indexOfAddress(start);
 		if (i == -1)
-			return dis << QString("<<< no disassembly for address $%1 >>>").arg(start, 8, 16, QChar('0'));
+			return dis << QPair<uint32_t, QString>(start, QString("<<< no disassembly for address $%1 >>>").arg(start, 8, 16, QChar('0')));
 		while (start < end && i < index_table.size() - 1)
 		{
-			dis << disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second));
-			start = index_table.at(++ i).first;
-		}
-		return dis;
-	}
-	*/
-	QString disassemblyForRange(uint32_t start, uint32_t end)
-	{
-		QString dis;
-		int i = indexOfAddress(start);
-		if (i == -1)
-			return QString("<<< no disassembly for address $%1 >>>\n").arg(start, 8, 16, QChar('0'));
-		while (start < end && i < index_table.size() - 1)
-		{
-			dis += disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second) - index_table.at(i).second - 1) + "\n";
+			dis << QPair<uint32_t , QString >(start, disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second) - index_table.at(i).second ));
 			start = index_table.at(++ i).first;
 		}
 		return dis;

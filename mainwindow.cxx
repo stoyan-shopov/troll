@@ -123,9 +123,14 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 				dis = lines[i];
 				while (dis)
 				{
-					addresses.insert(dis->address, t.length());
 					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
-					t += disassembly->disassemblyForRange(dis->address, dis->address_span).replace('\r', "");
+					auto x = disassembly->disassemblyForRange(dis->address, dis->address_span);
+					int i;
+					for (i = 0; i < x.size(); i ++)
+					{
+						addresses.insert(x.at(i).first, t.length());
+						t += QString(x.at(i).second).replace('\r', "") + "\n";
+					}
 					t += "...\n";
 					dis = dis->next;
 				}
