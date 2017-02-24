@@ -57,7 +57,7 @@ class MainWindow : public QMainWindow
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	QString last_source_filename, last_directory_name, last_compilation_directory;
 	int last_highlighted_line;
-	void displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString &compilation_directory, int highlighted_line);
+	void displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString &compilation_directory, int highlighted_line, uint32_t address = -1);
 	void refreshSourceCodeView(int center_line = -1);
 	void backtrace(void);
 	bool readElfSections(void);
@@ -150,6 +150,8 @@ private slots:
 	void on_tableWidgetLocalVariables_itemSelectionChanged();
 	
 	void on_tableWidgetFunctions_itemSelectionChanged();
+	
+	void on_tableWidgetBacktrace_clicked(const QModelIndex &index);
 	
 protected:
 	void closeEvent(QCloseEvent * e);

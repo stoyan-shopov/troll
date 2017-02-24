@@ -68,7 +68,7 @@ break;
 	return n;
 }
 
-void MainWindow::displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString & compilation_directory, int highlighted_line)
+void MainWindow::displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString & compilation_directory, int highlighted_line, uint32_t address)
 {
 QTime stime;
 stime.start();
@@ -120,6 +120,8 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
 			if (ui->actionShow_disassembly_address_ranges->isChecked())
 			{
+				if (0 && address == -1)
+					Util::panic();
 				dis = lines[i];
 				while (dis)
 				{
@@ -129,6 +131,8 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 					for (i = 0; i < x.size(); i ++)
 					{
 						addresses.insert(x.at(i).first, t.length());
+						if (address == x.at(i).first)
+							cursor_position_for_line = t.length();
 						t += QString(x.at(i).second).replace('\r', "") + "\n";
 					}
 					t += "...\n";
@@ -711,13 +715,13 @@ uint32_t pc = -1;
 	if (!ui->tableWidgetBacktrace->item(row, 0))
 	{
 		auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetBacktrace->item(row, 6)->text().remove(0, 1).toUInt(0, 16));
-		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
+		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line, source_coordinates.address);
 	}
 	else 
 	{
-		displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), ui->tableWidgetBacktrace->item(row, 5)->text(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt());
-		frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 7)->text();
 		pc = ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16);
+		displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), ui->tableWidgetBacktrace->item(row, 5)->text(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt(), pc);
+		frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 7)->text();
 	}
 
 	x.start();
@@ -1149,3 +1153,5 @@ int row(ui->tableWidgetFunctions->currentRow());
 	if (source_coordinates.line != -1)
 		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
 }
+
+void MainWindow::on_tableWidgetBacktrace_clicked(const QModelIndex &index) { backtrace(); } 
