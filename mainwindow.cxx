@@ -320,7 +320,7 @@ bool ok1, ok2;
 		debug_aranges_len = rx.cap(1).toInt(&ok2, 16);
 		if (!(ok1 && ok2)) Util::panic();
 	}
-	rx.setPattern("\\.debug_aranges\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
+	rx.setPattern("\\.debug_ranges\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
 	if (rx.indexIn(output) != -1)
 	{
 		qDebug() << ".debug_ranges at" << rx.cap(2) << "size" << rx.cap(1);
