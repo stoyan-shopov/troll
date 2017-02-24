@@ -126,6 +126,7 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 					addresses.insert(dis->address, t.length());
 					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
 					t += disassembly->disassemblyForRange(dis->address, dis->address_span);
+					t += "...\n";
 					dis = dis->next;
 				}
 			}

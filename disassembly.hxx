@@ -95,7 +95,6 @@ public:
 		while (start < end && i < index_table.size() - 1)
 		{
 			dis += disassembly_text.mid(index_table.at(i).second, disassembly_text.indexOf('\n', index_table.at(i).second) - index_table.at(i).second) + "\n";
-			dis += "...\n";
 			start = index_table.at(++ i).first;
 		}
 		return dis;
