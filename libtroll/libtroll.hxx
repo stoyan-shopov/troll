@@ -537,6 +537,10 @@ struct DwarfExpression
 				case DW_OP_ne:
 					x << "DW_OP_ne ";
 					break;
+				case DW_OP_const1u:
+					x << (unsigned)(* ((uint8_t *) dwarf_expression)) << " ";
+					dwarf_expression += sizeof(uint8_t), expression_len -= sizeof(uint8_t);
+					break;
 				case DW_OP_const2u:
 					x << * ((uint16_t *) dwarf_expression) << " ";
 					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
@@ -550,6 +554,9 @@ struct DwarfExpression
 					break;
 				case DW_OP_minus:
 					x << "DW_OP_minus ";
+					break;
+				case DW_OP_not:
+					x << "DW_OP_not ";
 					break;
 				case DW_OP_deref:
 					x << "DW_OP_deref ";
