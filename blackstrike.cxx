@@ -201,6 +201,7 @@ QTime t;
 
 void Blackstrike::requestSingleStep()
 {
+	emit targetRunning();
 	connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
 	registers.clear();
 	if (port->write("step\n") == -1)
@@ -209,6 +210,7 @@ void Blackstrike::requestSingleStep()
 
 bool Blackstrike::resume()
 {
+	emit targetRunning();
 	connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
 	registers.clear();
 	if (port->write("target-resume\n") == -1)

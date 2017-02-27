@@ -682,6 +682,7 @@ there:
 	ui->tableWidgetFiles->sortItems(0);
 	
 	ui->plainTextEdit->installEventFilter(this);
+	targetDisconnected();
 }
 
 MainWindow::~MainWindow()
@@ -944,7 +945,8 @@ class Target * t;
 				}
 				cortexm0->setTargetController(target = t);
 				connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
-				backtrace();
+				connect(target, SIGNAL(targetRunning()), this, SLOT(targetRunning()));
+				targetConnected();
 				auto s = target->interrogate(QString(".( <<<start>>>)?target-mem-map .( <<<end>>>)"));
 				if (!s.contains("memory-map"))
 				{
@@ -1165,5 +1167,48 @@ int row(ui->tableWidgetFunctions->currentRow());
 
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
+	ui->actionBlackstrikeConnect->setEnabled(false);
+	ui->actionSingle_step->setEnabled(true);
+	ui->actionReset_target->setEnabled(true);
+	ui->actionResume->setEnabled(true);
+	ui->actionHalt->setEnabled(false);
+	ui->actionRead_state->setEnabled(true);
+	ui->actionCore_dump->setEnabled(true);
 	backtrace();
+}
+
+void MainWindow::targetDisconnected()
+{
+	ui->actionBlackstrikeConnect->setEnabled(true);
+	ui->actionSingle_step->setEnabled(false);
+	ui->actionReset_target->setEnabled(false);
+	ui->actionResume->setEnabled(false);
+	ui->actionHalt->setEnabled(false);
+	ui->actionRead_state->setEnabled(false);
+	ui->actionCore_dump->setEnabled(false);
+}
+
+void MainWindow::targetConnected()
+{
+	ui->actionBlackstrikeConnect->setEnabled(false);
+	ui->actionSingle_step->setEnabled(true);
+	ui->actionReset_target->setEnabled(true);
+	ui->actionResume->setEnabled(true);
+	ui->actionHalt->setEnabled(true);
+	ui->actionRead_state->setEnabled(true);
+	ui->actionCore_dump->setEnabled(true);
+
+	backtrace();
+}
+
+void MainWindow::targetRunning()
+{
+	ui->actionBlackstrikeConnect->setEnabled(false);
+	ui->actionSingle_step->setEnabled(false);
+	ui->actionReset_target->setEnabled(false);
+	ui->actionResume->setEnabled(false);
+	ui->actionHalt->setEnabled(true);
+	ui->actionRead_state->setEnabled(false);
+	ui->actionCore_dump->setEnabled(false);
+	ui->plainTextEdit->setPlainText("target running...");
 }

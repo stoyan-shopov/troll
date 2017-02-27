@@ -80,16 +80,16 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionBlackstrikeConnect"/>
+   <addaction name="actionReset_target"/>
+   <addaction name="actionHalt"/>
+   <addaction name="actionResume"/>
    <addaction name="actionSingle_step"/>
+   <addaction name="actionRead_state"/>
+   <addaction name="actionCore_dump"/>
    <addaction name="actionExplore"/>
    <addaction name="actionShell"/>
    <addaction name="actionEdit"/>
    <addaction name="actionHack_mode"/>
-   <addaction name="actionReset_target"/>
-   <addaction name="actionResume"/>
-   <addaction name="actionHalt"/>
-   <addaction name="actionRead_state"/>
-   <addaction name="actionCore_dump"/>
    <addaction name="actionShow_disassembly_address_ranges"/>
    <addaction name="separator"/>
   </widget>

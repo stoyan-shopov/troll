@@ -152,6 +152,9 @@ private slots:
 	void on_tableWidgetFunctions_itemSelectionChanged();
 	
 	void targetHalted(enum TARGET_HALT_REASON reason);
+	void targetRunning(void);
+	void targetDisconnected(void);
+	void targetConnected(void);
 
 protected:
 	void closeEvent(QCloseEvent * e);

@@ -21,6 +21,7 @@ class Target : public QObject
 	Q_OBJECT
 signals:
 	void targetHalted(enum TARGET_HALT_REASON reason);
+	void targetRunning(void);
 public:
 	struct ram_area
 	{
