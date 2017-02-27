@@ -1408,8 +1408,8 @@ there:
 			if (isAddressInRange(die_list->at(i), address, compilation_unit_die.at(0)))
 			{
 				uint32_t die_offset(die_list->at(i).offset);
-				context.push_back(die_list->at(i));
 				die_list->at(i).children = debug_tree_of_die(die_offset, /* read only immediate die children */ 0, 2).at(0).children;
+				context.push_back(die_list->at(i));
 				die_list = & die_list->at(i).children;
 				i = 0;
 			}
