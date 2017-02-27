@@ -733,8 +733,9 @@ uint32_t pc = -1;
 
 	for (i = 0; i < locals.size(); i ++)
 	{
+		QString data_object_name;
 		ui->tableWidgetLocalVariables->insertRow(row = ui->tableWidgetLocalVariables->rowCount());
-		ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(QString(dwdata->nameOfDie(locals.at(i)))));
+		ui->tableWidgetLocalVariables->setItem(row, 0, new QTableWidgetItem(data_object_name = QString(dwdata->nameOfDie(locals.at(i)))));
 		std::vector<DwarfTypeNode> type_cache;
 		dwdata->readType(locals.at(i).offset, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
@@ -755,10 +756,17 @@ uint32_t pc = -1;
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem((prefix + "%1").arg(x.value, width, base)));
 
 			struct DwarfData::DataNode node;
-			QByteArray data;
 			dwdata->dataForType(type_cache, node, true, 1);
 			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
-				ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(x.value, node.bytesize, false), 0, base, prefix));
+				ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, target->readBytes(x.value, node.bytesize, false), 0, base, ""));
+			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
+			{
+				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
+				/*! \bug !!! DO NOT READ THE RAW REGISTER, INSTEAD READ THE CACHED ONE !!! */
+				uint32_t register_contents = target->readRegister(x.value);
+				n->addChild(itemForNode(node, QByteArray((const char *) & register_contents, sizeof register_contents), 0, base, ""));
+				ui->treeWidgetDataObjects->addTopLevelItem(n);
+			}
 		}
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(locationSforthCode));
 		if (ui->tableWidgetLocalVariables->item(row, 3)->text().isEmpty())
