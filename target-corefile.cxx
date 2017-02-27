@@ -56,7 +56,7 @@ uint32_t TargetCorefile::readWord(uint32_t address)
 	Util::panic();
 }
 
-uint32_t TargetCorefile::readRegister(uint32_t register_number)
+uint32_t TargetCorefile::readRawUncachedRegister(uint32_t register_number)
 {
 	if (register_number < register_file.length() / sizeof(uint32_t))
 		return * (uint32_t *) (register_file.data() + register_number * sizeof(uint32_t));

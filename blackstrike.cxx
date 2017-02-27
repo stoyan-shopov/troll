@@ -153,7 +153,7 @@ uint32_t x;
 	return x;
 }
 
-uint32_t Blackstrike::readRegister(uint32_t register_number)
+uint32_t Blackstrike::readRawUncachedRegister(uint32_t register_number)
 {
 	if (register_number >= registers.size())
 		readAllRegisters();

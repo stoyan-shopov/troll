@@ -15,7 +15,7 @@ public:
 	virtual QByteArray interrogate(const QByteArray & query, bool * isOk = 0) { Util::panic(); }
 	bool reset(void) { Util::panic(); }
 	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
-	uint32_t readRegister(uint32_t register_number);
+	uint32_t readRawUncachedRegister(uint32_t register_number);
 	uint32_t readWord(uint32_t address);
 	uint32_t singleStep() { return 0; }
 	void requestSingleStep() { Util::panic(); }

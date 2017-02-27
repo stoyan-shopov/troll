@@ -9,7 +9,7 @@ static Sforth		* sforth;
 extern "C"
 {
 void do_target_fetch(void)		{ auto x = sforth->getResults(1); if (x.size() != 1) Util::panic(); sforth->push(target->readWord(x.at(0))); }
-void do_target_register_fetch(void)	{ auto x = sforth->getResults(1); if (x.size() != 1) Util::panic(); sforth->push(target->readRegister(x.at(0))); }
+void do_target_register_fetch(void)	{ Util::panic("access the cached register here"); }
 void do_panic(void)		{ Util::panic(); }
 }
 
@@ -19,7 +19,7 @@ const int CortexM0::register_count = 16,
 	CortexM0::return_address_register_number = /*! \todo	extract this from the .debug_frame dwarf cie program */ 14,
 	CortexM0::cfa_register_number = /*! \todo	extract this from the .debug_frame dwarf cie program */ 13;
 
-void CortexM0::readRegisters()
+void CortexM0::readRawRegistersFromTarget()
 {
 	int i;
 	registers.clear();
@@ -49,7 +49,7 @@ void CortexM0::primeUnwinder()
 {
 int i;
 	registers.clear();
-	for (i = 0; i < register_count; registers.push_back(target->readRegister(i++)));
+	for (i = 0; i < register_count; registers.push_back(target->readRawUncachedRegister(i++)));
 }
 
 bool CortexM0::unwindFrame(const QString & unwind_code, uint32_t start_address, uint32_t unwind_address)
@@ -72,7 +72,7 @@ uint32_t cfa;
 	if ((r = sforth->getResults(1)).size() != 1)
 		return false;
 	cfa = r.at(0);
-	readRegisters();
+	readRawRegistersFromTarget();
 	if (registers.size() != register_count)
 		return false;
 	registers.at(program_counter_register_number) = registers.at(return_address_register_number);
@@ -86,6 +86,6 @@ bool CortexM0::architecturalUnwind()
 	auto r = sforth->getResults(1);
 	if (r.size() != 1 || r.at(0) != 0xffffffff)
 		return false;
-	readRegisters();
+	readRawRegistersFromTarget();
 	return true;
 }

@@ -12,7 +12,7 @@ private:
 		return_address_register_number,
 		cfa_register_number;
 	std::vector<uint32_t> registers;
-	void readRegisters(void);
+	void readRawRegistersFromTarget(void);
 public:
 	CortexM0(Sforth * sforth_engine, class Target * target_controller);
 	void setTargetController(class Target * target_controller);

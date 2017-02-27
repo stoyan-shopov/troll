@@ -275,7 +275,7 @@ void MainWindow::backtrace()
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
 	int line_in_disassembly;
-	ui->plainTextEdit->setPlainText(disassembly->disassemblyAroundAddress(register_cache->registerFrame(0).at(15), & line_in_disassembly));
+	ui->plainTextEdit->setPlainText(disassembly->disassemblyAroundAddress(register_cache->cachedRegisterFrame(0).at(15), & line_in_disassembly));
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, line_in_disassembly);
 	QTextBlockFormat f;
@@ -411,7 +411,7 @@ QString outfile = QFileInfo(elf_filename).fileName();
 
 void MainWindow::updateRegisterView(int frame_number)
 {
-	auto x = register_cache->registerFrame(frame_number);
+	auto x = register_cache->cachedRegisterFrame(frame_number);
 	for (int row(0); row < x.size(); row ++)
 	{
 		QString s(QString("$%1").arg(x.at(row), 0, 16)), t = ui->tableWidgetRegisters->item(row, 1)->text();
@@ -708,7 +708,7 @@ if (!ui->tableWidgetBacktrace->item(row, 6))
 	ui->plainTextEdit->setPlainText("singularity; context undefined");
 	return;
 }
-uint32_t cfa_value = register_cache->registerFrame(frame_number + 1).at(13);
+uint32_t cfa_value = register_cache->cachedRegisterFrame(frame_number + 1).at(13);
 QString frameBaseSforthCode;
 QString locationSforthCode;
 uint32_t pc = -1;
@@ -762,8 +762,7 @@ uint32_t pc = -1;
 			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
-				/*! \bug !!! DO NOT READ THE RAW REGISTER, INSTEAD READ THE CACHED ONE !!! */
-				uint32_t register_contents = target->readRegister(x.value);
+				uint32_t register_contents = register_cache->cachedRegisterFrame(frame_number).at(x.value);
 				n->addChild(itemForNode(node, QByteArray((const char *) & register_contents, sizeof register_contents), 0, base, ""));
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
@@ -1100,8 +1099,8 @@ int i;
 	f.setFileName(dirname + "/registers.bin");
 	if (!f.open(QFile::WriteOnly))
 		Util::panic();
-	for (i = 0; i < register_cache->registerFrame(0).size(); i ++)
-		f.write((const char * ) & register_cache->registerFrame(0).at(i), sizeof register_cache->registerFrame(0).at(i));
+	for (i = 0; i < register_cache->cachedRegisterFrame(0).size(); i ++)
+		f.write((const char * ) & register_cache->cachedRegisterFrame(0).at(i), sizeof register_cache->cachedRegisterFrame(0).at(i));
 	f.close();
 	f.setFileName(elf_filename);
 	if (!f.copy(dirname + "/" + QFileInfo(elf_filename).fileName()))
