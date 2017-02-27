@@ -9,9 +9,17 @@
 
 #include "util.hxx"
 
+enum TARGET_HALT_REASON
+{
+	UNKNOWN,
+	BREAKPOINT_HIT,
+};
+
 class Target : public QObject
 {
 	Q_OBJECT
+signals:
+	void targetHalted(enum TARGET_HALT_REASON reason);
 public:
 	struct ram_area
 	{
@@ -29,6 +37,7 @@ public:
 	virtual QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false) = 0;
 	virtual uint32_t readRegister(uint32_t register_number) = 0;
 	virtual uint32_t singleStep(void) = 0;
+	virtual void requestSingleStep(void) = 0;
 	virtual bool resume(void) = 0;
 	virtual bool requestHalt(void) = 0;
 	virtual uint32_t haltReason(void) = 0;

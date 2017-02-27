@@ -151,8 +151,8 @@ private slots:
 	
 	void on_tableWidgetFunctions_itemSelectionChanged();
 	
-	void on_tableWidgetBacktrace_clicked(const QModelIndex &index);
-	
+	void targetHalted(enum TARGET_HALT_REASON reason);
+
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);

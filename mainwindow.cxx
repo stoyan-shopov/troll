@@ -727,6 +727,9 @@ uint32_t pc = -1;
 	x.start();
 	auto context = dwdata->executionContextForAddress(pc);
 	auto locals = dwdata->localDataObjectsForContext(context);
+
+	ui->treeWidgetDataObjects->clear();
+
 	for (i = 0; i < locals.size(); i ++)
 	{
 		ui->tableWidgetLocalVariables->insertRow(row = ui->tableWidgetLocalVariables->rowCount());
@@ -749,6 +752,12 @@ uint32_t pc = -1;
 			else
 				base = 10;
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem((prefix + "%1").arg(x.value, width, base)));
+
+			struct DwarfData::DataNode node;
+			QByteArray data;
+			dwdata->dataForType(type_cache, node, true, 1);
+			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
+				ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(x.value, node.bytesize, false), 0, base, prefix));
 		}
 		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(locationSforthCode));
 		if (ui->tableWidgetLocalVariables->item(row, 3)->text().isEmpty())
@@ -909,8 +918,7 @@ static unsigned accumulator;
 
 void MainWindow::on_actionSingle_step_triggered()
 {
-	target->singleStep();
-	backtrace();
+	target->requestSingleStep();
 }
 
 void MainWindow::on_actionBlackstrikeConnect_triggered()
@@ -935,6 +943,7 @@ class Target * t;
 					continue;
 				}
 				cortexm0->setTargetController(target = t);
+				connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
 				backtrace();
 				auto s = target->interrogate(QString(".( <<<start>>>)?target-mem-map .( <<<end>>>)"));
 				if (!s.contains("memory-map"))
@@ -1154,4 +1163,7 @@ int row(ui->tableWidgetFunctions->currentRow());
 		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
 }
 
-void MainWindow::on_tableWidgetBacktrace_clicked(const QModelIndex &index) { backtrace(); } 
+void MainWindow::targetHalted(TARGET_HALT_REASON reason)
+{
+	backtrace();
+}

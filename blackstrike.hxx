@@ -13,6 +13,8 @@ class Blackstrike : public Target
 private:
 	QSerialPort	* port;
 	void readAllRegisters(void);
+private slots:
+	void portReadyRead(void);
 public:
 	virtual QByteArray interrogate(const QByteArray &query, bool * isOk = 0);
 	bool reset(void);
@@ -21,6 +23,7 @@ public:
 	uint32_t readWord(uint32_t address);
 	uint32_t readRegister(uint32_t register_number);
 	uint32_t singleStep(void);
+	void requestSingleStep(void);
 	bool resume(void);
 	bool requestHalt(void);
 	uint32_t haltReason(void);

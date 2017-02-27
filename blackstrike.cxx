@@ -44,6 +44,17 @@ QTime t;
 	qDebug() << "target register read took" << t.elapsed() << "milliseconds";
 }
 
+void Blackstrike::portReadyRead()
+{
+QString halt_reason = port->readAll();
+	if (!disconnect(port, SIGNAL(readyRead()), 0, 0))
+		Util::panic();
+	if (halt_reason.contains("target-halted-breakpoint"))
+		emit targetHalted(BREAKPOINT_HIT);
+	else
+		Util::panic();
+}
+
 QByteArray Blackstrike::interrogate(const QByteArray & query, bool *isOk)
 {
 	if (query.indexOf(".( <<<start>>>)") >= query.indexOf(".( <<<end>>>)"))
@@ -184,6 +195,14 @@ QTime t;
 	if (BLACKSTIRKE_DEBUG) qDebug() << "target halt reason: " << x;
 	qDebug() << "target single-stepping took" << t.elapsed() << "milliseconds";
 	return x;
+}
+
+void Blackstrike::requestSingleStep()
+{
+	connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
+	registers.clear();
+	if (port->write("step\n") == -1)
+		Util::panic();
 }
 
 bool Blackstrike::resume()
