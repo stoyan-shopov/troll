@@ -51,6 +51,8 @@ QString halt_reason = port->readAll();
 		Util::panic();
 	if (halt_reason.contains("target-halted-breakpoint"))
 		emit targetHalted(BREAKPOINT_HIT);
+	else if (halt_reason.contains("target-halted"))
+		emit targetHalted(GENERIC_HALT_CONDITION);
 	else
 		Util::panic();
 }
@@ -207,14 +209,17 @@ void Blackstrike::requestSingleStep()
 
 bool Blackstrike::resume()
 {
+	connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
 	registers.clear();
-	interrogate(QString("target-resume .( <<<start>>>).( <<<end>>>)").toLocal8Bit());
+	if (port->write("target-resume\n") == -1)
+		Util::panic();
 	return true;
 }
 
 bool Blackstrike::requestHalt()
 {
-	interrogate(QString("target-request-halt .( <<<start>>>).( <<<end>>>)").toLocal8Bit());
+	if (port->write("\003") == -1)
+		Util::panic();
 	return true;
 }
 

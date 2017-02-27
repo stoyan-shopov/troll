@@ -11,8 +11,9 @@
 
 enum TARGET_HALT_REASON
 {
-	UNKNOWN,
+	UNKNOWN		= 0,
 	BREAKPOINT_HIT,
+	GENERIC_HALT_CONDITION,
 };
 
 class Target : public QObject
