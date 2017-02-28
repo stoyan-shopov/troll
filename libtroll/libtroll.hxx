@@ -1491,10 +1491,14 @@ there:
 		return s;
 	}
 
-	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, 
-		/*! \todo	remove this parameter!!! */const struct Die & compilation_unit_die)
+	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address)
 	{
 		SourceCodeCoordinates s;
+		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address) + /* skip compilation unit header */ 11;
+		if (cu_die_offset == -1)
+			return s;
+
+		auto compilation_unit_die = read_die(cu_die_offset);
 		uint32_t file_number;
 		if (compilation_unit_die.tag != DW_TAG_compile_unit)
 			DwarfUtil::panic();
@@ -1509,13 +1513,6 @@ there:
 			s.compilation_directory_name = DwarfUtil::formString(x.first, x.second, debug_str);
 		l.stringsForFileNumber(file_number, s.file_name, s.directory_name, s.compilation_directory_name);
 		return s;
-	}
-	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address)
-	{
-		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address) + /* skip compilation unit header */ 11;
-		if (cu_die_offset == -1)
-			return SourceCodeCoordinates();
-		return sourceCodeCoordinatesForAddress(address, read_die(cu_die_offset));
 	}
 
 private:

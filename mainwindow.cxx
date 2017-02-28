@@ -306,7 +306,7 @@ void MainWindow::backtrace()
 	{
 		auto subprogram = dwdata->topLevelSubprogramOfContext(context);
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
-		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter(), context.at(0));
+		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter());
 		if (DEBUG_BACKTRACE) qDebug() << x.file_name << (signed) x.line;
 		if (DEBUG_BACKTRACE) qDebug() << "dwarf unwind program:" << QString::fromStdString(unwind_data.first) << "address:" << unwind_data.second;
 
