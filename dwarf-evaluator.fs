@@ -31,11 +31,6 @@ unused
 	bl word find 0= abort" vectored word not found"
 	>body ! ;
 
-\ after evaluation of a dwarf expression, this is true
-\ if the computed value on the top of the stack is the object's
-\ value, instead of its location address - i.e., the dwarf
-\ expression was terminated by the 'DW_OP_stack_value' word
-false value ?stack-value
 0 value frame-base-value
 vector frame-base-rule
 : frame-base-defined ( -- frame-base-value)
@@ -69,12 +64,12 @@ vector frame-base-rule
 : DW_OP_stack_value ( x -- x)
 	depth 1 <> abort" bad stack"
 	expression-is-a-constant to expression-value-type
-	true to ?stack-value ;
+	;
 	
 : init-dwarf-evaluator ( --)
 	['] frame-base-undefined ['] frame-base-rule >body !
 	\ by default - make the dwarf expression value a memory address
 	expression-is-a-memory-address to expression-value-type
-	false to ?stack-value ;
+	;
 
 .( dwarf expression evaluator compiled, ) unused - . .( bytes used) cr
