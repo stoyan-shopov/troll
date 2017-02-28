@@ -14,7 +14,6 @@ TEMPLATE = app
 
 
 SOURCES +=\
-        mainwindow.cxx \
 	main.cxx \
     libtroll/libtroll.cxx \
     sforth/engine.c \
@@ -26,9 +25,10 @@ SOURCES +=\
     cortexm0-sfext.c \
     target-corefile.cxx \
     blackstrike.cxx \
-    dwarf-evaluator.cxx
+    dwarf-evaluator.cxx \
+    troll.cxx
 
-HEADERS  += mainwindow.hxx \
+HEADERS  += \
     libtroll/dwarf.h \
     libtroll/libtroll.hxx \
     sforth.hxx \
@@ -42,7 +42,8 @@ HEADERS  += mainwindow.hxx \
     s-record.hxx \
     flash-memory-writer.hxx \
     disassembly.hxx \
-    dwarf-evaluator.hxx
+    dwarf-evaluator.hxx \
+    troll.hxx
 
 FORMS    += mainwindow.ui \
     notification.ui
