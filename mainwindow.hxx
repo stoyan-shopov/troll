@@ -12,6 +12,7 @@
 #include "registercache.hxx"
 #include <QSerialPort>
 #include <QSyntaxHighlighter>
+#include <QTimer>
 #include "s-record.hxx"
 #include "disassembly.hxx"
 
@@ -76,6 +77,7 @@ class MainWindow : public QMainWindow
 	QByteArray debug_aranges, debug_info, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc;
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
+	QTimer		polishing_timer;
 	DwarfData * dwdata;
 	Disassembly 	* disassembly;
 	Highlighter	* highlighter;
@@ -187,6 +189,7 @@ private slots:
 	void targetRunning(void);
 	void targetDisconnected(void);
 	void targetConnected(void);
+	void polishSourceCodeViewOnTargetExecution(void);
 
 protected:
 	void closeEvent(QCloseEvent * e);

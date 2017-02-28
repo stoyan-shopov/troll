@@ -767,6 +767,8 @@ there:
 	ui->plainTextEdit->installEventFilter(this);
 	targetDisconnected();
 	highlighter = new Highlighter(ui->plainTextEdit->document());
+	
+	connect(& polishing_timer, SIGNAL(timeout()), this, SLOT(polishSourceCodeViewOnTargetExecution()));
 }
 
 MainWindow::~MainWindow()
@@ -784,7 +786,10 @@ void MainWindow::on_tableWidgetBacktrace_itemSelectionChanged()
 {
 QTime x;
 int i;
-int row(ui->tableWidgetBacktrace->currentRow()), frame_number = ui->tableWidgetBacktrace->verticalHeaderItem(row)->data(Qt::UserRole).toInt();
+int row(ui->tableWidgetBacktrace->currentRow());
+if (row < 0)
+	return;
+int frame_number = ui->tableWidgetBacktrace->verticalHeaderItem(row)->data(Qt::UserRole).toInt();
 updateRegisterView(frame_number);
 ui->tableWidgetLocalVariables->setRowCount(0);
 if (!ui->tableWidgetBacktrace->item(row, 6))
@@ -1027,7 +1032,7 @@ class Target * t;
 			t = new Blackstrike(& blackstrike_port);
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
-				if (!((Blackstrike *)t)->interrogate("12 12 * .( <<<start>>>). .( <<<end>>>)cr").contains("144"))
+				if (!((Blackstrike *)t)->interrogate("\003 abort\n12 12 * .( <<<start>>>). .( <<<end>>>)cr").contains("144"))
 				{
 					QMessageBox::critical(0, "blackstrike port mismatch", "blackstrike port detected, but does not respond!!!\nport is " + ports.at(i).portName());
 					blackstrike_port.close();
@@ -1279,6 +1284,7 @@ int row(ui->tableWidgetFunctions->currentRow());
 
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
+	polishing_timer.stop();
 	ui->actionBlackstrikeConnect->setEnabled(false);
 	ui->actionSingle_step->setEnabled(true);
 	ui->actionReset_target->setEnabled(true);
@@ -1313,6 +1319,15 @@ void MainWindow::targetConnected()
 	backtrace();
 }
 
+void MainWindow::polishSourceCodeViewOnTargetExecution()
+{
+static int i;
+	if (i ++ == 10)
+		i = 0;
+	polishing_timer.setInterval(200);
+	ui->plainTextEdit->setPlainText(QString("target running...") + QString(i, QChar('.')));;
+}
+
 void MainWindow::targetRunning()
 {
 	ui->actionBlackstrikeConnect->setEnabled(false);
@@ -1322,5 +1337,7 @@ void MainWindow::targetRunning()
 	ui->actionHalt->setEnabled(true);
 	ui->actionRead_state->setEnabled(false);
 	ui->actionCore_dump->setEnabled(false);
-	ui->plainTextEdit->setPlainText("target running...");
+	polishing_timer.start(500);
+	ui->tableWidgetBacktrace->setRowCount(0);
+	ui->tableWidgetLocalVariables->setRowCount(0);
 }
