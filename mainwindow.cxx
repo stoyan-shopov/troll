@@ -1115,6 +1115,27 @@ void MainWindow::on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index
 
 void MainWindow::on_actionResume_triggered()
 {
+QMap<uint32_t, int> breakpointed_addresses;
+int i, j;
+
+	for (i = 0; i < breakpoints.size(); i ++)
+	{
+		int j;
+		for (j = 0; j < breakpoints.at(i).addresses.size(); j ++)
+			breakpointed_addresses.operator [](breakpoints.at(i).addresses.at(j)) ++;
+	}
+	for (i = 0; i < machine_level_breakpoints.size(); i ++)
+		breakpointed_addresses.operator [](machine_level_breakpoints.at(i).address) ++;
+	auto x = breakpointed_addresses.begin();
+	while (x != breakpointed_addresses.end())
+	{
+		if (!target->breakpointSet(x.key(), 2))
+		{
+			QMessageBox::critical(0, "failed to set breakpoint", "failed to set breakpoint!\ntoo many breakpoints requested?");
+			Util::panic();
+		}
+		x ++;
+	}
 	target->resume();
 }
 

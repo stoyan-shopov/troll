@@ -76,7 +76,7 @@ QTime t;
 	{
 		if (port->bytesAvailable())
 			s += port->readAll();
-		else if (!port->waitForReadyRead(20000))
+		else if (!port->waitForReadyRead(2000))
 		{
 			if (isOk)
 				* isOk = false;
