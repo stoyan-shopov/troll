@@ -199,6 +199,18 @@ QTime t;
 	return x;
 }
 
+bool Blackstrike::breakpointSet(uint32_t address, int length)
+{
+	return interrogate(QString("#%1 #%2 .( <<<start>>>) breakpoint-set .( <<<end>>>)").arg(address).arg(length).toUtf8()).contains("breakpoint-ok")
+			? true : false;
+}
+
+bool Blackstrike::breakpointClear(uint32_t address, int length)
+{
+	return interrogate(QString("#%1 #%2 .( <<<start>>>) breakpoint-clear .( <<<end>>>)").arg(address).arg(length).toUtf8()).contains("breakpoint-ok")
+			? true : false;
+}
+
 void Blackstrike::requestSingleStep()
 {
 	emit targetRunning();
