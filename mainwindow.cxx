@@ -805,7 +805,10 @@ uint32_t pc = -1;
 	if (!ui->tableWidgetBacktrace->item(row, 0))
 	{
 		auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetBacktrace->item(row, 6)->text().remove(0, 1).toUInt(0, 16));
-		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line, source_coordinates.address);
+		if (source_coordinates.call_line == -1 || !source_coordinates.call_file_name)
+			displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line, source_coordinates.address);
+		else
+			displaySourceCodeFile(source_coordinates.call_file_name, source_coordinates.call_directory_name, source_coordinates.compilation_directory_name, source_coordinates.call_line, source_coordinates.address);
 	}
 	else 
 	{

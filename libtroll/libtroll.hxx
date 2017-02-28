@@ -347,12 +347,12 @@ struct StaticObject
 
 struct SourceCodeCoordinates
 {
-	const char	* file_name;
-	const char	* directory_name;
+	const char	* file_name, * call_file_name;
+	const char	* directory_name, * call_directory_name;
 	const char	* compilation_directory_name;
 	uint32_t	address;
-	uint32_t	line;
-	SourceCodeCoordinates(void) { file_name = "<<< unknown filename >>>", directory_name = compilation_directory_name = 0, address = line = -1; }
+	uint32_t	line, call_line;
+	SourceCodeCoordinates(void) { file_name = "<<< unknown filename >>>", call_file_name = directory_name = call_directory_name = compilation_directory_name = 0, address = line = call_line = -1; }
 };
 
 struct LocationList
@@ -1467,12 +1467,13 @@ there:
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto file = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
 		auto line = a.dataForAttribute(DW_AT_decl_line, debug_info + die.offset);
+		auto call_file = a.dataForAttribute(DW_AT_call_file, debug_info + die.offset);
+		auto call_line = a.dataForAttribute(DW_AT_call_line, debug_info + die.offset);
 		if (!file.first || !line.first)
 		{
 			struct Die referred_die(die);
 			if (hasAbstractOrigin(die, referred_die))
-				return sourceCodeCoordinatesForDieOffset(referred_die.offset);
-			return s;
+				s = sourceCodeCoordinatesForDieOffset(referred_die.offset);
 		}
 		auto compilation_unit_die = read_die(compilationUnitOffsetForOffsetInDebugInfo(die.offset) + /* skip compilation unit header */ 11);
 		Abbreviation b(debug_abbrev + compilation_unit_die.abbrev_offset);
@@ -1485,9 +1486,15 @@ there:
 		if (compilation_directory.first)
 			compilation_directory_string = DwarfUtil::formString(compilation_directory.first, compilation_directory.second, debug_str);
 		l.skipToOffset(DwarfUtil::formConstant(statement_list));
-		l.stringsForFileNumber(DwarfUtil::formConstant(file), s.file_name, s.directory_name, compilation_directory_string);
+		if (file.first)
+			l.stringsForFileNumber(DwarfUtil::formConstant(file), s.file_name, s.directory_name, compilation_directory_string);
+		if (call_file.first)
+			l.stringsForFileNumber(DwarfUtil::formConstant(call_file), s.call_file_name, s.call_directory_name, compilation_directory_string);
+		if (line.first)
+			s.line = DwarfUtil::formConstant(line);
+		if (call_line.first)
+			s.call_line = DwarfUtil::formConstant(call_line);
 		s.compilation_directory_name = compilation_directory_string;
-		s.line = DwarfUtil::formConstant(line);
 		return s;
 	}
 
