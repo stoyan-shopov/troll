@@ -26,7 +26,6 @@ SOURCES +=\
     cortexm0-sfext.c \
     target-corefile.cxx \
     blackstrike.cxx \
-    registercache.cxx \
     dwarf-evaluator.cxx
 
 HEADERS  += mainwindow.hxx \

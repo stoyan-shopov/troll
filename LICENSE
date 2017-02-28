@@ -1,4 +1,3 @@
-/*
 Copyright (c) 2016-2017 stoyan shopov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,25 +17,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-*/
-#ifndef SFORTH_H
-#define SFORTH_H
 
-#include <QPlainTextEdit>
-
-extern "C"
-{
-#include "engine.h"
-}
-
-class Sforth
-{
-private:
-public:
-	Sforth(QPlainTextEdit * console);
-	void evaluate(const QString & sforth_commands);
-	void push(cell x) { sf_push(x); }
-	std::vector<cell> getResults(int result_count);
-};
-
-#endif // SFORTH_H
