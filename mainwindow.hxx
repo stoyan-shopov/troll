@@ -11,6 +11,7 @@
 #include "dwarf-evaluator.hxx"
 #include "registercache.hxx"
 #include <QSerialPort>
+#include <QSyntaxHighlighter>
 #include "s-record.hxx"
 #include "disassembly.hxx"
 
@@ -19,6 +20,36 @@
 namespace Ui {
 class MainWindow;
 }
+
+
+class Highlighter : public QSyntaxHighlighter
+{
+	Q_OBJECT
+
+public:
+	Highlighter(QTextDocument *parent = 0);
+
+protected:
+	void highlightBlock(const QString &text) override;
+
+private:
+	struct HighlightingRule
+	{
+		QRegExp pattern;
+		QTextCharFormat format;
+	};
+	QVector<HighlightingRule> highlightingRules;
+
+	QRegExp commentStartExpression;
+	QRegExp commentEndExpression;
+
+	QTextCharFormat keywordFormat;
+	QTextCharFormat classFormat;
+	QTextCharFormat singleLineCommentFormat;
+	QTextCharFormat multiLineCommentFormat;
+	QTextCharFormat quotationFormat;
+	QTextCharFormat functionFormat;
+};
 
 class MainWindow : public QMainWindow
 {
@@ -47,6 +78,7 @@ class MainWindow : public QMainWindow
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	DwarfData * dwdata;
 	Disassembly 	* disassembly;
+	Highlighter	* highlighter;
 	Sforth	* sforth;
 	Target	* target;
 	RegisterCache	* register_cache;
