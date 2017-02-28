@@ -846,11 +846,19 @@ uint32_t pc = -1;
 			else
 				base = 10;
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem((prefix + "%1").arg(x.value, width, base)));
+			
+			switch (base = ui->comboBoxDataDisplayNumericBase->currentText().toUInt())
+			{
+				case 2: prefix = "%"; break;
+				case 16: prefix = "$"; break;
+				case 10: break;
+				default: Util::panic();
+			}
 
 			struct DwarfData::DataNode node;
 			dwdata->dataForType(type_cache, node, true, 1);
 			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
-				ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, target->readBytes(x.value, node.bytesize, false), 0, base, ""));
+				ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, target->readBytes(x.value, node.bytesize, false), 0, base, prefix));
 			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
@@ -867,6 +875,7 @@ uint32_t pc = -1;
 	}
 	ui->tableWidgetLocalVariables->resizeColumnsToContents();
 	ui->tableWidgetLocalVariables->resizeRowsToContents();
+	ui->treeWidgetDataObjects->expandToDepth(1);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_local_data_objects_view_build_time)
 		profiling.max_local_data_objects_view_build_time = x.elapsed();
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
