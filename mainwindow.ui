@@ -737,7 +737,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>show disassembly address ranges</string>
+    <string>show disassembly</string>
    </property>
   </action>
  </widget>

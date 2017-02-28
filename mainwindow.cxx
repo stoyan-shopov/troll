@@ -74,7 +74,7 @@ Highlighter::Highlighter(QTextDocument *parent)
 	rule.format = quotationFormat;
 	highlightingRules.append(rule);
 
-	functionFormat.setFontItalic(true);
+	//functionFormat.setFontItalic(true);
 	functionFormat.setForeground(Qt::blue);
 	rule.pattern = QRegExp("\\b[A-Za-z0-9_]+(?=\\()");
 	rule.format = functionFormat;
@@ -414,9 +414,9 @@ bool ok1, ok2;
 	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
 	{
 		QMessageBox::critical(0, "error reading DWARF debug sections",
-			"error running the 'objdump' utility in order to read the DWARF\n"
+			"error running the 'arm-none-eabi-objdump' utility in order to read the DWARF\n"
 			"debug information from the target ELF file!\n\n"
-			"please, make sure that the 'objdump' utility is accessible\n"
+			"please, make sure that the 'arm-none-eabi-objdump' utility is accessible\n"
 			"in your path environment, and that the file you have specified\n"
 			"is indeed an ELF file!"
 		      );
@@ -505,11 +505,20 @@ bool MainWindow::loadSRecordFile()
 QProcess objcopy;
 QString outfile = QFileInfo(elf_filename).fileName();
 
-	objcopy.start("objcopy.exe", QStringList() << "-O" << "srec" << elf_filename << outfile + ".srec");
+	objcopy.start("arm-none-eabi-objcopy.exe", QStringList() << "-O" << "srec" << elf_filename << outfile + ".srec");
 	objcopy.waitForFinished();
-	qDebug() << objcopy.readAll();
 	if (objcopy.error() != QProcess::UnknownError || objcopy.exitCode() || objcopy.exitStatus() != QProcess::NormalExit)
-		Util::panic();
+	{
+		QMessageBox::critical(0, "error retrieving target memory areas",
+			"error running the 'arm-none-eabi-objcopy' utility in order to retrieve\n"
+			"target memory area contents!\n\n"
+			"please, make sure that the 'arm-none-eabi-objcopy' utility is accessible\n"
+			"in your path environment, and that the file you have specified\n"
+			"is indeed an ELF file!\n\n"
+		        "target flash programming and verification will be unavailable in this session"
+		      );
+		return false;
+	}
 	return s_record_file.loadFile(outfile + ".srec");
 }
 
@@ -653,9 +662,9 @@ there:
 	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
 	{
 		QMessageBox::critical(0, "error disassembling the target ELF file",
-			"error running the 'objdump' utility in order to disassemble\n"
+			"error running the 'arm-none-eabi-objdump' utility in order to disassemble\n"
 			"the target ELF file!\n\n"
-			"please, make sure that the 'objdump' utility is accessible\n"
+			"please, make sure that the 'arm-none-eabi-objdump' utility is accessible\n"
 			"in your path environment, and that the file you have specified\n"
 			"is indeed an ELF file!\n\n"
 			"disassembly will be unavailable in this session!"
