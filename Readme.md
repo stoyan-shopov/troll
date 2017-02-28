@@ -16,4 +16,4 @@ Note that this is a very special case of a debugger:
 
 Here is a screenshot of the *troll*'s graphical user interface, as of 28022017:
 
-![alt text](documentation/troll-screenshot-28022017.png)
+![alt text](documentation/troll-screenshot-28022017-complete.png)
