@@ -14,3 +14,6 @@ Note that this is a very special case of a debugger:
 - tre *troll* itself is written in *C++*
 - the *troll* itself heavily relies on the Qt framework
 
+Here is a screenshot of the *troll*'s graphical user interface, as of 28022017:
+
+![alt text](documentation/troll-screenshot-28022017.png)
