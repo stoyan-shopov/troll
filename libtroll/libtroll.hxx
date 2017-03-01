@@ -1770,6 +1770,7 @@ if (is_prefix_printed)
 						}
 					else
 						type_string += "[]";
+					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
 				}
 			}
 				break;
@@ -1802,14 +1803,7 @@ if (is_prefix_printed)
 				DwarfUtil::panic();
 		}
 	}
-	std::string typeString(const std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0)
-	{
-		std::string type_string;
-		typeChainString(type, true, type_string, short_type_print, node_number);
-		//type_string += nameOfDie(type.at(node_number).die);
-		typeChainString(type, false, type_string, short_type_print, node_number);
-		return type_string;
-	}
+	std::string typeString(const std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0);
 
 	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
 	{

@@ -45,8 +45,9 @@ Highlighter::Highlighter(QTextDocument *parent)
 {
 	HighlightingRule rule;
 
-	keywordFormat.setForeground(Qt::darkBlue);
-	keywordFormat.setFontWeight(QFont::Bold);
+	//keywordFormat.setForeground(Qt::darkBlue);
+	keywordFormat.setForeground(QColor(0x60, 0xff, 0x60));
+	//keywordFormat.setFontWeight(QFont::Bold);
 	QStringList keywordPatterns;
 	keywordPatterns << "\\bchar\\b" << "\\bclass\\b" << "\\bconst\\b"
 	                << "\\bdouble\\b" << "\\benum\\b" << "\\bexplicit\\b"
@@ -63,7 +64,7 @@ Highlighter::Highlighter(QTextDocument *parent)
 		rule.format = keywordFormat;
 		highlightingRules.append(rule);
 	}
-	classFormat.setFontWeight(QFont::Bold);
+	//classFormat.setFontWeight(QFont::Bold);
 	classFormat.setForeground(Qt::darkMagenta);
 	rule.pattern = QRegExp("\\bQ[A-Za-z]+\\b");
 	rule.format = classFormat;
@@ -75,17 +76,20 @@ Highlighter::Highlighter(QTextDocument *parent)
 	highlightingRules.append(rule);
 
 	//functionFormat.setFontItalic(true);
-	functionFormat.setForeground(Qt::blue);
+	//functionFormat.setForeground(Qt::blue);
+	functionFormat.setForeground(QColor(0x40, 0xff, 0xff));
 	rule.pattern = QRegExp("\\b[A-Za-z0-9_]+(?=\\()");
 	rule.format = functionFormat;
 	highlightingRules.append(rule);
 
-	singleLineCommentFormat.setForeground(Qt::red);
+	//singleLineCommentFormat.setForeground(Qt::red);
+	singleLineCommentFormat.setForeground(QColor(0x80, 0xa0, 0xff));
 	rule.pattern = QRegExp("//[^\n]*");
 	rule.format = singleLineCommentFormat;
 	highlightingRules.append(rule);
 
-	multiLineCommentFormat.setForeground(Qt::red);
+	//multiLineCommentFormat.setForeground(Qt::red);
+	multiLineCommentFormat.setForeground(QColor(0x80, 0xa0, 0xff));
 
 	commentStartExpression = QRegExp("/\\*");
 	commentEndExpression = QRegExp("\\*/");
