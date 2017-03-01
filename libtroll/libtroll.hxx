@@ -1587,13 +1587,14 @@ int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache
 bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
-	void typeChainString(const std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, std::string & type_string, bool short_type_print, int node_number)
+	std::string typeChainString(const std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, bool short_type_print, int node_number)
 	{
+		std::string type_string;
 		if (node_number == -1)
 		{
 			if (is_prefix_printed)
 				type_string += "void ";
-			return;
+			return type_string;
 		}
 		const struct Die & die(type.at(node_number).die);
 
@@ -1635,9 +1636,9 @@ if (is_prefix_printed)
 			case DW_TAG_member:
 			if (is_prefix_printed)
 			{
-				typeChainString(type, true, type_string, short_type_print, type.at(node_number).next);
+				type_string += typeChainString(type, true, short_type_print, type.at(node_number).next);
 				type_string += nameOfDie(die, true);
-				typeChainString(type, false, type_string, short_type_print, type.at(node_number).next);
+				type_string += typeChainString(type, false, short_type_print, type.at(node_number).next);
 				if (!short_type_print)
 					type_string += ";\n";
 			}
@@ -1650,12 +1651,14 @@ if (is_prefix_printed)
 			}
 				break;
 			case DW_TAG_volatile_type:
-				if (is_prefix_printed) type_string += "volatile ";
-				typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
+				if (is_prefix_printed)
+				{
+					type_string += "volatile " + typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+				}
 				break;
 			case DW_TAG_const_type:
-				if (is_prefix_printed) type_string += "const ";
-				typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
+				if (is_prefix_printed)
+					type_string += "const " + typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				break;
 			case DW_TAG_typedef:
 			if (is_prefix_printed)
@@ -1663,7 +1666,7 @@ if (is_prefix_printed)
 				if (!short_type_print) type_string += "typedef ";
 				type_string += std::string(nameOfDie(die)) + " ";
 				if (!short_type_print)
-					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
+					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 			}
 				break;
 			case DW_TAG_reference_type:
@@ -1672,7 +1675,7 @@ if (is_prefix_printed)
 			case DW_TAG_pointer_type:
 				if (is_prefix_printed)
 				{
-					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
+					type_string = typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
 						type_string += "(";
 					type_string += ((die.tag == DW_TAG_pointer_type || die.tag == DW_TAG_ptr_to_member_type) ? "*" : "&");
@@ -1681,7 +1684,7 @@ if (is_prefix_printed)
 				{
 					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
 						type_string += ")";
-					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
+					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				}
 				break;
 			case DW_TAG_base_type:
@@ -1756,7 +1759,7 @@ if (is_prefix_printed)
 			{
 				int i;
 				if (is_prefix_printed)
-					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
+					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				else
 				{
 					if (die.children.size())
@@ -1770,13 +1773,12 @@ if (is_prefix_printed)
 						}
 					else
 						type_string += "[]";
-					typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
+					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				}
 			}
 				break;
 			case DW_TAG_subprogram:
 			case DW_TAG_subroutine_type:
-				typeChainString(type, is_prefix_printed, type_string, short_type_print, type.at(node_number).next);
 				if (!is_prefix_printed)
 				{
 				int i;
@@ -1796,6 +1798,200 @@ if (is_prefix_printed)
 					}
 					type_string += ") ";
 				}
+				type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+				break;
+			default:
+				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag << "in" << __func__;
+				qDebug() << "die offset" << type.at(node_number).die.offset;
+				DwarfUtil::panic();
+		}
+		return type_string;
+	}
+
+	void typeChainStringNew(const std::vector<struct DwarfTypeNode> & type, std::string & type_string, bool short_type_print, int node_number)
+	{
+		if (node_number == -1)
+		{
+			type_string = "void " + type_string;
+			return;
+		}
+		const struct Die & die(type.at(node_number).die);
+
+		switch (die.tag)
+		{
+			case DW_TAG_enumeration_type:
+				type_string += "enum"; if (0)
+			case DW_TAG_union_type:
+				type_string += "union"; if (0)
+			case DW_TAG_structure_type:
+				type_string += "struct"; if (0)
+			case DW_TAG_class_type:
+				type_string += "??? class ???";
+			{
+				int j;
+				type_string += " " + std::string(nameOfDie(die, true)) + " ";
+#if 0
+				if (!short_type_print)
+				{
+					type_string += "{\n";
+					for (j = type.at(node_number).childlist; j != -1; j = type.at(j).sibling)
+						type_string += typeString(type, short_type_print, j);
+					type_string += "\n};";
+				}
+#endif
+			}
+			break;
+			case DW_TAG_formal_parameter:
+				if (0)
+			case DW_TAG_template_type_parameter:
+				type_string += "@template value parameter@ ";
+			case DW_TAG_template_value_parameter:
+				if (0)
+			case DW_TAG_inheritance:
+				type_string += "@inherits@ ";
+			case DW_TAG_member:
+			{
+				typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+				type_string += nameOfDie(die, true);
+				typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+				if (!short_type_print)
+					type_string += ";\n";
+				Abbreviation a(debug_abbrev + die.abbrev_offset);
+				auto x = a.dataForAttribute(DW_AT_bit_size, debug_info + die.offset);
+				if (x.first)
+					type_string += QString(" : %1").arg(DwarfUtil::formConstant(x)).toStdString();
+			}
+				break;
+			case DW_TAG_volatile_type:
+				type_string += "volatile ";
+				typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+				break;
+			case DW_TAG_const_type:
+				type_string += "const ";
+				typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+				break;
+			case DW_TAG_typedef:
+				if (!short_type_print) type_string += "typedef ";
+				type_string += std::string(nameOfDie(die)) + " ";
+				if (!short_type_print)
+					typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+				break;
+			case DW_TAG_reference_type:
+			case DW_TAG_rvalue_reference_type:
+			case DW_TAG_ptr_to_member_type:
+			case DW_TAG_pointer_type:
+					typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
+						type_string += "(";
+					type_string += ((die.tag == DW_TAG_pointer_type || die.tag == DW_TAG_ptr_to_member_type) ? "*" : "&");
+					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
+						type_string += ")";
+					typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+				break;
+			case DW_TAG_base_type:
+			{
+				Abbreviation a(debug_abbrev + die.abbrev_offset);
+				auto x = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
+				auto size = a.dataForAttribute(DW_AT_byte_size, debug_info + die.offset);
+				if (x.first == 0 || size.first == 0)
+					DwarfUtil::panic();
+				switch (DwarfUtil::formConstant(x))
+				{
+					default:
+						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x);
+						DwarfUtil::panic();
+					case DW_ATE_UTF:
+						type_string += "utf ";
+						break;
+					case DW_ATE_float:
+						type_string += "float ";
+						break;
+					case DW_ATE_boolean:
+						type_string += "bool ";
+						break;
+					case DW_ATE_unsigned_char:
+						type_string += "unsigned char ";
+						break;
+					case DW_ATE_signed_char:
+						type_string += "signed char ";
+						break;
+					case DW_ATE_unsigned:
+						switch (DwarfUtil::formConstant(size))
+						{
+							default:
+								DwarfUtil::panic();
+							case 1:
+								type_string += "unsigned char ";
+								break;
+							case 2:
+								type_string += "unsigned short ";
+								break;
+							case 4:
+								type_string += "unsigned int ";
+								break;
+							case 8:
+								type_string += "long long unsigned int ";
+								break;
+						}
+						break;
+					case DW_ATE_signed:
+						switch (DwarfUtil::formConstant(size))
+						{
+							default:
+								DwarfUtil::panic();
+							case 1:
+								type_string += "signed char ";
+								break;
+							case 2:
+								type_string += "signed short ";
+								break;
+							case 4:
+								type_string += "signed int ";
+								break;
+							case 8:
+								type_string += "long long signed int ";
+								break;
+						}
+				}
+			}
+				break;
+			case DW_TAG_array_type:
+			{
+				int i;
+					typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+					if (die.children.size())
+						for (i = 0; i < die.children.size(); i ++)
+						{
+							Abbreviation a(debug_abbrev + die.children.at(i).abbrev_offset);
+							auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + die.children.at(i).offset);
+							if (subrange.first == 0)
+								continue;
+							type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
+						}
+					else
+						type_string += "[]";
+					typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+			}
+				break;
+			case DW_TAG_subprogram:
+			case DW_TAG_subroutine_type:
+				typeChainStringNew(type, type_string, short_type_print, type.at(node_number).next);
+				int i;
+					type_string += nameOfDie(type.at(node_number).die, true);
+					type_string += "(";
+					if (!type.at(node_number).children.size())
+						type_string += "void";
+					else
+					{
+						for (i = 0; i < type.at(node_number).children.size(); i ++)
+						{
+							int j = type.at(node_number).children.at(i);
+							if (type.at(j).die.tag == DW_TAG_formal_parameter)
+								type_string += typeString(type, short_type_print, j) + ", ";
+						}
+						type_string.pop_back(), type_string.pop_back();
+					}
+					type_string += ") ";
 				break;
 			default:
 				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag << "in" << __func__;
