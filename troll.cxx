@@ -892,7 +892,11 @@ uint32_t pc = -1;
 			struct DwarfData::DataNode node;
 			dwdata->dataForType(type_cache, node, true, 1);
 			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
-				ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, target->readBytes(x.value, node.bytesize, false), 0, base, prefix));
+			{
+				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
+				n->addChild(itemForNode(node, target->readBytes(x.value, node.bytesize, false), 0, base, ""));
+				ui->treeWidgetDataObjects->addTopLevelItem(n);
+			}
 			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
