@@ -96,6 +96,12 @@ class MainWindow : public QMainWindow
 	CortexM0	* cortexm0;
 	DwarfEvaluator	* dwarf_evaluator;
 	SRecordMemoryData s_record_file;
+public:
+	struct TreeWidgetNodeData
+	{
+		uint32_t	pointer_type_die_offset;
+	};
+private:
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	QString last_source_filename, last_directory_name, last_compilation_directory;
 	int last_highlighted_line;
@@ -199,6 +205,8 @@ private slots:
 	void targetConnected(void);
 	void polishSourceCodeViewOnTargetExecution(void);
 
+	void on_treeWidgetDataObjects_itemActivated(QTreeWidgetItem *item, int column);
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);
@@ -225,5 +233,7 @@ private:
 	}
 	profiling;
 };
+
+Q_DECLARE_METATYPE(MainWindow::TreeWidgetNodeData)
 
 #endif // MAINWINDOW_HXX

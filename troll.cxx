@@ -141,6 +141,8 @@ QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const
 {
 auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << "???" << QString("%1").arg(node.data_member_location));
 int i;
+	if (node.is_pointer)
+		n->setData(0, Qt::UserRole, QVariant::fromValue((TreeWidgetNodeData) { .pointer_type_die_offset = node.die_offset, }));
 	if (!node.children.size())
 	{
 		if (data_pos + node.bytesize <= data.size()) switch (node.bytesize)
@@ -1390,4 +1392,22 @@ void MainWindow::targetRunning()
 	polishing_timer.start(500);
 	ui->tableWidgetBacktrace->setRowCount(0);
 	ui->tableWidgetLocalVariables->setRowCount(0);
+}
+
+void MainWindow::on_treeWidgetDataObjects_itemActivated(QTreeWidgetItem *item, int column)
+{
+	if (item->data(0, Qt::UserRole).canConvert<TreeWidgetNodeData>() && !item->childCount())
+	{
+		QMessageBox::information(0, "deref", "deref requested");
+		bool ok;
+		uint32_t address = item->text(2).replace('$', "0x").toUInt(& ok, 0);
+
+		std::vector<struct DwarfTypeNode> type_cache;
+		dwdata->readType(item->data(0, Qt::UserRole).value<struct TreeWidgetNodeData>().pointer_type_die_offset, type_cache);
+
+		struct DwarfData::DataNode node;
+		dwdata->dataForType(type_cache, node, true, 1);
+		item->addChild(itemForNode(node, ok ? target->readBytes(address, node.bytesize, true) : QByteArray(), 0, 10, ""));
+		item->setExpanded(true);
+	}
 }

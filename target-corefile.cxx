@@ -50,6 +50,7 @@ QByteArray TargetCorefile::readBytes(uint32_t address, int byte_count, bool is_f
 		return QByteArray(ram.data() + address - ram_base_address, byte_count);
 	if (is_failure_allowed)
 	{
+		qDebug() << QString("cannot read $%1 bytes at address $%2 from target memory").arg(byte_count).arg(address);
 		if (0) QMessageBox::warning(0, "cannot read target memory", QString("cannot read $%1 bytes at address $%2 from target memory\n")
 		                     .arg(byte_count)
 		                     .arg(address)
