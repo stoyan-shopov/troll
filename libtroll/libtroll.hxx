@@ -2039,6 +2039,7 @@ if (is_prefix_printed)
 		uint32_t bytesize;
 		uint32_t data_member_location;
 		struct Die	enumeration_die;
+		uint32_t	die_offset;
 		struct
 		{
 			uint32_t is_pointer	: 1;
@@ -2057,7 +2058,7 @@ if (is_prefix_printed)
 		node.bytesize = sizeOf(type, type_node_number);
 		node.data_member_location = 0;
 		node.is_pointer = node.is_enumeration = node.bitsize = node.bitposition = 0;
-		
+		node.die_offset = die.offset;
 		
 		if (1 && type.at(type_node_number).processed)
 		{
@@ -2144,8 +2145,9 @@ node.data.push_back("!!! recursion detected !!!");
 		type.at(type_node_number).processed = false;
 	}
 	/*! \todo	this will eventually need to be 64 bit... */
-	std::string enumeratorNameForValue(uint32_t value, const struct Die & die)
+	std::string enumeratorNameForValue(uint32_t value, uint32_t enumeration_die_offset)
 	{
+		auto die = debug_tree_of_die(enumeration_die_offset).at(0);
 		if (die.tag != DW_TAG_enumeration_type)
 			DwarfUtil::panic();
 		int i;
