@@ -311,6 +311,8 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 	last_directory_name = directory_name;
 	last_compilation_directory = compilation_directory;
 	last_highlighted_line = highlighted_line;
+	current_source_code_file_displayed = src.fileName();
+	statusBar()->showMessage(current_source_code_file_displayed);
 }
 
 void MainWindow::backtrace()
@@ -1123,10 +1125,9 @@ void MainWindow::on_actionShell_triggered()
 {
 	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
 	{
-		int row = ui->tableWidgetBacktrace->selectionModel()->selectedRows().at(0).row();
-		QDir dir(ui->tableWidgetBacktrace->item(row, 4)->text());
-		if (dir.exists())
-			QProcess::startDetached("cmd", QStringList(), dir.canonicalPath());
+		QFileInfo f(current_source_code_file_displayed);
+		if (f.exists())
+			QProcess::startDetached("cmd", QStringList() , QDir::toNativeSeparators(f.canonicalPath()));
 	}
 }
 
@@ -1134,10 +1135,9 @@ void MainWindow::on_actionExplore_triggered()
 {
 	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
 	{
-		int row = ui->tableWidgetBacktrace->selectionModel()->selectedRows().at(0).row();
-		QDir dir(ui->tableWidgetBacktrace->item(row, 4)->text());
-		if (dir.exists())
-			QProcess::startDetached("explorer", QStringList() << QString("/select,") + QDir::toNativeSeparators(dir.canonicalPath()) + "\\" + QFileInfo(ui->tableWidgetBacktrace->item(row, 2)->text()).fileName(), dir.canonicalPath());
+		QFileInfo f(current_source_code_file_displayed);
+		if (f.exists())
+			QProcess::startDetached("explorer", QStringList() << QString("/select,") + QDir::toNativeSeparators(f.canonicalFilePath()) , QDir::toNativeSeparators(f.canonicalPath()));
 	}
 }
 
