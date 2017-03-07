@@ -1652,13 +1652,13 @@ if (is_prefix_printed)
 				break;
 			case DW_TAG_volatile_type:
 				if (is_prefix_printed)
-				{
-					type_string += "volatile " + typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
-				}
+					type_string += "volatile ";
+				type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				break;
 			case DW_TAG_const_type:
 				if (is_prefix_printed)
-					type_string += "const " + typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+					type_string += "const ";
+				type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				break;
 			case DW_TAG_typedef:
 			if (is_prefix_printed)
@@ -1768,8 +1768,9 @@ if (is_prefix_printed)
 							Abbreviation a(debug_abbrev + die.children.at(i).abbrev_offset);
 							auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + die.children.at(i).offset);
 							if (subrange.first == 0)
-								continue;
-							type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
+								type_string += "[]";
+							else
+								type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
 						}
 					else
 						type_string += "[]";
