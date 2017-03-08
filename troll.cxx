@@ -417,7 +417,7 @@ bool ok1, ok2;
 	debug_line_offset = debug_line_len =
 	debug_loc_offset = debug_loc_len = 0;
 
-	objdump.start("objdump.exe", QStringList() << "-h" << elf_filename);
+	objdump.start("arm-none-eabi-objdump", QStringList() << "-h" << elf_filename);
 	objdump.waitForFinished();
 	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
 	{
@@ -513,7 +513,7 @@ bool MainWindow::loadSRecordFile()
 QProcess objcopy;
 QString outfile = QFileInfo(elf_filename).fileName();
 
-	objcopy.start("arm-none-eabi-objcopy.exe", QStringList() << "-O" << "srec" << elf_filename << outfile + ".srec");
+	objcopy.start("arm-none-eabi-objcopy", QStringList() << "-O" << "srec" << elf_filename << outfile + ".srec");
 	objcopy.waitForFinished();
 	if (objcopy.error() != QProcess::UnknownError || objcopy.exitCode() || objcopy.exitStatus() != QProcess::NormalExit)
 	{
@@ -664,7 +664,7 @@ there:
 		exit(1);
 	debug_file.setFileName(elf_filename);
 	QProcess objdump;
-	objdump.start("arm-none-eabi-objdump.exe", QStringList() << "-d" << elf_filename);
+	objdump.start("arm-none-eabi-objdump", QStringList() << "-d" << elf_filename);
 	objdump.waitForFinished();
 
 	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
