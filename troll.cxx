@@ -655,6 +655,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	              );
 	
 	ui->setupUi(this);
+	if (TEST_DRIVE_MODE)
+		setWindowTitle(windowTitle() + " - !!! TEST DRIVE MODE !!!");
 	restoreGeometry(s.value("window-geometry").toByteArray());
 	restoreState(s.value("window-state").toByteArray());
 	ui->splitterMain->restoreGeometry(s.value("main-splitter/geometry").toByteArray());
