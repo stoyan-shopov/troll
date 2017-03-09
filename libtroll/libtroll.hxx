@@ -623,8 +623,8 @@ private:
 	}
 	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
 	struct line_state { uint32_t file, address, is_stmt; int line, column; } registers[2], * current, * prev;
-	void init(void) { registers[0] = (struct line_state) { .file = 1, .address = 0, .is_stmt = default_is_stmt(), .line = 1, };
-				registers[1] = (struct line_state) { .file = 1, .address = 0xffffffff, .is_stmt = 0, .line = -1, };
+	void init(void) { registers[0] = (struct line_state) { .file = 1, .address = 0, .is_stmt = default_is_stmt(), .line = 1, .column = 0, };
+				registers[1] = (struct line_state) { .file = 1, .address = 0xffffffff, .is_stmt = 0, .line = -1, .column = -1, };
 				current = registers, prev = registers + 1; }
 	void swap(void) { struct line_state * x(current); current = prev; prev = x; }
 public:
@@ -1141,7 +1141,7 @@ private:
 	{
 		if (STATS_ENABLED) stats.abbreviation_misses ++;
 		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
-		uint32_t code, tag, has_children, name, form;
+		uint32_t code, name, form;
 		int len;
 		abbreviations.clear();
 		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
@@ -1151,8 +1151,8 @@ private:
 				DwarfUtil::panic("duplicate abbreviation code");
 			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
 			debug_abbrev += len;
-			tag = DwarfUtil::uleb128x(debug_abbrev);
-			has_children = DwarfUtil::uleb128x(debug_abbrev);
+			/* skip die tag and children flag */
+			DwarfUtil::uleb128x(debug_abbrev), DwarfUtil::uleb128x(debug_abbrev);
 			do
 			{
 				name = DwarfUtil::uleb128x(debug_abbrev);
@@ -1576,7 +1576,7 @@ private:
 		auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
 		auto referred_die_offset = DwarfUtil::formReference(x.first, x.second, i);
 		{
-			auto i = compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
+			compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
 			referred_die = read_die(referred_die_offset);
 		}
 		return true;
@@ -1861,7 +1861,6 @@ if (is_prefix_printed)
 	};
 	void dataForType(std::vector<struct DwarfTypeNode> & type, struct DataNode & node, bool short_type_print = true, int type_node_number = 0)
 	{
-		static int xxx = 0;
 		struct Die die(type.at(type_node_number).die);
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		node.bytesize = sizeOf(type, type_node_number);

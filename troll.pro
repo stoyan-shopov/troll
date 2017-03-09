@@ -11,6 +11,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = troll
 TEMPLATE = app
+QMAKE_CXXFLAGS += -Wno-sign-compare
 
 
 SOURCES +=\
@@ -50,7 +51,7 @@ FORMS    += mainwindow.ui \
 
 INCLUDEPATH += libtroll/ sforth/
 
-DEFINES += ENGINE_32BIT CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32
+DEFINES += ENGINE_32BIT CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 TEST_DRIVE_MODE=0
 
 DISTFILES += \
     unwinder.fs \

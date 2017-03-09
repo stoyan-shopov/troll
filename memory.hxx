@@ -45,8 +45,8 @@ public:
 	{
 		int i;
 		for (i = 0; i < ranges.size(); i ++)
-			if (ranges[i].address <= address && address <= ranges[i].address + ranges[i].data.size()
-				|| address <= ranges[i].address && ranges[i].address <= address + data.size())
+			if ((ranges[i].address <= address && address <= ranges[i].address + ranges[i].data.size())
+				|| (address <= ranges[i].address && ranges[i].address <= address + data.size()))
 			{
 				/* regions overlap - coalesce */
 				QByteArray x;

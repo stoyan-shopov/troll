@@ -178,8 +178,13 @@ break;
 	return n;
 }
 
-void MainWindow::displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString & compilation_directory, int highlighted_line, uint32_t address)
+void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
+	if (TEST_DRIVE_MODE)
+	{
+		QRegExp rx("^[xX]:[/\\\\]");
+		source_filename.replace(rx, ""), directory_name.replace(rx, ""), compilation_directory.replace(rx, "");
+	}
 QTime stime;
 stime.start();
 QFile src;
@@ -416,21 +421,31 @@ bool ok1, ok2;
 	debug_str_offset = debug_str_len =
 	debug_line_offset = debug_line_len =
 	debug_loc_offset = debug_loc_len = 0;
-
-	objdump.start("arm-none-eabi-objdump", QStringList() << "-h" << elf_filename);
-	objdump.waitForFinished();
-	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
+	
+	if (TEST_DRIVE_MODE)
 	{
-		QMessageBox::critical(0, "error reading DWARF debug sections",
-			"error running the 'arm-none-eabi-objdump' utility in order to read the DWARF\n"
-			"debug information from the target ELF file!\n\n"
-			"please, make sure that the 'arm-none-eabi-objdump' utility is accessible\n"
-			"in your path environment, and that the file you have specified\n"
-			"is indeed an ELF file!"
-		      );
-		return false;
+		QFile f("elf-sections-dump.txt");
+		f.open(QFile::ReadOnly);
+		output = f.readAll();
 	}
-	qDebug() << (output = objdump.readAll());
+	else
+	{
+
+		objdump.start("arm-none-eabi-objdump", QStringList() << "-h" << elf_filename);
+		objdump.waitForFinished();
+		if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
+		{
+			QMessageBox::critical(0, "error reading DWARF debug sections",
+			                      "error running the 'arm-none-eabi-objdump' utility in order to read the DWARF\n"
+			                      "debug information from the target ELF file!\n\n"
+			                      "please, make sure that the 'arm-none-eabi-objdump' utility is accessible\n"
+			                      "in your path environment, and that the file you have specified\n"
+			                      "is indeed an ELF file!"
+			                      );
+			return false;
+		}
+		qDebug() << (output = objdump.readAll());
+	}
 	if (rx.indexIn(output) != -1)
 	{
 		qDebug() << ".debug_info at" << rx.cap(2) << "size" << rx.cap(1);
@@ -513,19 +528,22 @@ bool MainWindow::loadSRecordFile()
 QProcess objcopy;
 QString outfile = QFileInfo(elf_filename).fileName();
 
-	objcopy.start("arm-none-eabi-objcopy", QStringList() << "-O" << "srec" << elf_filename << outfile + ".srec");
-	objcopy.waitForFinished();
-	if (objcopy.error() != QProcess::UnknownError || objcopy.exitCode() || objcopy.exitStatus() != QProcess::NormalExit)
+	if (!TEST_DRIVE_MODE)
 	{
-		QMessageBox::critical(0, "error retrieving target memory areas",
-			"error running the 'arm-none-eabi-objcopy' utility in order to retrieve\n"
-			"target memory area contents!\n\n"
-			"please, make sure that the 'arm-none-eabi-objcopy' utility is accessible\n"
-			"in your path environment, and that the file you have specified\n"
-			"is indeed an ELF file!\n\n"
-		        "target flash programming and verification will be unavailable in this session"
-		      );
-		return false;
+		objcopy.start("arm-none-eabi-objcopy", QStringList() << "-O" << "srec" << elf_filename << outfile + ".srec");
+		objcopy.waitForFinished();
+		if (objcopy.error() != QProcess::UnknownError || objcopy.exitCode() || objcopy.exitStatus() != QProcess::NormalExit)
+		{
+			QMessageBox::critical(0, "error retrieving target memory areas",
+			                      "error running the 'arm-none-eabi-objcopy' utility in order to retrieve\n"
+			                      "target memory area contents!\n\n"
+			                      "please, make sure that the 'arm-none-eabi-objcopy' utility is accessible\n"
+			                      "in your path environment, and that the file you have specified\n"
+			                      "is indeed an ELF file!\n\n"
+			                      "target flash programming and verification will be unavailable in this session"
+			                      );
+			return false;
+		}
 	}
 	return s_record_file.loadFile(outfile + ".srec");
 }
@@ -647,40 +665,56 @@ MainWindow::MainWindow(QWidget *parent) :
 	QFile debug_file;
 	QFileInfo file_info(elf_filename);
 	
-	if (file_info.exists())
+	if (TEST_DRIVE_MODE)
 	{
-		if (QMessageBox::question(0, "Reopen last file", "Reopen last file, or select a new file?", QString("Reopen\n")
-		                      + file_info.fileName(), "Select new") == 1)
-			goto there;
+		elf_filename = "blackmagic/src/blackmagic";
 	}
 	else
 	{
-		QMessageBox::warning(0, "file not found", QString("file ") + elf_filename + " not found\nplease select an elf file for debugging");
+		if (file_info.exists())
+		{
+			if (QMessageBox::question(0, "Reopen last file", "Reopen last file, or select a new file?", QString("Reopen\n")
+			                          + file_info.fileName(), "Select new") == 1)
+				goto there;
+		}
+		else
+		{
+			QMessageBox::warning(0, "file not found", QString("file ") + elf_filename + " not found\nplease select an elf file for debugging");
 there:
-		elf_filename = QFileDialog::getOpenFileName(0, "select an elf file for debugging");
+			elf_filename = QFileDialog::getOpenFileName(0, "select an elf file for debugging");
+		}
 	}
 	startup_time.start();
 	if (!readElfSections())
 		exit(1);
 	debug_file.setFileName(elf_filename);
-	QProcess objdump;
-	objdump.start("arm-none-eabi-objdump", QStringList() << "-d" << elf_filename);
-	objdump.waitForFinished();
-
-	if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
+	if (TEST_DRIVE_MODE)
 	{
-		QMessageBox::critical(0, "error disassembling the target ELF file",
-			"error running the 'arm-none-eabi-objdump' utility in order to disassemble\n"
-			"the target ELF file!\n\n"
-			"please, make sure that the 'arm-none-eabi-objdump' utility is accessible\n"
-			"in your path environment, and that the file you have specified\n"
-			"is indeed an ELF file!\n\n"
-			"disassembly will be unavailable in this session!"
-		      );
-		disassembly = new Disassembly(QByteArray());
+		QFile f("disassembly.txt");
+		f.open(QFile::ReadOnly);
+		disassembly = new Disassembly(f.readAll());
 	}
 	else
-		disassembly = new Disassembly(objdump.readAll());
+	{
+		QProcess objdump;
+		objdump.start("arm-none-eabi-objdump", QStringList() << "-d" << elf_filename);
+		objdump.waitForFinished();
+
+		if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
+		{
+			QMessageBox::critical(0, "error disassembling the target ELF file",
+			                      "error running the 'arm-none-eabi-objdump' utility in order to disassemble\n"
+			                      "the target ELF file!\n\n"
+			                      "please, make sure that the 'arm-none-eabi-objdump' utility is accessible\n"
+			                      "in your path environment, and that the file you have specified\n"
+			                      "is indeed an ELF file!\n\n"
+			                      "disassembly will be unavailable in this session!"
+			                      );
+			disassembly = new Disassembly(QByteArray());
+		}
+		else
+			disassembly = new Disassembly(objdump.readAll());
+	}
 	if (!debug_file.open(QFile::ReadOnly))
 	{
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());

@@ -106,7 +106,7 @@ private:
 	QString last_source_filename, last_directory_name, last_compilation_directory;
 	QString current_source_code_file_displayed;
 	int last_highlighted_line;
-	void displaySourceCodeFile(const QString & source_filename, const QString & directory_name, const QString &compilation_directory, int highlighted_line, uint32_t address = -1);
+	void displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address = -1);
 	void refreshSourceCodeView(int center_line = -1);
 	void backtrace(void);
 	bool readElfSections(void);
