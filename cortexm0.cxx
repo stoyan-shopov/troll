@@ -87,7 +87,7 @@ uint32_t cfa;
 		QMessageBox::critical(0, "register frame unwinding aborted", "register frame unwinding aborted\nsee the sforth execution log for more details");
 		return false;
 	}
-	if (r.size() != 1 || r.at(0) != 0xffffffff)
+        if (r.size() != 1 || r.at(0) != C_TRUE)
 		return false;
 	sforth->evaluate("fetch-cfa-value\n");
 	if ((r = sforth->getResults(1)).size() != 1)
@@ -105,7 +105,7 @@ bool CortexM0::architecturalUnwind()
 {
 	sforth->evaluate("architectural-unwind\n");
 	auto r = sforth->getResults(1);
-	if (r.size() != 1 || r.at(0) != 0xffffffff)
+        if (r.size() != 1 || r.at(0) != C_TRUE)
 		return false;
 	readRawRegistersFromTarget();
 	return true;

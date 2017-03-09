@@ -806,7 +806,8 @@ there:
 	targetDisconnected();
 	highlighter = new Highlighter(ui->plainTextEdit->document());
 	
-	connect(& polishing_timer, SIGNAL(timeout()), this, SLOT(polishSourceCodeViewOnTargetExecution()));
+        connect(& polishing_timer, SIGNAL(timeout()), this, SLOT(polishSourceCodeViewOnTargetExecution()));
+        ui->plainTextEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
 }
 
 MainWindow::~MainWindow()
@@ -835,7 +836,7 @@ if (!ui->tableWidgetBacktrace->item(row, 6))
 	ui->plainTextEdit->setPlainText("singularity; context undefined");
 	return;
 }
-uint32_t cfa_value = register_cache->cachedRegisterFrame(frame_number + 1).at(13);
+uint32_t cfa_value = (register_cache->frameCount() - 1 > frame_number) ? register_cache->cachedRegisterFrame(frame_number + 1).at(13) : -1;
 QString frameBaseSforthCode;
 QString locationSforthCode;
 uint32_t pc = -1;
@@ -898,7 +899,7 @@ uint32_t pc = -1;
 			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
-				n->addChild(itemForNode(node, target->readBytes(x.value, node.bytesize, false), 0, base, ""));
+                                n->addChild(itemForNode(node, target->readBytes(x.value, node.bytesize, true), 0, base, ""));
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
 			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
