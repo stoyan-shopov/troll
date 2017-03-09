@@ -48,7 +48,7 @@ void CortexM0::readRawRegistersFromTarget()
 	auto r = sforth->getResults(1);
 	if (r.size() != 1)
 		return;
-	for (i = 0; i < register_count; registers.push_back(*(uint32_t*)(r.at(0) + i ++ * sizeof(uint32_t))));
+        for (i = 0; i < register_count; registers.push_back(*(cell *)(r.at(0) + i ++ * sizeof(cell))));
 }
 
 CortexM0::CortexM0(Sforth * sforth_engine, Target *target_controller)
