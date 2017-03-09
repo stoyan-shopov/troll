@@ -33,6 +33,10 @@ THE SOFTWARE.
 
 swap constant register-count
 
+\ target-sized 'cells' word
+: target-cells ( cell-count -- byte-count)
+	4 * ;
+
 \ helper words
 \ cell array access
 : [] ( index array -- cell-address)
@@ -189,14 +193,14 @@ create unwound-registers register-count cells allot
 	." architectural unwind pc, cfa: " cfa-value .s drop
 	dup $fffffff1 = swap $fffffff9 = or if
 		." architectural unwind triggerred"cr
-		cfa-value dup 0 cells + t@ 0 unwound-registers [] !
-		dup 1 cells + t@ 1 unwound-registers [] !
-		dup 2 cells + t@ 2 unwound-registers [] !
-		dup 3 cells + t@ 3 unwound-registers [] !
-		dup 4 cells + t@ 12 unwound-registers [] !
-		dup 5 cells + t@ 14 unwound-registers [] !
-		dup 6 cells + t@ 15 unwound-registers [] !
-		8 cells + 13 unwound-registers [] !
+		cfa-value dup 0 target-cells + t@ 0 unwound-registers [] !
+		dup 1 target-cells + t@ 1 unwound-registers [] !
+		dup 2 target-cells + t@ 2 unwound-registers [] !
+		dup 3 target-cells + t@ 3 unwound-registers [] !
+		dup 4 target-cells + t@ 12 unwound-registers [] !
+		dup 5 target-cells + t@ 14 unwound-registers [] !
+		dup 6 target-cells + t@ 15 unwound-registers [] !
+		8 target-cells + 13 unwound-registers [] !
 		true
 	else false then
 	;
