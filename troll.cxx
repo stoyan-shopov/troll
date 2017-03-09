@@ -180,11 +180,14 @@ break;
 
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
-	if (TEST_DRIVE_MODE)
+        source_filename.replace(QChar('\\'), QChar('/'));
+        directory_name.replace(QChar('\\'), QChar('/'));
+        compilation_directory.replace(QChar('\\'), QChar('/'));
+        if (TEST_DRIVE_MODE)
 	{
 		QRegExp rx("^[xX]:[/\\\\]");
 		source_filename.replace(rx, ""), directory_name.replace(rx, ""), compilation_directory.replace(rx, "");
-	}
+        }
 QTime stime;
 stime.start();
 QFile src;
@@ -198,9 +201,9 @@ QVector<uint32_t> breakpoint_positions;
 QMap<uint32_t /* address */, int /* line position in text document */> addresses;
 
 	if (!finfo.exists())
-		finfo.setFile(compilation_directory + "/" + source_filename);
+                finfo.setFile(compilation_directory + "/" + source_filename);
 	if (!finfo.exists())
-		finfo.setFile(compilation_directory + "/" + directory_name + "/" + source_filename);
+                finfo.setFile(compilation_directory + "/" + directory_name + "/" + source_filename);
 	ui->plainTextEdit->clear();
 	src.setFileName(finfo.canonicalFilePath());
 	
