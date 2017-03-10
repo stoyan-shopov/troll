@@ -18,6 +18,11 @@ Here is a screenshot of the *troll*'s graphical user interface, as of 28022017:
 
 ![alt text](documentation/troll-screenshot-28022017-complete.png)
 
+This is an annotated version of the screenshot above, showing the various display
+views of the *troll*:
+
+![alt text](documentation/troll-screenshot-28022017-complete-annotated.png)
+
 Here is a simplified, more realistic in everyday usage, view, as of 28022017::
 
 ![alt text](documentation/troll-screenshot-28022017-basic.png)

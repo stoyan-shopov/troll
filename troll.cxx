@@ -186,7 +186,7 @@ void MainWindow::displaySourceCodeFile(QString source_filename, QString director
         if (TEST_DRIVE_MODE)
 	{
 		QRegExp rx("^[xX]:[/\\\\]");
-		source_filename.replace(rx, ""), directory_name.replace(rx, ""), compilation_directory.replace(rx, "");
+		source_filename.replace(rx, "troll-test-drive-files/"), directory_name.replace(rx, "troll-test-drive-files/"), compilation_directory.replace(rx, "troll-test-drive-files/");
         }
 QTime stime;
 stime.start();
@@ -427,7 +427,7 @@ bool ok1, ok2;
 	
 	if (TEST_DRIVE_MODE)
 	{
-		QFile f("elf-sections-dump.txt");
+		QFile f("troll-test-drive-files/elf-sections-dump.txt");
 		f.open(QFile::ReadOnly);
 		output = f.readAll();
 	}
@@ -548,7 +548,8 @@ QString outfile = QFileInfo(elf_filename).fileName();
 			return false;
 		}
 	}
-	return s_record_file.loadFile(outfile + ".srec");
+	else
+		return s_record_file.loadFile(QString("troll-test-drive-files/") + outfile + ".srec");
 }
 
 void MainWindow::updateRegisterView(int frame_number)
@@ -672,7 +673,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	if (TEST_DRIVE_MODE)
 	{
-		elf_filename = "blackmagic.elf";
+		elf_filename = "troll-test-drive-files/blackmagic.elf";
 	}
 	else
 	{
@@ -695,7 +696,7 @@ there:
 	debug_file.setFileName(elf_filename);
 	if (TEST_DRIVE_MODE)
 	{
-		QFile f("disassembly.txt");
+		QFile f("troll-test-drive-files/disassembly.txt");
 		f.open(QFile::ReadOnly);
 		disassembly = new Disassembly(f.readAll());
 	}
@@ -758,7 +759,10 @@ there:
 	while (!dwundwind->at_end())
 		dwundwind->dump(), dwundwind->next();
 	
-	target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
+	if (TEST_DRIVE_MODE)
+		target = new TargetCorefile("troll-test-drive-files/flash.bin", 0x08000000, "troll-test-drive-files/ram.bin", 0x20000000, "troll-test-drive-files/registers.bin");
+	else
+		target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
 	cortexm0 = new CortexM0(sforth, target);
