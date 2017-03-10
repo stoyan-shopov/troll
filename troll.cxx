@@ -672,7 +672,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	if (TEST_DRIVE_MODE)
 	{
-		elf_filename = "blackmagic/src/blackmagic";
+		elf_filename = "blackmagic.elf";
 	}
 	else
 	{
