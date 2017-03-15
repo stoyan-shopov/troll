@@ -56,6 +56,7 @@ you may also build it by using the *qmake* and *make* utilities,
 directly from the command line.
 
 Finally, do obtain a *static test-drive* set of test files from here:
+
 https://github.com/stoyan-shopov/troll-test-drive-snapshots
 
 Extract the `troll-test-drive-files` directory in the *troll*'s working directory.
