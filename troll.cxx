@@ -657,7 +657,30 @@ MainWindow::MainWindow(QWidget *parent) :
 	
 	ui->setupUi(this);
 	if (TEST_DRIVE_MODE)
+	{
 		setWindowTitle(windowTitle() + " - !!! TEST DRIVE MODE !!!");
+		auto wd = QDir::currentPath();
+		QFileInfo fi(wd + "/troll-test-drive-files");
+		if (!fi.exists() || !fi.isDir())
+		{
+			QMessageBox::critical(0, "static test-drive mode files not found",
+				QString("Static troll test-drive mode files not found!!!<br><br>") +
+				"You are now running the troll in <b>static test-drive mode</b>.<br>"
+				"This is <b><i>IMPOSSIBLE</i></b> without the troll having access to the test files<br><br>"
+				"In <b>static test-drive mode</b>, the files for the test must<br>"
+				"reside in a directory named <b>'troll-test-drive-files'</b>,<br>"
+				"and this directory must reside in the troll's working directory<br><br>"
+				"The current troll's working directory is:<br><b>" + wd + "</b><br>"
+				"and a directory with the name <b>'troll-test-drive-files'</b>"
+				"does not exist there<br><br>"
+				"You can obtain snapshots of the <b>'troll-test-drive-files'</b> directory here:<br>"
+				"<b>https://github.com/stoyan-shopov/troll-test-drive-snapshots</b><br><br>"
+				"Please, do take time to set up your directories properly, and re-run the troll<br><br>"
+				"Thank you for your interest in the troll!"
+				);
+			exit(3);
+		}
+	}
 	restoreGeometry(s.value("window-geometry").toByteArray());
 	restoreState(s.value("window-state").toByteArray());
 	ui->splitterMain->restoreGeometry(s.value("main-splitter/geometry").toByteArray());
