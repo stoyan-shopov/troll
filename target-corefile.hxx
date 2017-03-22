@@ -44,7 +44,10 @@ public:
 	void requestSingleStep() { Util::panic(); }
 	bool resume(void) { Util::panic(); }
 	bool requestHalt(void) { Util::panic(); }
+	bool connect(void) { Util::panic(); }
 	uint32_t haltReason(void) { Util::panic(); }
+	virtual QByteArray memoryMap(void) { Util::panic(); }
+	virtual bool syncFlash(const Memory & memory_contents) { Util::panic(); }
 };
 
 #endif // TARGETCOREFILE_HXX

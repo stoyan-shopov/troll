@@ -30,6 +30,8 @@ THE SOFTWARE.
 
 #include "util.hxx"
 
+class Memory;
+
 enum TARGET_HALT_REASON
 {
 	UNKNOWN		= 0,
@@ -65,9 +67,10 @@ public:
 	virtual void requestSingleStep(void) = 0;
 	virtual bool resume(void) = 0;
 	virtual bool requestHalt(void) = 0;
+	virtual bool connect(void) = 0;
 	virtual uint32_t haltReason(void) = 0;
-	virtual QByteArray interrogate(const QByteArray & query, bool * isOk = 0) = 0;
-	QByteArray interrogate(const QString & query, bool * isOk = 0) { return interrogate(query.toLocal8Bit(), isOk); }
+	virtual QByteArray memoryMap(void) = 0;
+	virtual bool syncFlash(const Memory & memory_contents) = 0;
 	void parseMemoryAreas(const QString & xml_memory_description)
 	{
 		uint32_t start, length;

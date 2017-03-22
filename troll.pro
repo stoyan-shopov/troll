@@ -27,7 +27,9 @@ SOURCES +=\
     target-corefile.cxx \
     blackstrike.cxx \
     dwarf-evaluator.cxx \
-    troll.cxx
+    troll.cxx \
+    blackmagic.cxx \
+    gdb-remote.cxx
 
 HEADERS  += \
     libtroll/dwarf.h \
@@ -41,17 +43,18 @@ HEADERS  += \
     registercache.hxx \
     memory.hxx \
     s-record.hxx \
-    flash-memory-writer.hxx \
     disassembly.hxx \
     dwarf-evaluator.hxx \
-    troll.hxx
+    troll.hxx \
+    blackmagic.hxx \
+    gdb-remote.hxx
 
 FORMS    += mainwindow.ui \
     notification.ui
 
 INCLUDEPATH += libtroll/ sforth/
 
-DEFINES += CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 TEST_DRIVE_MODE=1
+DEFINES += CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 TEST_DRIVE_MODE=0
 
 DISTFILES += \
     unwinder.fs \

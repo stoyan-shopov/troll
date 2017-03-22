@@ -34,10 +34,10 @@ class Blackstrike : public Target
 private:
 	QSerialPort	* port;
 	void readAllRegisters(void);
+	QByteArray interrogate(const QByteArray &query, bool * isOk = 0);
 private slots:
 	void portReadyRead(void);
 public:
-	virtual QByteArray interrogate(const QByteArray &query, bool * isOk = 0);
 	bool reset(void);
 	Blackstrike(QSerialPort * port) { this->port = port; }
 	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
@@ -49,7 +49,10 @@ public:
 	void requestSingleStep(void);
 	bool resume(void);
 	bool requestHalt(void);
+	bool connect(void) { return (interrogate("\003 abort\n12 12 * .( <<<start>>>). .( <<<end>>>)cr").contains("144")) ? true : false; }
 	uint32_t haltReason(void);
+	QByteArray memoryMap(void);
+	bool syncFlash(const Memory & memory_contents);
 };
 
 #endif // BLACKSTRIKE_HXX

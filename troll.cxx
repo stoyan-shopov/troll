@@ -34,10 +34,7 @@ THE SOFTWARE.
 #include <QTextBlock>
 #include <QFileDialog>
 
-#include "flash-memory-writer.hxx"
-
-#define DEBUG_BACKTRACE		1
-
+#define DEBUG_BACKTRACE		0
 
 /* syntax highlighter copied from the Qt documentation example on syntax highlighting */
 Highlighter::Highlighter(QTextDocument *parent)
@@ -547,6 +544,7 @@ QString outfile = QFileInfo(elf_filename).fileName();
 			                      );
 			return false;
 		}
+		return s_record_file.loadFile(outfile + ".srec");
 	}
 	else
 		return s_record_file.loadFile(QString("troll-test-drive-files/") + outfile + ".srec");
@@ -1153,33 +1151,28 @@ class Target * t;
 			t = new Blackstrike(& blackstrike_port);
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
-				if (!((Blackstrike *)t)->interrogate("\003 abort\n12 12 * .( <<<start>>>). .( <<<end>>>)cr").contains("144"))
+				if (t->connect())
 				{
-					QMessageBox::critical(0, "blackstrike port mismatch", "blackstrike port detected, but does not respond!!!\nport is " + ports.at(i).portName());
-					blackstrike_port.close();
-					delete t;
-					continue;
-				}
-				cortexm0->setTargetController(target = t);
-				connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
-				connect(target, SIGNAL(targetRunning()), this, SLOT(targetRunning()));
-				targetConnected();
-				auto s = target->interrogate(QString(".( <<<start>>>)?target-mem-map .( <<<end>>>)"));
-				if (!s.contains("memory-map"))
-				{
-					QMessageBox::critical(0, "error reading target memory map", QString("error reading target memory map"));
-					Util::panic();
-				}
-				qDebug() << s;
-				target->parseMemoryAreas(s);
-				if (!FlashMemoryWriter::syncFlash(target, s_record_file))
-				{
-					QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");
-					Util::panic();
+					cortexm0->setTargetController(target = t);
+					connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
+					connect(target, SIGNAL(targetRunning()), this, SLOT(targetRunning()));
+					targetConnected();
+					auto s = target->memoryMap();
+					target->parseMemoryAreas(s);
+					if (!target->syncFlash(s_record_file))
+					{
+						QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");
+						Util::panic();
+					}
+					else
+						QMessageBox::information(0, "memory contents match", "target memory contents match");
+					return;
 				}
 				else
-					QMessageBox::information(0, "memory contents match", "target memory contents match");
-				return;
+				{
+					blackstrike_port.close();
+					delete t;
+				}
 			}
 			else
 				delete t;
