@@ -23,32 +23,41 @@ THE SOFTWARE.
 
 #include "gdb-remote.hxx"
 
-QString xxx;
-QVector<QByteArray> Blackmagic::readGdbServerResponse(const QByteArray & request)
+
+void Blackmagic::putPacket(const QByteArray &request)
 {
-QByteArray response, packet;
-QVector<QByteArray> reply_packets;
-	if (port->write(request) == -1)
-		Util::panic();
-	if (!port->waitForBytesWritten(1000))
-		Util::panic();
+	port->write(request);
+	port->waitForBytesWritten(1000);
+	while (getChar() != '+')
+		;//Util::panic();
+}
+
+QByteArray Blackmagic::getPacket()
+{
+QByteArray packet("$");
+	while (getChar() != '$')
+		;
 	while (1)
 	{
-		if (response.isEmpty() && !port->waitForReadyRead(1000))
-			return reply_packets;
-		response += port->readAll();
-		if (!(packet = GdbRemote::extractPacket(response)).isEmpty())
-		{
-			qDebug() << packet;
-			reply_packets.push_back(packet);
-		}
-		port->write("+");
-		if (!port->waitForBytesWritten(1000))
-			Util::panic();
-		if (GdbRemote::isOkResponse(packet) || GdbRemote::isEmptyResponse(packet))
+		packet += getChar();
+		if (packet[packet.length() - 1] == '#')
 			break;
 	}
-	return reply_packets;
+	packet += getChar();
+	packet += getChar();
+	port->write("+");
+	port->waitForBytesWritten(1000);
+	return packet;
+}
+
+char Blackmagic::getChar()
+{
+char c;
+	while (!port->bytesAvailable())
+		port->waitForReadyRead(10);
+	if (!port->getChar(& c))
+		Util::panic();
+	return c;
 }
 
 bool Blackmagic::connect()
@@ -57,18 +66,21 @@ QByteArray packet = GdbRemote::monitorRequest("s");
 int i;
 QVector<QByteArray> r;
 
-	if (!port->setDataTerminalReady(true)) Util::panic();
-	while (1)
-	{
-		r = readGdbServerResponse("+");
-		if (!r.size())
-			r = readGdbServerResponse(packet);
-		if (!GdbRemote::isOkResponse(r.at(r.size() - 1)))
-			Util::panic();
-		if (r.size() != 1)
-			break;
-	}
-	//r = readGdbServerResponse(packet);
+	if (!port->setDataTerminalReady(true))
+		Util::panic();
+	port->write("+++");
+	port->waitForBytesWritten(1000);
+	port->readAll();
+	qDebug() << "--------------> +++";
+	do
+		port->waitForReadyRead(1000);
+	while (port->readAll() > 0);
+	
+	putPacket(packet);
+	do
+		r.push_back(getPacket());
+	while (!GdbRemote::isOkResponse(r.back()));
+
 	for (i = 0; i < r.size() - 1; i ++)
 	{
 		auto s = GdbRemote::packetData(r[i]);
@@ -77,5 +89,6 @@ QVector<QByteArray> r;
 			qDebug() << QByteArray::fromHex(s.mid(1));
 		}
 	}
+	qDebug() << r[r.length() - 1];
 	Util::panic();
 }

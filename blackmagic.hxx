@@ -30,7 +30,9 @@ class Blackmagic : public Target
 {
 private:
 	QSerialPort	* port;
-	QVector<QByteArray> readGdbServerResponse(const QByteArray & request);
+	void putPacket(const QByteArray & request);
+	QByteArray getPacket(void);
+	char getChar(void);
 public:
 	Blackmagic(QSerialPort * port) { this->port = port; }
 	uint32_t readWord(uint32_t address) { Util::panic(); }
