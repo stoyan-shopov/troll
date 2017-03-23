@@ -1148,9 +1148,15 @@ class Target * t;
 		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == 0x1d50)
 		{
 			blackstrike_port.setPortName(ports.at(i).portName());
-			t = new Blackstrike(& blackstrike_port);
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
+				t = new Blackmagic(& blackstrike_port);
+				if (t->connect())
+				{
+					Util::panic();
+				}
+				delete t;
+				t = new Blackstrike(& blackstrike_port);
 				if (t->connect())
 				{
 					cortexm0->setTargetController(target = t);
@@ -1174,8 +1180,6 @@ class Target * t;
 					delete t;
 				}
 			}
-			else
-				delete t;
 		}
 	}
 	QMessageBox::warning(0, "blackstrike port not found", "cannot find blackstrike gdbserver port ");

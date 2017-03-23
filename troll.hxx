@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include "sforth.hxx"
 #include "target-corefile.hxx"
 #include "blackstrike.hxx"
+#include "blackmagic.hxx"
 #include "cortexm0.hxx"
 #include "dwarf-evaluator.hxx"
 #include "registercache.hxx"

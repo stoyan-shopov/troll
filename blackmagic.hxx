@@ -22,11 +22,31 @@ THE SOFTWARE.
 #ifndef BLACKMAGIC_HXX
 #define BLACKMAGIC_HXX
 
+#include <QSerialPort>
 
-class Blackmagic
+#include "target.hxx"
+
+class Blackmagic : public Target
 {
+private:
+	QSerialPort	* port;
+	QVector<QByteArray> readGdbServerResponse(const QByteArray & request);
 public:
-	Blackmagic();
+	Blackmagic(QSerialPort * port) { this->port = port; }
+	uint32_t readWord(uint32_t address) { Util::panic(); }
+	bool reset(void){ Util::panic(); }
+	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false){ Util::panic(); }
+	uint32_t readRawUncachedRegister(uint32_t register_number){ Util::panic(); }
+	uint32_t singleStep(void){ Util::panic(); }
+	bool breakpointSet(uint32_t address, int length){ Util::panic(); }
+	bool breakpointClear(uint32_t address, int length){ Util::panic(); }
+	void requestSingleStep(void){ Util::panic(); }
+	bool resume(void){ Util::panic(); }
+	bool requestHalt(void){ Util::panic(); }
+	bool connect(void);
+	uint32_t haltReason(void){ Util::panic(); }
+	QByteArray memoryMap(void){ Util::panic(); }
+	bool syncFlash(const Memory & memory_contents){ Util::panic(); }
 };
 
 #endif // BLACKMAGIC_HXX

@@ -154,8 +154,7 @@ uint32_t x;
 		Util::panic();
 	x = rx.cap(1).toUInt(& ok, 16);
 	if (!ok)
-		//Util::panic();
-		return -1;
+		Util::panic();
 	if (BLACKSTIRKE_DEBUG) qDebug() << "read value" << x;
 	return x;
 }

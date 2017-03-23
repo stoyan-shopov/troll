@@ -25,6 +25,7 @@ THE SOFTWARE.
 #include <QByteArray>
 #include <QString>
 #include <QVector>
+#include <QDebug>
 #include "util.hxx"
 
 class GdbRemote
@@ -33,17 +34,32 @@ private:
 	static QByteArray escape(QByteArray & data) { return data.replace('}', "}]").replace('#', "}\003").replace('$', "}\004"); }
 	static QByteArray unescape(QByteArray & data) { int i; for (i = 0; i < data.length(); i ++) if (data[i] == '}') data.remove(i, 1), data[i] = data[i] ^ ' '; return data; }
 	static int checksum(const QByteArray & data) { int i, x; for (i = x = 0; i < data.length(); x += data[i ++]); return x & 0xff; }
-	static QByteArray makePacket(QByteArray data) { return QByteArray("$") + data + "#" + QString("%1").arg(checksum(data), 2, 16, QChar('0')).toLocal8Bit(); }
 	static QByteArray strip(const QByteArray & packet) { return packet.mid(1, packet.length() - 4); }
+	static QByteArray makePacket(QByteArray data) { return QByteArray("$") + data + "#" + QString("%1").arg(checksum(data), 2, 16, QChar('0')).toLocal8Bit(); }
 public:
+	static QByteArray extractPacket(QByteArray & bytes)
+	{
+		QRegExp rx("(\\$.*#..)");
+		rx.setMinimal(true);
+		int i;
+		if ((i = rx.indexIn(QString(bytes))) != -1)
+		{
+			bytes.remove(0, i + rx.cap(1).length());
+			return rx.cap(1).toLocal8Bit();
+		}
+		return QByteArray();
+	}
 	static bool isValidPacket(const QByteArray & packet)
 	{
-		bool ok; int l; char c;
+		bool ok; int l; int c;
 		return ((l = packet.length()) < 4 || packet[0] != '$' || packet[l - 3] != '#' || (c = packet.mid(l - 2).toInt(& ok, 16), ! ok)
 			|| c != checksum(packet.mid(1, l - 4))) ? false : true;
 	}
 	static int errorCode(const QByteArray & reply) { if (!isValidPacket(reply) || reply.length() != 7 || reply[1] != 'E') return -1; return (reply.mid(2, 2).toInt(0, 16)); }
-	static bool ok(const QByteArray & data) { return data.operator ==(makePacket("OK")); }
+	static bool isOkResponse(const QByteArray & data) { return data.toLower().operator ==(makePacket("OK").toLower()); }
+	static bool isEmptyResponse(const QByteArray & data) { return data.toLower().operator ==(makePacket("").toLower()); }
+	static QByteArray packetData(const QByteArray & packet) { if (isValidPacket(packet)) return strip(packet); return QByteArray(); }
+	static QByteArray monitorRequest(const QString & request) { return makePacket((QByteArray("qRcmd,") + request.toLocal8Bit().toHex())); }
 	static QByteArray readRegistersRequest(void) { return makePacket("g"); }
 	static QVector<uint32_t> readRegisters(const QByteArray & reply)
 	{

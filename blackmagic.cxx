@@ -21,7 +21,61 @@ THE SOFTWARE.
 */
 #include "blackmagic.hxx"
 
-Blackmagic::Blackmagic()
+#include "gdb-remote.hxx"
+
+QString xxx;
+QVector<QByteArray> Blackmagic::readGdbServerResponse(const QByteArray & request)
 {
-	
+QByteArray response, packet;
+QVector<QByteArray> reply_packets;
+	if (port->write(request) == -1)
+		Util::panic();
+	if (!port->waitForBytesWritten(1000))
+		Util::panic();
+	while (1)
+	{
+		if (response.isEmpty() && !port->waitForReadyRead(1000))
+			return reply_packets;
+		response += port->readAll();
+		if (!(packet = GdbRemote::extractPacket(response)).isEmpty())
+		{
+			qDebug() << packet;
+			reply_packets.push_back(packet);
+		}
+		port->write("+");
+		if (!port->waitForBytesWritten(1000))
+			Util::panic();
+		if (GdbRemote::isOkResponse(packet) || GdbRemote::isEmptyResponse(packet))
+			break;
+	}
+	return reply_packets;
+}
+
+bool Blackmagic::connect()
+{
+QByteArray packet = GdbRemote::monitorRequest("s");
+int i;
+QVector<QByteArray> r;
+
+	if (!port->setDataTerminalReady(true)) Util::panic();
+	while (1)
+	{
+		r = readGdbServerResponse("+");
+		if (!r.size())
+			r = readGdbServerResponse(packet);
+		if (!GdbRemote::isOkResponse(r.at(r.size() - 1)))
+			Util::panic();
+		if (r.size() != 1)
+			break;
+	}
+	//r = readGdbServerResponse(packet);
+	for (i = 0; i < r.size() - 1; i ++)
+	{
+		auto s = GdbRemote::packetData(r[i]);
+		if (s[0] == 'O')
+		{
+			qDebug() << QByteArray::fromHex(s.mid(1));
+		}
+	}
+	Util::panic();
 }
