@@ -1150,12 +1150,14 @@ class Target * t;
 			blackstrike_port.setPortName(ports.at(i).portName());
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
+				//goto there;
 				t = new Blackmagic(& blackstrike_port);
 				if (t->connect())
 				{
 					Util::panic();
 				}
 				delete t;
+there:
 				t = new Blackstrike(& blackstrike_port);
 				if (t->connect())
 				{

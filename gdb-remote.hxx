@@ -31,11 +31,11 @@ THE SOFTWARE.
 class GdbRemote
 {
 private:
-	static QByteArray escape(QByteArray & data) { return data.replace('}', "}]").replace('#', "}\003").replace('$', "}\004"); }
-	static QByteArray unescape(QByteArray & data) { int i; for (i = 0; i < data.length(); i ++) if (data[i] == '}') data.remove(i, 1), data[i] = data[i] ^ ' '; return data; }
+	static QByteArray escape(QByteArray data) { return data.replace('}', "}]").replace('#', "}\003").replace('$', "}\004"); }
+	static QByteArray unescape(QByteArray data) { int i; for (i = 0; i < data.length(); i ++) if (data[i] == '}') data.remove(i, 1), data[i] = data[i] ^ ' '; return data; }
 	static int checksum(const QByteArray & data) { int i, x; for (i = x = 0; i < data.length(); x += data[i ++]); return x & 0xff; }
 	static QByteArray strip(const QByteArray & packet) { return packet.mid(1, packet.length() - 4); }
-	static QByteArray makePacket(QByteArray data) { return QByteArray("$") + data + "#" + QString("%1").arg(checksum(data), 2, 16, QChar('0')).toLocal8Bit(); }
+	static QByteArray makePacket(const QByteArray & data) { return QByteArray("$") + escape(data) + "#" + QString("%1").arg(checksum(escape(data)), 2, 16, QChar('0')).toLocal8Bit(); }
 public:
 	static QByteArray extractPacket(QByteArray & bytes)
 	{
@@ -61,6 +61,7 @@ public:
 	static QByteArray packetData(const QByteArray & packet) { if (isValidPacket(packet)) return strip(packet); return QByteArray(); }
 	static QByteArray monitorRequest(const QString & request) { return makePacket((QByteArray("qRcmd,") + request.toLocal8Bit().toHex())); }
 	static QByteArray readRegistersRequest(void) { return makePacket("g"); }
+	static QByteArray attachRequest(void) { return makePacket("vAttach;1"); }
 	static QVector<uint32_t> readRegisters(const QByteArray & reply)
 	{
 		QVector<uint32_t> registers;
@@ -91,7 +92,7 @@ public:
 		{
 			if (reply[i][0] == 'E')
 				return QByteArray();
-			data += QByteArray::fromHex(reply[i]);
+			data += QByteArray::fromHex(packetData(reply[i]));
 		}
 		return data;
 	}
@@ -102,7 +103,7 @@ public:
 		while (length)
 		{
 			int x = Util::min(length, (unsigned) chunk_size);
-			packets.push_back(makePacket(QString("vFlashWrite:%1,%2:").arg(address, 0, 16).arg(x, 0, 16).toLocal8Bit() + data.mid(i, x)));
+			packets.push_back(makePacket(QString("vFlashWrite:%1:").arg(address, 0, 16).toLocal8Bit() + data.mid(i, x)));
 			length -= x, address += x, i += x;
 		}
 		return packets;

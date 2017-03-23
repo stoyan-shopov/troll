@@ -21,15 +21,17 @@ THE SOFTWARE.
 */
 #include "blackmagic.hxx"
 
+#include <QFile>
 #include "gdb-remote.hxx"
 
 
 void Blackmagic::putPacket(const QByteArray &request)
 {
+char c;
 	port->write(request);
 	port->waitForBytesWritten(1000);
 	while (getChar() != '+')
-		;//Util::panic();
+		qDebug() << "!!!!!" << (int) c;//Util::panic();
 }
 
 QByteArray Blackmagic::getPacket()
@@ -64,7 +66,7 @@ bool Blackmagic::connect()
 {
 QByteArray packet = GdbRemote::monitorRequest("s");
 int i;
-QVector<QByteArray> r;
+QVector<QByteArray> r, s;
 
 	if (!port->setDataTerminalReady(true))
 		Util::panic();
@@ -89,6 +91,38 @@ QVector<QByteArray> r;
 			qDebug() << QByteArray::fromHex(s.mid(1));
 		}
 	}
-	qDebug() << r[r.length() - 1];
+	putPacket(GdbRemote::attachRequest());
+	if (GdbRemote::packetData(getPacket()) != "T05")
+		Util::panic();
+	putPacket(GdbRemote::readRegistersRequest());
+	qDebug() << GdbRemote::readRegisters(getPacket());
+	auto m = GdbRemote::readMemoryRequest(0, 0x20000, 1000);
+	qDebug() << m;
+	QByteArray mem;
+	for (r.clear(), i = 0; i < m.size(); i ++)
+	{
+		putPacket(m[i]);
+		r += getPacket();
+	}
+	mem = GdbRemote::readMemory(r);
+	QFile f;
+	f.setFileName("gdb-mem.bin");
+	f.open(QFile::WriteOnly);
+	f.write(mem);
+	f.close();
+	f.setFileName("out1.bin");
+	f.open(QFile::ReadOnly);
+	mem = f.readAll();
+	f.close();
+
+	putPacket(GdbRemote::eraseFlashMemoryRequest(0x08000000, 0x800));
+	qDebug() << getPacket();
+
+	r = GdbRemote::writeFlashMemoryRequest(0x08000000, 0x800, 512, mem);
+	for (s.clear(), i = 0; i < r.size(); i ++)
+	{
+		putPacket(r[i]);
+		s += getPacket();
+	}
 	Util::panic();
 }
