@@ -1150,37 +1150,32 @@ class Target * t;
 			blackstrike_port.setPortName(ports.at(i).portName());
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
-				//goto there;
 				t = new Blackmagic(& blackstrike_port);
-				if (t->connect())
+				if (!t->connect())
 				{
+					delete t;
+					t = new Blackstrike(& blackstrike_port);
+					if (!t->connect())
+					{
+						blackstrike_port.close();
+						delete t;
+						continue;
+					}
+				}
+				cortexm0->setTargetController(target = t);
+				connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
+				connect(target, SIGNAL(targetRunning()), this, SLOT(targetRunning()));
+				targetConnected();
+				auto s = target->memoryMap();
+				target->parseMemoryAreas(s);
+				if (!target->syncFlash(s_record_file))
+				{
+					QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");
 					Util::panic();
 				}
-				delete t;
-there:
-				t = new Blackstrike(& blackstrike_port);
-				if (t->connect())
-				{
-					cortexm0->setTargetController(target = t);
-					connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
-					connect(target, SIGNAL(targetRunning()), this, SLOT(targetRunning()));
-					targetConnected();
-					auto s = target->memoryMap();
-					target->parseMemoryAreas(s);
-					if (!target->syncFlash(s_record_file))
-					{
-						QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");
-						Util::panic();
-					}
-					else
-						QMessageBox::information(0, "memory contents match", "target memory contents match");
-					return;
-				}
 				else
-				{
-					blackstrike_port.close();
-					delete t;
-				}
+					QMessageBox::information(0, "memory contents match", "target memory contents match");
+				return;
 			}
 		}
 	}

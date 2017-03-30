@@ -23,22 +23,26 @@ THE SOFTWARE.
 #define BLACKMAGIC_HXX
 
 #include <QSerialPort>
+#include <QVector>
 
 #include "target.hxx"
 
 class Blackmagic : public Target
 {
+Q_OBJECT
 private:
+	QVector<uint32_t>	registers;
 	QSerialPort	* port;
+	void readAllRegisters(void);
 	void putPacket(const QByteArray & request);
 	QByteArray getPacket(void);
 	char getChar(void);
 public:
 	Blackmagic(QSerialPort * port) { this->port = port; }
-	uint32_t readWord(uint32_t address) { Util::panic(); }
+	uint32_t readWord(uint32_t address) { auto x = readBytes(address, sizeof(uint32_t)); if (x.size() != sizeof(uint32_t)) Util::panic(); return * (uint32_t *) x.constData(); }
 	bool reset(void){ Util::panic(); }
-	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false){ Util::panic(); }
-	uint32_t readRawUncachedRegister(uint32_t register_number){ Util::panic(); }
+	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
+	uint32_t readRawUncachedRegister(uint32_t register_number);
 	uint32_t singleStep(void){ Util::panic(); }
 	bool breakpointSet(uint32_t address, int length){ Util::panic(); }
 	bool breakpointClear(uint32_t address, int length){ Util::panic(); }
@@ -47,8 +51,8 @@ public:
 	bool requestHalt(void){ Util::panic(); }
 	bool connect(void);
 	uint32_t haltReason(void){ Util::panic(); }
-	QByteArray memoryMap(void){ Util::panic(); }
-	bool syncFlash(const Memory & memory_contents){ Util::panic(); }
+	QByteArray memoryMap(void);
+	bool syncFlash(const Memory & memory_contents);
 };
 
 #endif // BLACKMAGIC_HXX

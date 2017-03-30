@@ -56,12 +56,23 @@ public:
 			|| c != checksum(packet.mid(1, l - 4))) ? false : true;
 	}
 	static int errorCode(const QByteArray & reply) { if (!isValidPacket(reply) || reply.length() != 7 || reply[1] != 'E') return -1; return (reply.mid(2, 2).toInt(0, 16)); }
+	static bool isErrorResponse(const QByteArray & reply) { return errorCode(reply) != -1; }
 	static bool isOkResponse(const QByteArray & data) { return data.toLower().operator ==(makePacket("OK").toLower()); }
 	static bool isEmptyResponse(const QByteArray & data) { return data.toLower().operator ==(makePacket("").toLower()); }
 	static QByteArray packetData(const QByteArray & packet) { if (isValidPacket(packet)) return strip(packet); return QByteArray(); }
 	static QByteArray monitorRequest(const QString & request) { return makePacket((QByteArray("qRcmd,") + request.toLocal8Bit().toHex())); }
 	static QByteArray readRegistersRequest(void) { return makePacket("g"); }
 	static QByteArray attachRequest(void) { return makePacket("vAttach;1"); }
+	static QByteArray memoryMapReadRequest(void) { return makePacket("qXfer:memory-map:read::0,400"); }
+	static QByteArray memoryMapReadData(const QByteArray & reply)
+	{
+		if (!isValidPacket(reply))
+			Util::panic();
+		auto x = strip(reply);
+		if (!x.length() || x[0] != 'm')
+			Util::panic();
+		return x.mid(1);
+	}
 	static QVector<uint32_t> readRegisters(const QByteArray & reply)
 	{
 		QVector<uint32_t> registers;
@@ -70,10 +81,16 @@ public:
 		auto x = strip(reply);
 		if (x.length() & 7) Util::panic();
 		for (i = 0; i < x.length() >> 3; i ++)
-			registers.push_back(x.mid(i << 3, 8).toInt(0, 16));
+		{
+			uint32_t r = x.mid(i << 3, 8).toUInt(0, 16);
+			/* fix endianness */
+			r = ((r & 0xffff) << 16) | (r >> 16);
+			r = ((r & 0x00ff00ff) << 8) | ((r & 0xff00ff00) >> 8);
+			registers.push_back(r);
+		}
 		return registers;
 	}
-	static QVector<QByteArray> readMemoryRequest(uint32_t address, uint32_t length, int chunk_size)
+	static QVector<QByteArray> readMemoryRequest(uint32_t address, uint32_t length, int chunk_size = 1000)
 	{
 		QVector<QByteArray> packets;
 		while (length)
@@ -96,7 +113,7 @@ public:
 		}
 		return data;
 	}
-	static QVector<QByteArray> writeFlashMemoryRequest(uint32_t address, uint32_t length, int chunk_size, const QByteArray & data)
+	static QVector<QByteArray> writeFlashMemoryRequest(uint32_t address, uint32_t length, const QByteArray & data, int chunk_size = 500)
 	{
 		QVector<QByteArray> packets;
 		int i = 0;
