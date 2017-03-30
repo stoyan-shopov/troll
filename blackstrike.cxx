@@ -168,43 +168,6 @@ uint32_t Blackstrike::readRawUncachedRegister(uint32_t register_number)
 	return registers.at(register_number);
 }
 
-uint32_t Blackstrike::singleStep(void)
-{
-QString s;
-QRegExp rx("<<<start>>>(.*)<<<end>>>");
-bool ok;
-uint32_t x;
-QTime t;
-
-	t.start();
-
-	registers.clear();
-	if (port->write("base @ >r step hex .( <<<start>>>) u. .( <<<end>>>) r> base ! cr\n") == -1) Util::panic();
-	do
-	{
-		if (port->bytesAvailable())
-			s += port->readAll();
-		else if (!port->waitForReadyRead(2000))
-			Util::panic();
-	}
-	while (!s.contains("<<<end>>>"));
-
-	s.replace('\n', "");
-	if (rx.indexIn(s) == -1)
-		Util::panic();
-	if (BLACKSTIRKE_DEBUG) qDebug() << "string recognized: " << rx.cap();
-	s = rx.cap(1);
-	rx.setPattern("\\s*(\\S+)");
-	if (rx.indexIn(s) == -1)
-		Util::panic();
-	x = rx.cap(1).toUInt(& ok, 16);
-	if (!ok)
-		Util::panic();
-	if (BLACKSTIRKE_DEBUG) qDebug() << "target halt reason: " << x;
-	qDebug() << "target single-stepping took" << t.elapsed() << "milliseconds";
-	return x;
-}
-
 bool Blackstrike::breakpointSet(uint32_t address, int length)
 {
 	return interrogate(QString("#%1 #%2 .( <<<start>>>) breakpoint-set .( <<<end>>>)").arg(address).arg(length).toUtf8()).contains("breakpoint-ok")

@@ -75,6 +75,19 @@ char c;
 	return c;
 }
 
+void Blackmagic::portReadyRead()
+{
+auto halt_reason = getPacket();
+	qDebug() << halt_reason;
+	if (!disconnect(port, SIGNAL(readyRead()), 0, 0))
+		Util::panic();
+	if (GdbRemote::packetData(halt_reason) == "T05"
+		|| GdbRemote::packetData(halt_reason) == "T02")
+		emit targetHalted(GENERIC_HALT_CONDITION);
+	else
+		Util::panic();
+}
+
 QByteArray Blackmagic::readBytes(uint32_t address, int byte_count, bool is_failure_allowed)
 {
 QVector<QByteArray> r;
@@ -101,6 +114,34 @@ uint32_t Blackmagic::readRawUncachedRegister(uint32_t register_number)
 	if (register_number >= registers.size())
 		Util::panic();
 	return registers.at(register_number);
+}
+
+bool Blackmagic::breakpointSet(uint32_t address, int length)
+{
+}
+
+void Blackmagic::requestSingleStep(void)
+{
+	emit targetRunning();
+	registers.clear();
+	putPacket(GdbRemote::singleStepRequest());
+	QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
+}
+
+bool Blackmagic::resume(void)
+{
+	emit targetRunning();
+	registers.clear();
+	putPacket(GdbRemote::continueRequest());
+	QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
+	return true;
+}
+
+bool Blackmagic::requestHalt()
+{
+	if (port->write("\003") == -1)
+		Util::panic();
+	return true;
 }
 
 bool Blackmagic::connect(void)

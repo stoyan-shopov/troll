@@ -43,7 +43,6 @@ public:
 	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
 	uint32_t readWord(uint32_t address);
 	uint32_t readRawUncachedRegister(uint32_t register_number);
-	uint32_t singleStep(void);
 	bool breakpointSet(uint32_t address, int length);
 	bool breakpointClear(uint32_t address, int length);
 	void requestSingleStep(void);

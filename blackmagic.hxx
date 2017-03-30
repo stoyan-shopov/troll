@@ -37,18 +37,19 @@ private:
 	void putPacket(const QByteArray & request);
 	QByteArray getPacket(void);
 	char getChar(void);
+private slots:
+	void portReadyRead(void);
 public:
 	Blackmagic(QSerialPort * port) { this->port = port; }
 	uint32_t readWord(uint32_t address) { auto x = readBytes(address, sizeof(uint32_t)); if (x.size() != sizeof(uint32_t)) Util::panic(); return * (uint32_t *) x.constData(); }
 	bool reset(void){ Util::panic(); }
 	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
 	uint32_t readRawUncachedRegister(uint32_t register_number);
-	uint32_t singleStep(void){ Util::panic(); }
-	bool breakpointSet(uint32_t address, int length){ Util::panic(); }
+	bool breakpointSet(uint32_t address, int length);
 	bool breakpointClear(uint32_t address, int length){ Util::panic(); }
-	void requestSingleStep(void){ Util::panic(); }
-	bool resume(void){ Util::panic(); }
-	bool requestHalt(void){ Util::panic(); }
+	void requestSingleStep(void);
+	bool resume(void);
+	bool requestHalt(void);
 	bool connect(void);
 	uint32_t haltReason(void){ Util::panic(); }
 	QByteArray memoryMap(void);

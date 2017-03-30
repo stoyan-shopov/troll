@@ -61,7 +61,6 @@ public:
 	virtual bool reset(void) = 0;
 	virtual QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false) = 0;
 	virtual uint32_t readRawUncachedRegister(uint32_t register_number) = 0;
-	virtual uint32_t singleStep(void) = 0;
 	virtual bool breakpointSet(uint32_t address, int length) = 0;
 	virtual bool breakpointClear(uint32_t address, int length) = 0;
 	virtual void requestSingleStep(void) = 0;

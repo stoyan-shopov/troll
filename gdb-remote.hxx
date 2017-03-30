@@ -64,6 +64,8 @@ public:
 	static QByteArray readRegistersRequest(void) { return makePacket("g"); }
 	static QByteArray attachRequest(void) { return makePacket("vAttach;1"); }
 	static QByteArray memoryMapReadRequest(void) { return makePacket("qXfer:memory-map:read::0,400"); }
+	static QByteArray singleStepRequest(void) { return makePacket("s"); }
+	static QByteArray continueRequest(void) { return makePacket("c"); }
 	static QByteArray memoryMapReadData(const QByteArray & reply)
 	{
 		if (!isValidPacket(reply))
