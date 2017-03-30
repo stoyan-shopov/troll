@@ -46,7 +46,7 @@ public:
 	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
 	uint32_t readRawUncachedRegister(uint32_t register_number);
 	bool breakpointSet(uint32_t address, int length);
-	bool breakpointClear(uint32_t address, int length){ Util::panic(); }
+	bool breakpointClear(uint32_t address, int length);
 	void requestSingleStep(void);
 	bool resume(void);
 	bool requestHalt(void);

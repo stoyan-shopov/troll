@@ -66,6 +66,8 @@ public:
 	static QByteArray memoryMapReadRequest(void) { return makePacket("qXfer:memory-map:read::0,400"); }
 	static QByteArray singleStepRequest(void) { return makePacket("s"); }
 	static QByteArray continueRequest(void) { return makePacket("c"); }
+	static QByteArray setHardwareBreakpointRequest(uint32_t address, int length) { return makePacket(QString("Z1,%1,%2").arg(address, 0, 16).arg(length).toLocal8Bit()); }
+	static QByteArray removeHardwareBreakpointRequest(uint32_t address, int length) { return makePacket(QString("z1,%1,%2").arg(address, 0, 16).arg(length).toLocal8Bit()); }
 	static QByteArray memoryMapReadData(const QByteArray & reply)
 	{
 		if (!isValidPacket(reply))

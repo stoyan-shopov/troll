@@ -118,6 +118,14 @@ uint32_t Blackmagic::readRawUncachedRegister(uint32_t register_number)
 
 bool Blackmagic::breakpointSet(uint32_t address, int length)
 {
+	putPacket(GdbRemote::setHardwareBreakpointRequest(address, length));
+	return GdbRemote::isOkResponse(getPacket()) ? true : false;
+}
+
+bool Blackmagic::breakpointClear(uint32_t address, int length)
+{
+	putPacket(GdbRemote::removeHardwareBreakpointRequest(address, length));
+	return GdbRemote::isOkResponse(getPacket()) ? true : false;
 }
 
 void Blackmagic::requestSingleStep(void)

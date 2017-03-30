@@ -160,6 +160,28 @@ private:
 				return i;
 		return -1;
 	}
+	QVector<uint32_t> breakpointedAddresses(void)
+	{
+		QMap<uint32_t, int> breakpointed_addresses;
+		QVector<uint32_t> addresses;
+		int i;
+
+		for (i = 0; i < breakpoints.size(); i ++)
+		{
+			int j;
+			for (j = 0; j < breakpoints.at(i).addresses.size(); j ++)
+				breakpointed_addresses.operator [](breakpoints.at(i).addresses.at(j)) ++;
+		}
+		for (i = 0; i < machine_level_breakpoints.size(); i ++)
+			breakpointed_addresses.operator [](machine_level_breakpoints.at(i).address) ++;
+		auto x = breakpointed_addresses.begin();
+		while (x != breakpointed_addresses.end())
+		{
+			addresses.push_back(x.key());
+			x ++;
+		}
+		return addresses;
+	}
 
 public:
 	explicit MainWindow(QWidget *parent = 0);
