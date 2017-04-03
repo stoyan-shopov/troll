@@ -583,6 +583,9 @@ struct DwarfExpression
 				case DW_OP_deref:
 					x << "DW_OP_deref ";
 					break;
+				case DW_OP_neg:
+					x << "DW_OP_neg ";
+					break;
 				default:
 					DwarfUtil::panic();
 			}
