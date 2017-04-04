@@ -20,14 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 #include "blackmagic.hxx"
-
 #include <QFile>
 #include <QTime>
 #include <QDialog>
 #include <QMessageBox>
 #include "memory.hxx"
 #include "gdb-remote.hxx"
-
 
 void Blackmagic::readAllRegisters(void)
 {
@@ -42,9 +40,10 @@ void Blackmagic::putPacket(const QByteArray &request)
 {
 char c;
 	port->write(request);
-	port->waitForBytesWritten(1000);
-	while (getChar() != '+')
-		qDebug() << "!!!!!" << (int) c;//Util::panic();
+	if (!port->waitForBytesWritten(1000))
+		Util::panic();
+	while ((c = getChar()) != '+')
+		qDebug() << "!!!!!" << c;//Util::panic();
 }
 
 QByteArray Blackmagic::getPacket()
@@ -61,7 +60,9 @@ QByteArray packet("$");
 	packet += getChar();
 	packet += getChar();
 	port->write("+");
-	port->waitForBytesWritten(1000);
+	if (!port->waitForBytesWritten(1000))
+		Util::panic();
+	qDebug() << "received gdb packet:" << packet;
 	return packet;
 }
 
@@ -70,7 +71,7 @@ char Blackmagic::getChar()
 char c;
 	while (!port->bytesAvailable())
 		port->waitForReadyRead(10);
-	if (!port->getChar(& c))
+	if (port->read(& c, 1) != 1)
 		Util::panic();
 	return c;
 }
@@ -78,7 +79,7 @@ char c;
 void Blackmagic::portReadyRead()
 {
 auto halt_reason = getPacket();
-	qDebug() << halt_reason;
+	qDebug() << "halt reason: " << halt_reason;
 	if (!disconnect(port, SIGNAL(readyRead()), 0, 0))
 		Util::panic();
 	if (GdbRemote::packetData(halt_reason) == "T05"
@@ -133,7 +134,16 @@ void Blackmagic::requestSingleStep(void)
 	emit targetRunning();
 	registers.clear();
 	putPacket(GdbRemote::singleStepRequest());
-	QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
+	if (!QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead())))
+		Util::panic();
+	/*! \todo	WARNING - it seems that I am doing something wrong with the 'readyRead()' signal;
+	 *		without the call to 'WaitForReadyRead()' below, on one machine that I am testing on,
+	 *		incoming data from the blackmagic probe sometimes does not cause the 'readyRead()'
+	 *		signal to be emitted, which breaks the code badly; I discovered through trial and
+	 *		error that the call to 'WaitForReadyRead()' function below seems to work around this issue */
+	port->waitForReadyRead(1);
+	//if (port->bytesAvailable())
+		//portReadyRead();
 }
 
 bool Blackmagic::resume(void)
@@ -142,6 +152,12 @@ bool Blackmagic::resume(void)
 	registers.clear();
 	putPacket(GdbRemote::continueRequest());
 	QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
+	/*! \todo	WARNING - it seems that I am doing something wrong with the 'readyRead()' signal;
+	 *		without the call to 'WaitForReadyRead()' below, on one machine that I am testing on,
+	 *		incoming data from the blackmagic probe sometimes does not cause the 'readyRead()'
+	 *		signal to be emitted, which breaks the code badly; I discovered through trial and
+	 *		error that the call to 'WaitForReadyRead()' function below seems to work around this issue */
+	port->waitForReadyRead(1);
 	return true;
 }
 
@@ -154,7 +170,7 @@ bool Blackmagic::requestHalt()
 
 bool Blackmagic::connect(void)
 {
-	QByteArray packet = GdbRemote::monitorRequest("s");
+	QByteArray packet = GdbRemote::monitorRequest("swdp_scan");
 	int i;
 	QVector<QByteArray> r, s;
 
