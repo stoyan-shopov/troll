@@ -618,6 +618,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui(new Ui::MainWindow)
 {
 	QTime startup_time;
+	is_running = false;
 	int i;
 	QCoreApplication::setOrganizationName("shopov instruments");
 	QCoreApplication::setApplicationName("troll");
@@ -1123,6 +1124,16 @@ static unsigned accumulator;
 				accumulator = 0;
 			}
 			break;
+		case Qt::Key_S:
+			if (!is_running)
+				on_actionSingle_step_triggered();
+			break;
+		case Qt::Key_C:
+			if (!is_running && !keyEvent->modifiers())
+				on_actionResume_triggered();
+			else if (is_running && keyEvent->modifiers() == Qt::ControlModifier)
+				on_actionHalt_triggered();
+			break;
 			default:
 				result = false;
 		}
@@ -1390,6 +1401,7 @@ void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
 auto breakpointed_addresses = breakpointedAddresses();
 
+	is_running = false;
 	auto x = breakpointed_addresses.begin();
 	while (x != breakpointed_addresses.end())
 	{
@@ -1442,6 +1454,7 @@ static int i;
 
 void MainWindow::targetRunning()
 {
+	is_running = true;
 	ui->actionBlackstrikeConnect->setEnabled(false);
 	ui->actionSingle_step->setEnabled(false);
 	ui->actionReset_target->setEnabled(false);
