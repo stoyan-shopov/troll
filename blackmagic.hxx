@@ -42,7 +42,7 @@ private slots:
 public:
 	Blackmagic(QSerialPort * port) { this->port = port; }
 	uint32_t readWord(uint32_t address) { auto x = readBytes(address, sizeof(uint32_t)); if (x.size() != sizeof(uint32_t)) Util::panic(); return * (uint32_t *) x.constData(); }
-	bool reset(void){ Util::panic(); }
+	bool reset(void);
 	QByteArray readBytes(uint32_t address, int byte_count, bool is_failure_allowed = false);
 	uint32_t readRawUncachedRegister(uint32_t register_number);
 	bool breakpointSet(uint32_t address, int length);

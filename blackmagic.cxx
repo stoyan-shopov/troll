@@ -89,6 +89,13 @@ auto halt_reason = getPacket();
 		Util::panic();
 }
 
+bool Blackmagic::reset()
+{
+	registers.clear();
+	putPacket(GdbRemote::resetRequest());
+	return true;
+}
+
 QByteArray Blackmagic::readBytes(uint32_t address, int byte_count, bool is_failure_allowed)
 {
 QVector<QByteArray> r;

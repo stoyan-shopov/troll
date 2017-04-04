@@ -316,6 +316,7 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 	last_directory_name = directory_name;
 	last_compilation_directory = compilation_directory;
 	last_highlighted_line = highlighted_line;
+	last_source_highlighted_address = address;
 	current_source_code_file_displayed = src.fileName();
 	statusBar()->showMessage(current_source_code_file_displayed);
 }
@@ -1370,7 +1371,7 @@ void MainWindow::on_actionShow_disassembly_address_ranges_triggered()
 void MainWindow::refreshSourceCodeView(int center_line)
 {
 auto c = ui->plainTextEdit->textCursor();
-	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line); 
+	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line, last_source_highlighted_address); 
 	c.movePosition(QTextCursor::Start);
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, center_line);
 	ui->plainTextEdit->setTextCursor(c);
