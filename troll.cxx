@@ -190,6 +190,7 @@ stime.start();
 QFile src;
 QString t;
 QTextBlockFormat f;
+QTextCharFormat cf;
 QTime x;
 int i, cursor_position_for_line(0);
 QFileInfo finfo(directory_name + "/" + source_filename);
@@ -304,7 +305,13 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 	c.setPosition(cursor_position_for_line);
 #endif
 	f.setBackground(QBrush(Qt::cyan));
+	cf.setForeground(QBrush(Qt::blue));
+	c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
 	c.setBlockFormat(f);
+	c.setCharFormat(cf);
+	c.clearSelection();
+	cf.setForeground(QBrush(Qt::white));
+	c.setCharFormat(cf);
 	ui->plainTextEdit->setTextCursor(c);
 	ui->plainTextEdit->centerCursor();
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_source_code_view_build_time)
@@ -1483,5 +1490,43 @@ void MainWindow::on_treeWidgetDataObjects_itemActivated(QTreeWidgetItem *item, i
 		dwdata->dataForType(type_cache, node, true, 1);
 		item->addChild(itemForNode(node, ok ? target->readBytes(address, node.bytesize, true) : QByteArray(), 0, 10, ""));
 		item->setExpanded(true);
+	}
+}
+
+void MainWindow::on_lineEditStaticDataObjects_textChanged(const QString &arg1)
+{
+	auto x = ui->tableWidgetStaticDataObjects->findItems(arg1, Qt::MatchStartsWith);
+	if (x.isEmpty())
+		ui->tableWidgetStaticDataObjects->scrollToTop();
+	else
+		ui->tableWidgetStaticDataObjects->scrollToItem(x.at(0), QAbstractItemView::PositionAtTop);
+}
+
+void MainWindow::on_lineEditSubprograms_textChanged(const QString &arg1)
+{
+	auto x = ui->tableWidgetFunctions->findItems(arg1, Qt::MatchStartsWith);
+	if (x.isEmpty())
+		ui->tableWidgetFunctions->scrollToTop();
+	else
+		ui->tableWidgetFunctions->scrollToItem(x.at(0), QAbstractItemView::PositionAtTop);
+}
+
+void MainWindow::on_lineEditStaticDataObjects_returnPressed()
+{
+	auto x = ui->tableWidgetStaticDataObjects->findItems(ui->lineEditStaticDataObjects->text(), Qt::MatchStartsWith);
+	if (!x.isEmpty())
+	{
+		ui->tableWidgetStaticDataObjects->scrollToItem(x.at(0), QAbstractItemView::PositionAtTop);
+		ui->tableWidgetStaticDataObjects->selectRow(x[0]->row());
+	}
+}
+
+void MainWindow::on_lineEditSubprograms_returnPressed()
+{
+	auto x = ui->tableWidgetFunctions->findItems(ui->lineEditSubprograms->text(), Qt::MatchStartsWith);
+	if (!x.isEmpty())
+	{
+		ui->tableWidgetFunctions->scrollToItem(x.at(0), QAbstractItemView::PositionAtTop);
+		ui->tableWidgetFunctions->selectRow(x[0]->row());
 	}
 }

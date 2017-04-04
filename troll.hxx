@@ -233,6 +233,14 @@ private slots:
 
 	void on_treeWidgetDataObjects_itemActivated(QTreeWidgetItem *item, int column);
 	
+	void on_lineEditStaticDataObjects_textChanged(const QString &arg1);
+	
+	void on_lineEditSubprograms_textChanged(const QString &arg1);
+	
+	void on_lineEditStaticDataObjects_returnPressed();
+	
+	void on_lineEditSubprograms_returnPressed();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);
