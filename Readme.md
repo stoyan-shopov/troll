@@ -95,7 +95,7 @@ Even though in many respects broken and incompletely supported, these ***4000***
 lines of code currently do provide these debugging capabilities:
 - target call stack unwinding (including stack unwinding from within interrupt service routines)
 - structured data displaying - array displaying, hierarchical displaying
-of data structures, support for bitfields and decoding of *C* lenguage enumerator
+of data structures, support for bitfields and decoding of *C* language enumerator
 values to symbolic names
 - displaying of the current source code location in the program being debugged,
 with optional disassembling of the source code
@@ -108,7 +108,7 @@ stepping, resuming, halting and restarting target execution
 
 The code of the *troll* needs to grow in order to completely and
 gracefully support all of the features described above, but how
-is it possible to support all of the features described in a meagre
+is it possible to support all of the features described in a meager
 ***4000*** lines of code?
 
 The observations described below have been taken in account in order
@@ -142,5 +142,14 @@ target chips) - out of the *ELF* executable file. Parsing
 an *s-record* file is trivial, and just a couple of lines
 of *C++* code, and no library, such as `libbfd`, is needed in
 order to achieve this
--
+- likewise, the *troll* does not use a disassembler library
+(such as, for example, the `libopcodes` library) - instead,
+the *troll* runs the `objdump` utility in order to generate
+a disassembly listing of the target executable *ELF* file,
+and then parses the disassembly output, builds an index for
+this output, and uses the index for providing disassembly
+text for target addresses. Such an approach is very simple,
+and achieves good results with only a few lines of source
+code, and avoids the need for an external library for
+performing the disassembly
 
