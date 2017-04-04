@@ -1372,7 +1372,7 @@ int row(ui->tableWidgetFiles->currentRow());
 
 void MainWindow::on_actionShow_disassembly_address_ranges_triggered()
 {
-	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line);
+	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line, last_source_highlighted_address);
 }
 
 void MainWindow::refreshSourceCodeView(int center_line)
