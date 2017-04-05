@@ -182,7 +182,7 @@ General-purpose libraries, such as `libdwarf`, do not readily
 provide answers to such simple questions, because, well, they
 are *general-purpose libraries* - they provide you with relatively
 low-level access to the *DWARF* debug information.
-Contriving sane answers to the simple questions from above can
+Engineering sane answers to the simple questions from above can
 be very involved, technically.
 If you need to answer these questions by using such a library,
 you need to build an additional layer over such a library, which
