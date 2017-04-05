@@ -144,13 +144,20 @@ void Blackmagic::requestSingleStep(void)
 	if (!QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead())))
 		Util::panic();
 	/*! \todo	WARNING - it seems that I am doing something wrong with the 'readyRead()' signal;
-	 *		without the call to 'WaitForReadyRead()' below, on one machine that I am testing on,
+	 *		without the call to 'waitForReadyRead()' below, on one machine that I am testing on,
 	 *		incoming data from the blackmagic probe sometimes does not cause the 'readyRead()'
 	 *		signal to be emitted, which breaks the code badly; I discovered through trial and
-	 *		error that the call to 'WaitForReadyRead()' function below seems to work around this issue */
+	 *		error that the call to 'WaitForReadyRead()' function below seems to work around this issue
+	 * 		on some (but not all) machines that I tested on
+	 *
+	 * 		the same call is also currently present in the main troll front-end code, in file 'troll.cxx',
+	 * 		where waitForReadyRead() is being periodically called when the target is running - while the
+	 * 		call there is in my tests sufficient to work around the issue, the duplication here makes
+	 * 		the troll more responsive on some machines; tests concluded that just the call here (and without
+	 * 		periodically calling waitForReadyRead()) ***DOES NOT WORK*** in all occasions, so the redundant
+	 * 		call here is intended only to make the troll more responsive on some machines
+	 */
 	port->waitForReadyRead(1);
-	//if (port->bytesAvailable())
-		//portReadyRead();
 }
 
 bool Blackmagic::resume(void)
@@ -158,12 +165,22 @@ bool Blackmagic::resume(void)
 	emit targetRunning();
 	registers.clear();
 	putPacket(GdbRemote::continueRequest());
-	QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead()));
+	if (!QObject::connect(port, SIGNAL(readyRead()), this, SLOT(portReadyRead())))
+		Util::panic();
 	/*! \todo	WARNING - it seems that I am doing something wrong with the 'readyRead()' signal;
-	 *		without the call to 'WaitForReadyRead()' below, on one machine that I am testing on,
+	 *		without the call to 'waitForReadyRead()' below, on one machine that I am testing on,
 	 *		incoming data from the blackmagic probe sometimes does not cause the 'readyRead()'
 	 *		signal to be emitted, which breaks the code badly; I discovered through trial and
-	 *		error that the call to 'WaitForReadyRead()' function below seems to work around this issue */
+	 *		error that the call to 'WaitForReadyRead()' function below seems to work around this issue
+	 * 		on some (but not all) machines that I tested on
+	 *
+	 * 		the same call is also currently present in the main troll front-end code, in file 'troll.cxx',
+	 * 		where waitForReadyRead() is being periodically called when the target is running - while the
+	 * 		call there is in my tests sufficient to work around the issue, the duplication here makes
+	 * 		the troll more responsive on some machines; tests concluded that just the call here (and without
+	 * 		periodically calling waitForReadyRead()) ***DOES NOT WORK*** in all occasions, so the redundant
+	 * 		call here is intended only to make the troll more responsive on some machines
+	 */
 	port->waitForReadyRead(1);
 	return true;
 }

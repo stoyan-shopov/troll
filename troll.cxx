@@ -1454,10 +1454,17 @@ void MainWindow::targetConnected()
 void MainWindow::polishSourceCodeViewOnTargetExecution()
 {
 static int i;
+
 	if (i ++ == 10)
 		i = 0;
 	polishing_timer.setInterval(200);
 	ui->plainTextEdit->setPlainText(QString("target running...") + QString(i, QChar('.')));;
+	/*! \todo	WARNING - it seems that I am doing something wrong with the 'readyRead()' signal;
+	 *		without the call to 'waitForReadyRead()' below, on one machine that I am testing on,
+	 *		incoming data from the blackmagic probe sometimes does not cause the 'readyRead()'
+	 *		signal to be emitted, which breaks the code badly; I discovered through trial and
+	 *		error that the call to 'WaitForReadyRead()' function below seems to work around this issue */
+	blackstrike_port.waitForReadyRead(1);
 }
 
 void MainWindow::targetRunning()
