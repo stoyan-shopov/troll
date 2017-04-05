@@ -113,17 +113,17 @@ is it possible to support all of the features described in a meager
 
 The observations described below have been taken in account in order
 to keep the code of the *troll* small and simple:
-- the *troll* does not attempt to support any target architecture
+1. the *troll* does not attempt to support any target architecture
 other than the *ARM Cortex-M*, and any target source code language,
 other than the *C* language; besides, the *troll* is written in *C++*,
 and makes heavy use of the *Qt* framework, and of the facilities that
 the *Qt* framework provides
-- normally, a debugger utilizes some library that provides
+2. normally, a debugger utilizes some library that provides
 structured access to the compiler-generated executable file
 (e.g., in the *ELF* file format), in order to access sections
 of debugging information and generated machine code that
 resides in the target. Such a library, for example, is the
-`libbfd` library - the *Binary File Descriptor* library.
+`libbfd` library - the *Binary File Descriptor* library, or the `libelf` library.
 The *troll* does not use such a library. In order to locate
 the *DWARF* debug information sections in the compiler-generated
 executable file in the *ELF* file format, the *troll* simply
@@ -134,15 +134,15 @@ information provided by the `objdump` utility to simply
 read the debug information sections - with simple file
 access operations. This is a couple of lines of *C++* code,
 instead of incorporating and utilizing a library, such as
-the `libbfd` library. Also, in order to extract the
+the `libbfd/libelf` library. Also, in order to extract the
 machine code that resides in the target - the *troll*
 executes the `objcopy` utility in order to generate an
 *s-record* file (often used in production for programming
 target chips) - out of the *ELF* executable file. Parsing
 an *s-record* file is trivial, and just a couple of lines
-of *C++* code, and no library, such as `libbfd`, is needed in
+of *C++* code, and no library, such as `libbfd/libelf`, is needed in
 order to achieve this
-- likewise, the *troll* does not use a disassembler library
+3. likewise, the *troll* does not use a disassembler library
 (such as, for example, the `libopcodes` library) - instead,
 the *troll* runs the `objdump` utility in order to generate
 a disassembly listing of the target executable *ELF* file,
@@ -152,4 +152,53 @@ text for target addresses. Such an approach is very simple,
 and achieves good results with only a few lines of source
 code, and avoids the need for an external library for
 performing the disassembly
+4. there exist excellent general-purpose libraries for
+accessing *DWARF* debug information - such is the
+`libdwarf` library. A key decision in the *troll* is
+***TO NOT*** use such a library, and the `libdwarf`
+library in particular. The *troll* is not my first
+attempt to write a debugger, it is the third one,
+and from my previous, already abandoned, attempts,
+I learned, that - when your goal is to create a
+***very limited, special purpose*** debugger
+such as the *troll* - it is ***much easier, simpler,
+and more efficient*** to just decode and process the *DWARF*
+debug information yourself. A graphical debugger front-end
+really needs simple answers to questions such as:
+	- Where in the program I am now, and how did I get here, so
+that I can display a call-stack backtrace?
+	- Where are local and global variables located, so that I
+can display their values?
+	- What is the data type of a variable, so that I
+can nicely display it?
+	- What target machine address(es)
+correspond(s) to a line in the source-code, so that I can
+set a breakpoint there?
+	- What target machine addresses correspond to
+a source-code file, so that I can display a disassembly
+of the source code, if requested?
+
+General-purpose libraries, such as `libdwarf`, do not readily
+provide answers to such simple questions, because, well, they
+are *general-purpose libraries* - they provide you with relatively
+low-level access to the *DWARF* debug information.
+Contriving sane answers to the simple questions from above can
+be very involved, technically.
+If you need to answer these questions by using such a library,
+you need to build an additional layer over such a library, which
+will provide the answers. In my experience, this may be not
+too pretty and pleasant. Decoding *DWARF* debug information
+is surprisingly easy (if you are familiar with *DWARF*).
+Deciding ***NOT*** to use a library, such as `libdwarf`,
+for accessing *DWARF* debug information, eliminates the
+need of building a layer around such a library, avoids
+the burden of dependencies of such a library, and - avoids
+the need of debugging such a library (yes, I had to debug
+the `libdwarf` library on some occasions in the past).
+
+In summary, deciding ***NOT*** to use a general-purpose
+library for accessing the *DWARF* debug information by the
+*troll*, makes the *troll* code simpler, smaller, more
+straightforward, more efficient, and, I hope, easier to
+maintain, understand and modify.
 
