@@ -82,7 +82,6 @@ class MainWindow : public QMainWindow
 	qint64 debug_str_offset, debug_str_len;
 	qint64 debug_line_offset, debug_line_len;
 	qint64 debug_loc_offset, debug_loc_len;
-	bool is_running;
 
 	QByteArray debug_aranges, debug_info, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc;
 	
@@ -184,7 +183,14 @@ private:
 		}
 		return addresses;
 	}
-	bool is_source_level_stepping_active;
+	enum
+	{
+		INVALID_EXECUTION_STATE = 0,
+		FREE_RUNNING,
+		HALTED,
+		SOURCE_LEVEL_SINGLE_STEPPING,
+	}
+	execution_state;
 
 public:
 	explicit MainWindow(QWidget *parent = 0);

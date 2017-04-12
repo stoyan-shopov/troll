@@ -626,8 +626,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui(new Ui::MainWindow)
 {
 	QTime startup_time;
-	is_running = false;
-	is_source_level_stepping_active = false;
+	execution_state = INVALID_EXECUTION_STATE;
 	int i;
 	QCoreApplication::setOrganizationName("shopov instruments");
 	QCoreApplication::setApplicationName("troll");
@@ -1134,13 +1133,18 @@ static unsigned accumulator;
 			}
 			break;
 		case Qt::Key_S:
-			if (!is_running)
-				on_actionSingle_step_triggered();
+			if (execution_state == HALTED)
+			{
+				if (keyEvent->modifiers() == Qt::NoModifier)
+					on_actionSingle_step_triggered();
+				else if (keyEvent->modifiers() == Qt::ShiftModifier)
+					on_actionSource_step_triggered();
+			}
 			break;
 		case Qt::Key_C:
-			if (!is_running && !keyEvent->modifiers())
+			if (execution_state == HALTED && keyEvent->modifiers() == Qt::NoModifier)
 				on_actionResume_triggered();
-			else if (is_running && keyEvent->modifiers() == Qt::ControlModifier)
+			else if (execution_state == FREE_RUNNING && keyEvent->modifiers() == Qt::ControlModifier)
 				on_actionHalt_triggered();
 			break;
 			default:
@@ -1154,12 +1158,13 @@ static unsigned accumulator;
 
 void MainWindow::on_actionSingle_step_triggered()
 {
+	execution_state = FREE_RUNNING;
 	target->requestSingleStep();
 }
 
 void MainWindow::on_actionSource_step_triggered()
 {
-	is_source_level_stepping_active = true;
+	execution_state = SOURCE_LEVEL_SINGLE_STEPPING;
 	target->requestSingleStep();
 }
 
@@ -1201,6 +1206,7 @@ class Target * t;
 				}
 				else
 					QMessageBox::information(0, "memory contents match", "target memory contents match");
+				execution_state = HALTED;
 				return;
 			}
 		}
@@ -1355,6 +1361,7 @@ auto breakpointed_addresses = breakpointedAddresses();
 		}
 		x ++;
 	}
+	execution_state = FREE_RUNNING;
 	target->resume();
 }
 
@@ -1416,20 +1423,25 @@ void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
 auto breakpointed_addresses = breakpointedAddresses();
 
-	if (is_source_level_stepping_active)
+	switch (execution_state)
 	{
-		/*! \todo	this is evil, make this portable */
-		auto x = target->readRawUncachedRegister(15) &~ 1;
-		bool is_statement;
-		dwdata->sourceCodeCoordinatesForAddress(x, & is_statement);
-		if (!is_statement)
+		case SOURCE_LEVEL_SINGLE_STEPPING:
 		{
-			on_actionSingle_step_triggered();
-			return;
+			/*! \todo	this is evil, make this portable */
+			auto x = target->readRawUncachedRegister(15) &~ 1;
+			bool is_statement;
+			dwdata->sourceCodeCoordinatesForAddress(x, & is_statement);
+			if (!is_statement)
+			{
+				on_actionSource_step_triggered();
+				return;
+			}
 		}
-		is_source_level_stepping_active = false;
+		break;
+		case FREE_RUNNING:
+			break;
 	}
-	is_running = false;
+	execution_state = HALTED;
 	auto x = breakpointed_addresses.begin();
 	while (x != breakpointed_addresses.end())
 	{
@@ -1492,7 +1504,6 @@ static int i;
 
 void MainWindow::targetRunning()
 {
-	is_running = true;
 	ui->actionBlackstrikeConnect->setEnabled(false);
 	ui->actionSingle_step->setEnabled(false);
 	ui->actionSource_step->setEnabled(false);
