@@ -781,16 +781,30 @@ background-color: rgb(0, 0, 0);</string>
         <number>0</number>
        </property>
        <item>
-        <widget class="QPushButton" name="pushButton_4">
+        <widget class="QPushButton" name="pushButtonCreateBookmark">
          <property name="text">
-          <string>xxx</string>
+          <string>create bookmark</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButtonCreateBookmark">
+        <widget class="QPushButton" name="pushButtonRemoveBookmark">
          <property name="text">
-          <string>create bookmark</string>
+          <string>remove</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButtonMoveBookmarkUp">
+         <property name="text">
+          <string>move up</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButtonMoveBookmarkDown">
+         <property name="text">
+          <string>move down</string>
          </property>
         </widget>
        </item>

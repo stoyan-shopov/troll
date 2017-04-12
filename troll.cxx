@@ -1606,11 +1606,58 @@ auto row = ui->tableWidgetBookmarks->rowCount();
 	ui->tableWidgetBookmarks->setItem(row, 3, new QTableWidgetItem(last_compilation_directory));
 }
 
-void MainWindow::on_tableWidgetBookmarks_clicked(const QModelIndex &index)
+void MainWindow::on_tableWidgetBookmarks_doubleClicked(const QModelIndex &index)
 {
 	displaySourceCodeFile(ui->tableWidgetBookmarks->item(index.row(), 0)->text(),
 	                      ui->tableWidgetBookmarks->item(index.row(), 2)->text(),
 	                      ui->tableWidgetBookmarks->item(index.row(), 3)->text(),
 	                      ui->tableWidgetBookmarks->item(index.row(), 1)->text().toUInt()
 	                      );
+}
+
+void MainWindow::on_pushButtonRemoveBookmark_clicked()
+{
+auto row = ui->tableWidgetBookmarks->currentRow();
+	if (row >= 0)
+		ui->tableWidgetBookmarks->removeRow(row);
+}
+
+void MainWindow::on_pushButtonMoveBookmarkUp_clicked()
+{
+auto row = ui->tableWidgetBookmarks->currentRow();
+	if (row > 0)
+	{
+		QStringList x;
+		x << ui->tableWidgetBookmarks->item(row, 0)->text()
+		  << ui->tableWidgetBookmarks->item(row, 1)->text()
+		  << ui->tableWidgetBookmarks->item(row, 2)->text()
+		  << ui->tableWidgetBookmarks->item(row, 3)->text();
+		ui->tableWidgetBookmarks->removeRow(row);
+		ui->tableWidgetBookmarks->insertRow(-- row);
+		ui->tableWidgetBookmarks->setItem(row, 0, new QTableWidgetItem(x[0]));
+		ui->tableWidgetBookmarks->setItem(row, 1, new QTableWidgetItem(x[1]));
+		ui->tableWidgetBookmarks->setItem(row, 2, new QTableWidgetItem(x[2]));
+		ui->tableWidgetBookmarks->setItem(row, 3, new QTableWidgetItem(x[3]));
+		ui->tableWidgetBookmarks->selectRow(row);
+	}
+}
+
+void MainWindow::on_pushButtonMoveBookmarkDown_clicked()
+{
+auto row = ui->tableWidgetBookmarks->currentRow();
+	if (row >= 0 && row < ui->tableWidgetBookmarks->rowCount() - 1)
+	{
+		QStringList x;
+		x << ui->tableWidgetBookmarks->item(row, 0)->text()
+		  << ui->tableWidgetBookmarks->item(row, 1)->text()
+		  << ui->tableWidgetBookmarks->item(row, 2)->text()
+		  << ui->tableWidgetBookmarks->item(row, 3)->text();
+		ui->tableWidgetBookmarks->removeRow(row);
+		ui->tableWidgetBookmarks->insertRow(++ row);
+		ui->tableWidgetBookmarks->setItem(row, 0, new QTableWidgetItem(x[0]));
+		ui->tableWidgetBookmarks->setItem(row, 1, new QTableWidgetItem(x[1]));
+		ui->tableWidgetBookmarks->setItem(row, 2, new QTableWidgetItem(x[2]));
+		ui->tableWidgetBookmarks->setItem(row, 3, new QTableWidgetItem(x[3]));
+		ui->tableWidgetBookmarks->selectRow(row);
+	}
 }

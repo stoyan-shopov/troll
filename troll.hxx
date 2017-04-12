@@ -252,7 +252,13 @@ private slots:
 	
 	void on_pushButtonCreateBookmark_clicked();
 	
-	void on_tableWidgetBookmarks_clicked(const QModelIndex &index);
+	void on_tableWidgetBookmarks_doubleClicked(const QModelIndex &index);
+	
+	void on_pushButtonRemoveBookmark_clicked();
+	
+	void on_pushButtonMoveBookmarkUp_clicked();
+	
+	void on_pushButtonMoveBookmarkDown_clicked();
 	
 protected:
 	void closeEvent(QCloseEvent * e);
