@@ -697,6 +697,18 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->actionShow_disassembly_address_ranges->setChecked(s.value("show-disassembly-ranges", true).toBool());
 	ui->comboBoxDataDisplayNumericBase->setCurrentIndex(s.value("data-display-numeric-base", 1).toUInt());
 	ui->plainTextEditScratchpad->setPlainText(s.value("scratchpad-contents").toString());
+	{
+		QStringList bookmarks = s.value("bookmarks").toStringList();
+		int i;
+		for (i = 0; i < bookmarks.size() / 4; i ++)
+		{
+			ui->tableWidgetBookmarks->insertRow(i);
+			ui->tableWidgetBookmarks->setItem(i, 0, new QTableWidgetItem(bookmarks.at(i * 4 + 0)));
+			ui->tableWidgetBookmarks->setItem(i, 1, new QTableWidgetItem(bookmarks.at(i * 4 + 1)));
+			ui->tableWidgetBookmarks->setItem(i, 2, new QTableWidgetItem(bookmarks.at(i * 4 + 2)));
+			ui->tableWidgetBookmarks->setItem(i, 3, new QTableWidgetItem(bookmarks.at(i * 4 + 3)));
+		}
+	}
 	elf_filename = s.value("last-elf-file", QString("???")).toString();
 	on_actionHack_mode_triggered();
 	QFile debug_file;
@@ -1025,6 +1037,14 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("data-display-numeric-base", ui->comboBoxDataDisplayNumericBase->currentIndex());
 	s.setValue("last-elf-file", elf_filename);
 	s.setValue("scratchpad-contents", ui->plainTextEditScratchpad->toPlainText());
+	QStringList bookmarks;
+	int i;
+	for (i = 0; i < ui->tableWidgetBookmarks->rowCount(); i ++)
+		bookmarks << ui->tableWidgetBookmarks->item(i, 0)->text()
+			<< ui->tableWidgetBookmarks->item(i, 1)->text()
+			<< ui->tableWidgetBookmarks->item(i, 2)->text()
+			<< ui->tableWidgetBookmarks->item(i, 3)->text();
+	s.setValue("bookmarks", bookmarks);
 	qDebug() << "";
 	qDebug() << "";
 	qDebug() << "";
@@ -1573,4 +1593,24 @@ void MainWindow::on_lineEditSubprograms_returnPressed()
 		ui->tableWidgetFunctions->scrollToItem(x.at(0), QAbstractItemView::PositionAtTop);
 		ui->tableWidgetFunctions->selectRow(x[0]->row());
 	}
+}
+
+void MainWindow::on_pushButtonCreateBookmark_clicked()
+{
+auto row = ui->tableWidgetBookmarks->rowCount();
+
+	ui->tableWidgetBookmarks->insertRow(row);
+	ui->tableWidgetBookmarks->setItem(row, 0, new QTableWidgetItem(last_source_filename));
+	ui->tableWidgetBookmarks->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(last_highlighted_line)));
+	ui->tableWidgetBookmarks->setItem(row, 2, new QTableWidgetItem(last_directory_name));
+	ui->tableWidgetBookmarks->setItem(row, 3, new QTableWidgetItem(last_compilation_directory));
+}
+
+void MainWindow::on_tableWidgetBookmarks_clicked(const QModelIndex &index)
+{
+	displaySourceCodeFile(ui->tableWidgetBookmarks->item(index.row(), 0)->text(),
+	                      ui->tableWidgetBookmarks->item(index.row(), 2)->text(),
+	                      ui->tableWidgetBookmarks->item(index.row(), 3)->text(),
+	                      ui->tableWidgetBookmarks->item(index.row(), 1)->text().toUInt()
+	                      );
 }

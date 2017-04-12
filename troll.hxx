@@ -250,6 +250,10 @@ private slots:
 	
 	void on_actionSource_step_triggered();
 	
+	void on_pushButtonCreateBookmark_clicked();
+	
+	void on_tableWidgetBookmarks_clicked(const QModelIndex &index);
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);

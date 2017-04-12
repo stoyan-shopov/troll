@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>869</width>
+    <width>943</width>
     <height>654</height>
    </rect>
   </property>
@@ -68,7 +68,7 @@ background-color: rgb(0, 0, 0);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>869</width>
+     <width>943</width>
      <height>20</height>
     </rect>
    </property>
@@ -632,6 +632,12 @@ background-color: rgb(0, 0, 0);</string>
        <property name="selectionBehavior">
         <enum>QAbstractItemView::SelectRows</enum>
        </property>
+       <attribute name="horizontalHeaderCascadingSectionResizes">
+        <bool>true</bool>
+       </attribute>
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
        <column>
         <property name="text">
          <string>file</string>
@@ -698,7 +704,10 @@ background-color: rgb(0, 0, 0);</string>
     </layout>
    </widget>
   </widget>
-  <widget class="QDockWidget" name="dockWidget_3">
+  <widget class="QDockWidget" name="dockWidgetScratchpad">
+   <property name="windowTitle">
+    <string>scratchpad</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>8</number>
    </attribute>
@@ -738,6 +747,93 @@ background-color: rgb(0, 0, 0);</string>
      </item>
      <item>
       <widget class="QPlainTextEdit" name="plainTextEditScratchpad"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockWidgetBookmarks">
+   <property name="windowTitle">
+    <string>bookmarks</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_11">
+    <layout class="QVBoxLayout" name="verticalLayout_12">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_6">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="pushButton_4">
+         <property name="text">
+          <string>xxx</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButtonCreateBookmark">
+         <property name="text">
+          <string>create bookmark</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QTableWidget" name="tableWidgetBookmarks">
+       <property name="editTriggers">
+        <set>QAbstractItemView::NoEditTriggers</set>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SingleSelection</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectRows</enum>
+       </property>
+       <attribute name="horizontalHeaderCascadingSectionResizes">
+        <bool>true</bool>
+       </attribute>
+       <attribute name="horizontalHeaderStretchLastSection">
+        <bool>true</bool>
+       </attribute>
+       <column>
+        <property name="text">
+         <string>file</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>line</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>directory</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>compilation directory</string>
+        </property>
+       </column>
+      </widget>
      </item>
     </layout>
    </widget>
@@ -845,8 +941,8 @@ background-color: rgb(0, 0, 0);</string>
    <slot>clear()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>568</x>
-     <y>56</y>
+     <x>684</x>
+     <y>69</y>
     </hint>
     <hint type="destinationlabel">
      <x>566</x>
