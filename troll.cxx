@@ -696,6 +696,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->actionHack_mode->setText(!ui->actionHack_mode->isChecked() ? "to hack mode" : "to user mode");
 	ui->actionShow_disassembly_address_ranges->setChecked(s.value("show-disassembly-ranges", true).toBool());
 	ui->comboBoxDataDisplayNumericBase->setCurrentIndex(s.value("data-display-numeric-base", 1).toUInt());
+	ui->plainTextEditScratchpad->setPlainText(s.value("scratchpad-contents").toString());
 	elf_filename = s.value("last-elf-file", QString("???")).toString();
 	on_actionHack_mode_triggered();
 	QFile debug_file;
@@ -1023,6 +1024,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("show-disassembly-ranges", ui->actionShow_disassembly_address_ranges->isChecked());
 	s.setValue("data-display-numeric-base", ui->comboBoxDataDisplayNumericBase->currentIndex());
 	s.setValue("last-elf-file", elf_filename);
+	s.setValue("scratchpad-contents", ui->plainTextEditScratchpad->toPlainText());
 	qDebug() << "";
 	qDebug() << "";
 	qDebug() << "";
