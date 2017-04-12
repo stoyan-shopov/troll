@@ -85,6 +85,7 @@ background-color: rgb(0, 0, 0);</string>
    <addaction name="actionHalt"/>
    <addaction name="actionResume"/>
    <addaction name="actionSingle_step"/>
+   <addaction name="actionSource_step"/>
    <addaction name="actionRead_state"/>
    <addaction name="actionCore_dump"/>
    <addaction name="actionExplore"/>
@@ -782,6 +783,11 @@ background-color: rgb(0, 0, 0);</string>
    </property>
    <property name="text">
     <string>show disassembly</string>
+   </property>
+  </action>
+  <action name="actionSource_step">
+   <property name="text">
+    <string>source step</string>
    </property>
   </action>
  </widget>

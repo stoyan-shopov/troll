@@ -184,6 +184,7 @@ private:
 		}
 		return addresses;
 	}
+	bool is_source_level_stepping_active;
 
 public:
 	explicit MainWindow(QWidget *parent = 0);
@@ -240,6 +241,8 @@ private slots:
 	void on_lineEditStaticDataObjects_returnPressed();
 	
 	void on_lineEditSubprograms_returnPressed();
+	
+	void on_actionSource_step_triggered();
 	
 protected:
 	void closeEvent(QCloseEvent * e);

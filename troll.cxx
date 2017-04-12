@@ -627,6 +627,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
 	QTime startup_time;
 	is_running = false;
+	is_source_level_stepping_active = false;
 	int i;
 	QCoreApplication::setOrganizationName("shopov instruments");
 	QCoreApplication::setApplicationName("troll");
@@ -1156,6 +1157,12 @@ void MainWindow::on_actionSingle_step_triggered()
 	target->requestSingleStep();
 }
 
+void MainWindow::on_actionSource_step_triggered()
+{
+	is_source_level_stepping_active = true;
+	target->requestSingleStep();
+}
+
 void MainWindow::on_actionBlackstrikeConnect_triggered()
 {
 auto ports = QSerialPortInfo::availablePorts();
@@ -1409,6 +1416,19 @@ void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
 auto breakpointed_addresses = breakpointedAddresses();
 
+	if (is_source_level_stepping_active)
+	{
+		/*! \todo	this is evil, make this portable */
+		auto x = target->readRawUncachedRegister(15) &~ 1;
+		bool is_statement;
+		dwdata->sourceCodeCoordinatesForAddress(x, & is_statement);
+		if (!is_statement)
+		{
+			on_actionSingle_step_triggered();
+			return;
+		}
+		is_source_level_stepping_active = false;
+	}
 	is_running = false;
 	auto x = breakpointed_addresses.begin();
 	while (x != breakpointed_addresses.end())
@@ -1419,6 +1439,7 @@ auto breakpointed_addresses = breakpointedAddresses();
 	polishing_timer.stop();
 	ui->actionBlackstrikeConnect->setEnabled(false);
 	ui->actionSingle_step->setEnabled(true);
+	ui->actionSource_step->setEnabled(true);
 	ui->actionReset_target->setEnabled(true);
 	ui->actionResume->setEnabled(true);
 	ui->actionHalt->setEnabled(false);
@@ -1431,6 +1452,7 @@ void MainWindow::targetDisconnected()
 {
 	ui->actionBlackstrikeConnect->setEnabled(true);
 	ui->actionSingle_step->setEnabled(false);
+	ui->actionSource_step->setEnabled(false);
 	ui->actionReset_target->setEnabled(false);
 	ui->actionResume->setEnabled(false);
 	ui->actionHalt->setEnabled(false);
@@ -1442,6 +1464,7 @@ void MainWindow::targetConnected()
 {
 	ui->actionBlackstrikeConnect->setEnabled(false);
 	ui->actionSingle_step->setEnabled(true);
+	ui->actionSource_step->setEnabled(true);
 	ui->actionReset_target->setEnabled(true);
 	ui->actionResume->setEnabled(true);
 	ui->actionHalt->setEnabled(true);
@@ -1472,6 +1495,7 @@ void MainWindow::targetRunning()
 	is_running = true;
 	ui->actionBlackstrikeConnect->setEnabled(false);
 	ui->actionSingle_step->setEnabled(false);
+	ui->actionSource_step->setEnabled(false);
 	ui->actionReset_target->setEnabled(false);
 	ui->actionResume->setEnabled(false);
 	ui->actionHalt->setEnabled(true);

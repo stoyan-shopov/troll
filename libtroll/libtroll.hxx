@@ -751,7 +751,7 @@ public:
 		}
 	}
 	/* returns -1 if no line number was found */
-	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset, uint32_t & file_number)
+	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset, uint32_t & file_number, bool & is_address_on_exact_line_number_boundary)
 	{
 		header = debug_line + statememnt_list_offset;
 		if (version() != 2) DwarfUtil::panic();
@@ -760,6 +760,7 @@ public:
 		uint32_t min_insn_length(minimum_instruction_length());
 		int len, x;
 		init();
+		is_address_on_exact_line_number_boundary = false;
 		if (DEBUG_LINE_PROGRAMS_ENABLED)
 		{
 			qDebug() << "debug line for offset" << HEX(header - debug_line);
@@ -799,7 +800,11 @@ public:
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
 						if (prev->address <= target_address && target_address < current->address)
+						{
+							if (prev->address == target_address)
+								is_address_on_exact_line_number_boundary = true;
 							return file_number = prev->file, prev->line;
+						}
 						init();
 						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "end of sequence";
 						break;
@@ -818,7 +823,11 @@ public:
 				current->address += (x / lrange) * min_insn_length;
 				current->line += lbase + x % lrange;
 				if (prev->address <= target_address && target_address < current->address)
+				{
+					if (prev->address == target_address)
+						is_address_on_exact_line_number_boundary = true;
 					return file_number = prev->file, prev->line;
+				}
 				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
 				swap();
 				* current = * prev;
@@ -835,7 +844,11 @@ public:
 						DwarfUtil::panic();*/
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
 					if (prev->address <= target_address && target_address < current->address)
+					{
+						if (prev->address == target_address)
+							is_address_on_exact_line_number_boundary = true;
 						return file_number = prev->file, prev->line;
+					}
 					swap();
 					* current = * prev;
 					break;
@@ -1523,7 +1536,7 @@ there:
 		return s;
 	}
 
-	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address)
+	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, bool * is_address_on_exact_line_number_boundary = 0)
 	{
 		SourceCodeCoordinates s;
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address) + /* skip compilation unit header */ 11;
@@ -1539,7 +1552,8 @@ there:
 		if (!x.first)
 			return s;
 		class DebugLine l(debug_line, debug_line_len);
-		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x), file_number);
+		bool dummy;
+		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x), file_number, is_address_on_exact_line_number_boundary ? * is_address_on_exact_line_number_boundary : dummy);
 		x = a.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
 		if (x.first)
 			s.compilation_directory_name = DwarfUtil::formString(x.first, x.second, debug_str);
