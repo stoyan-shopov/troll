@@ -1598,10 +1598,22 @@ void MainWindow::on_lineEditSubprograms_returnPressed()
 void MainWindow::on_pushButtonCreateBookmark_clicked()
 {
 auto row = ui->tableWidgetBookmarks->rowCount();
+QRegExp rx("^\\**\\s*(\\w+)\\|");
+QTextCursor c = ui->plainTextEdit->textCursor();
+int i, line_number = 123;
+
+	for (i = c.blockNumber(); i >= 0; i --)
+	{
+		bool ok;
+		auto x = c.block().text();
+		if (rx.indexIn(x) != -1 && (line_number = rx.cap(1).toInt(& ok), ok))
+			break;
+		c.movePosition(QTextCursor::PreviousBlock);
+	}
 
 	ui->tableWidgetBookmarks->insertRow(row);
 	ui->tableWidgetBookmarks->setItem(row, 0, new QTableWidgetItem(last_source_filename));
-	ui->tableWidgetBookmarks->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(last_highlighted_line)));
+	ui->tableWidgetBookmarks->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(line_number)));
 	ui->tableWidgetBookmarks->setItem(row, 2, new QTableWidgetItem(last_directory_name));
 	ui->tableWidgetBookmarks->setItem(row, 3, new QTableWidgetItem(last_compilation_directory));
 }
@@ -1619,7 +1631,10 @@ void MainWindow::on_pushButtonRemoveBookmark_clicked()
 {
 auto row = ui->tableWidgetBookmarks->currentRow();
 	if (row >= 0)
+	{
 		ui->tableWidgetBookmarks->removeRow(row);
+		ui->tableWidgetBookmarks->setCurrentCell(-1, -1);
+	}
 }
 
 void MainWindow::on_pushButtonMoveBookmarkUp_clicked()
