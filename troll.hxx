@@ -260,6 +260,8 @@ private slots:
 	
 	void on_pushButtonMoveBookmarkDown_clicked();
 	
+	void on_actionView_windows_triggered();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);

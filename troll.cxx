@@ -1676,3 +1676,8 @@ auto row = ui->tableWidgetBookmarks->currentRow();
 		ui->tableWidgetBookmarks->selectRow(row);
 	}
 }
+
+void MainWindow::on_actionView_windows_triggered()
+{
+	createPopupMenu()->popup(QCursor::pos());
+}
