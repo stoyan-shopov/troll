@@ -39,6 +39,12 @@ THE SOFTWARE.
 #include "disassembly.hxx"
 #include <elfio/elfio.hpp>
 
+enum
+{
+	BLACKMAGIC_USB_VENDOR_ID	=	0x1d50,
+	PT_ARM_EXIDX			=	0x70000001,
+};
+
 namespace Ui {
 class MainWindow;
 }
@@ -114,6 +120,7 @@ private:
 	void backtrace(void);
 	bool readElfSections(void);
 	bool loadSRecordFile(void);
+	bool loadElfMemorySegments(void);
 	QString elf_filename;
 	ELFIO::elfio elf;
 	void updateRegisterView(int frame_number);

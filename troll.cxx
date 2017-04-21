@@ -449,7 +449,7 @@ int i;
 	return true;
 }
 
-bool MainWindow::loadSRecordFile()
+bool MainWindow::loadSRecordFile(void)
 {
 QProcess objcopy;
 QString outfile = QFileInfo(elf_filename).fileName();
@@ -474,6 +474,15 @@ QString outfile = QFileInfo(elf_filename).fileName();
 	}
 	else
 		return SRecordMemoryData::loadFile(QString("troll-test-drive-files/") + outfile + ".srec", target_memory_contents);
+}
+
+bool MainWindow::loadElfMemorySegments(void)
+{
+int i;
+	for (i = 0; i < elf.segments.size(); i ++)
+		if (elf.segments[i]->get_type() == PT_LOAD || elf.segments[i]->get_type() == PT_ARM_EXIDX)
+			target_memory_contents.addRange(elf.segments[i]->get_physical_address(), QByteArray(elf.segments[i]->get_data(), elf.segments[i]->get_file_size()));
+	target_memory_contents.dump();
 }
 
 void MainWindow::updateRegisterView(int frame_number)
@@ -715,7 +724,7 @@ there:
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
 	dwdata->dumpStats();
 	
-	loadSRecordFile();
+	loadElfMemorySegments();
 	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())
@@ -1117,7 +1126,7 @@ class Target * t;
 	for (i = 0; i < ports.size(); i ++)
 	{
 		qDebug() << ports[i].manufacturer();
-		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == 0x1d50)
+		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == BLACKMAGIC_USB_VENDOR_ID)
 		{
 			blackstrike_port.setPortName(ports.at(i).portName());
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
