@@ -1600,7 +1600,7 @@ void MainWindow::on_pushButtonCreateBookmark_clicked()
 auto row = ui->tableWidgetBookmarks->rowCount();
 QRegExp rx("^\\**\\s*(\\w+)\\|");
 QTextCursor c = ui->plainTextEdit->textCursor();
-int i, line_number = 123;
+int i, line_number = -1;
 
 	for (i = c.blockNumber(); i >= 0; i --)
 	{
@@ -1610,6 +1610,8 @@ int i, line_number = 123;
 			break;
 		c.movePosition(QTextCursor::PreviousBlock);
 	}
+	if (line_number == -1)
+		return;
 
 	ui->tableWidgetBookmarks->insertRow(row);
 	ui->tableWidgetBookmarks->setItem(row, 0, new QTableWidgetItem(last_source_filename));
