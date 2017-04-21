@@ -30,10 +30,10 @@ THE SOFTWARE.
 #include <QRegExp>
 
 
-class SRecordMemoryData : public Memory
+class SRecordMemoryData
 {
 public:
-	bool loadFile(const QString & filename)
+	static bool loadFile(const QString & filename, Memory & memory)
 	{
 		QFile f(filename);
 		QRegExp rx("S(.)(..)(........)(.+)(\\w\\w)");
@@ -45,10 +45,10 @@ public:
 			{
 				if (rx.cap(1) != "3")
 					continue;
-				addRange(rx.cap(3).toUInt(0, 16), QByteArray::fromHex(rx.cap(4).toLocal8Bit()));
+				memory.addRange(rx.cap(3).toUInt(0, 16), QByteArray::fromHex(rx.cap(4).toLocal8Bit()));
 			}
 		}
-		dump();
+		memory.dump();
 		return true;
 	}
 };

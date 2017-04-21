@@ -470,10 +470,10 @@ QString outfile = QFileInfo(elf_filename).fileName();
 			                      );
 			return false;
 		}
-		return s_record_file.loadFile(outfile + ".srec");
+		return SRecordMemoryData::loadFile(outfile + ".srec", target_memory_contents);
 	}
 	else
-		return s_record_file.loadFile(QString("troll-test-drive-files/") + outfile + ".srec");
+		return SRecordMemoryData::loadFile(QString("troll-test-drive-files/") + outfile + ".srec", target_memory_contents);
 }
 
 void MainWindow::updateRegisterView(int frame_number)
@@ -1140,7 +1140,7 @@ class Target * t;
 				targetConnected();
 				auto s = target->memoryMap();
 				target->parseMemoryAreas(s);
-				if (!target->syncFlash(s_record_file))
+				if (!target->syncFlash(target_memory_contents))
 				{
 					QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");
 					Util::panic();

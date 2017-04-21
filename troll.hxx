@@ -97,7 +97,7 @@ class MainWindow : public QMainWindow
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
 	DwarfEvaluator	* dwarf_evaluator;
-	SRecordMemoryData s_record_file;
+	Memory		target_memory_contents;
 public:
 	struct TreeWidgetNodeData
 	{
