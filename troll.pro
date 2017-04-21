@@ -52,7 +52,7 @@ HEADERS  += \
 FORMS    += mainwindow.ui \
     notification.ui
 
-INCLUDEPATH += libtroll/ sforth/
+INCLUDEPATH += libtroll/ sforth/ external-sources/ELFIO/
 
 DEFINES += CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 TEST_DRIVE_MODE=0
 

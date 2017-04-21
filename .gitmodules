@@ -1,3 +1,6 @@
 [submodule "sforth"]
 	path = sforth
 	url = https://github.com/stoyan-shopov/sforth.git
+[submodule "external-sources/ELFIO"]
+	path = external-sources/ELFIO
+	url = https://github.com/stoyan-shopov/ELFIO.git

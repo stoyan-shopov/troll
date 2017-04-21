@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include <QTimer>
 #include "s-record.hxx"
 #include "disassembly.hxx"
+#include <elfio/elfio.hpp>
 
 namespace Ui {
 class MainWindow;
@@ -74,14 +75,14 @@ private:
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
-	qint64 debug_aranges_offset, debug_aranges_len;
-	qint64 debug_info_offset, debug_info_len;
-	qint64 debug_abbrev_offset, debug_abbrev_len;
-	qint64 debug_frame_offset, debug_frame_len;
-	qint64 debug_ranges_offset, debug_ranges_len;
-	qint64 debug_str_offset, debug_str_len;
-	qint64 debug_line_offset, debug_line_len;
-	qint64 debug_loc_offset, debug_loc_len;
+	qint64 debug_aranges_index;
+	qint64 debug_info_index;
+	qint64 debug_abbrev_index;
+	qint64 debug_frame_index;
+	qint64 debug_ranges_index;
+	qint64 debug_str_index;
+	qint64 debug_line_index;
+	qint64 debug_loc_index;
 
 	QByteArray debug_aranges, debug_info, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc;
 	
@@ -114,6 +115,7 @@ private:
 	bool readElfSections(void);
 	bool loadSRecordFile(void);
 	QString elf_filename;
+	ELFIO::elfio elf;
 	void updateRegisterView(int frame_number);
 	std::string typeStringForDieOffset(uint32_t die_offset);
 	void dumpData(uint32_t address, const QByteArray & data);

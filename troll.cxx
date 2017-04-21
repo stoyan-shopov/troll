@@ -416,117 +416,35 @@ void MainWindow::backtrace()
 
 bool MainWindow::readElfSections(void)
 {
-QRegExp rx("\\.debug_info\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-QProcess objdump;
-QString output;
-bool ok1, ok2;
+	debug_aranges_index =
+	debug_info_index =
+	debug_abbrev_index =
+	debug_frame_index =
+	debug_ranges_index =
+	debug_str_index =
+	debug_line_index =
+	debug_loc_index = 0;
 
-	debug_aranges_offset = debug_aranges_len =
-	debug_info_offset = debug_info_len =
-	debug_abbrev_offset = debug_abbrev_len =
-	debug_frame_offset = debug_frame_len =
-	debug_ranges_offset = debug_ranges_len =
-	debug_str_offset = debug_str_len =
-	debug_line_offset = debug_line_len =
-	debug_loc_offset = debug_loc_len = 0;
-	
-	if (TEST_DRIVE_MODE)
-	{
-		QFile f("troll-test-drive-files/elf-sections-dump.txt");
-		f.open(QFile::ReadOnly);
-		output = f.readAll();
-	}
-	else
-	{
+int i;
 
-		objdump.start("arm-none-eabi-objdump", QStringList() << "-h" << elf_filename);
-		objdump.waitForFinished();
-		if (objdump.error() != QProcess::UnknownError || objdump.exitCode() || objdump.exitStatus() != QProcess::NormalExit)
-		{
-			QMessageBox::critical(0, "error reading DWARF debug sections",
-			                      "error running the 'arm-none-eabi-objdump' utility in order to read the DWARF\n"
-			                      "debug information from the target ELF file!\n\n"
-			                      "please, make sure that the 'arm-none-eabi-objdump' utility is accessible\n"
-			                      "in your path environment, and that the file you have specified\n"
-			                      "is indeed an ELF file!"
-			                      );
-			return false;
-		}
-		qDebug() << (output = objdump.readAll());
-	}
-	if (rx.indexIn(output) != -1)
+	if (elf.get_class() != ELFCLASS32 || elf.get_encoding() != ELFDATA2LSB)
 	{
-		qDebug() << ".debug_info at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_info_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_info_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
+		QMessageBox::critical(0, "invalid ELF file",
+				      "cannot read ELF file - only 32 bit, little-endian encoded ELF files are supported"
+				      "\n\nthe troll will now abort");
+		exit(3);
 	}
-	rx.setPattern("\\.debug_abbrev\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-	if (rx.indexIn(output) != -1)
+	for (i = /* section number zero - unused (null section) */ 1; i < elf.sections.size(); i ++)
 	{
-		qDebug() << ".debug_abbrev at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_abbrev_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_abbrev_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
-	}
-	rx.setPattern("\\.debug_aranges\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-	if (rx.indexIn(output) != -1)
-	{
-		qDebug() << ".debug_aranges at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_aranges_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_aranges_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
-	}
-	rx.setPattern("\\.debug_ranges\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-	if (rx.indexIn(output) != -1)
-	{
-		qDebug() << ".debug_ranges at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_ranges_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_ranges_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
-	}
-	rx.setPattern("\\.debug_frame\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-	if (rx.indexIn(output) != -1)
-	{
-		qDebug() << ".debug_frame at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_frame_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_frame_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
-	}
-	rx.setPattern("\\.debug_str\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-	if (rx.indexIn(output) != -1)
-	{
-		qDebug() << ".debug_str at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_str_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_str_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
-	}
-	rx.setPattern("\\.debug_line\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-	if (rx.indexIn(output) != -1)
-	{
-		qDebug() << ".debug_line at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_line_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_line_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
-	}
-	rx.setPattern("\\.debug_loc\\s+(\\w+)\\s+\\w+\\s+\\w+\\s+(\\w+)");
-	if (rx.indexIn(output) != -1)
-	{
-		qDebug() << ".debug_loc at" << rx.cap(2) << "size" << rx.cap(1);
-		debug_loc_offset = rx.cap(2).toInt(&ok1, 16);
-		debug_loc_len = rx.cap(1).toInt(&ok2, 16);
-		if (!(ok1 && ok2)) Util::panic();
-	}
-	if (!debug_info_len || !debug_abbrev_len)
-	{
-		QMessageBox::critical(0, "error reading DWARF debug sections",
-		                      "could not load the DWARF sections of debug information\n"
-		                      "from the target ELF file!\n\n"
-		                      "make sure that the target ELF file does\n"
-		                      "contain DWARF debug information - if necessary\n"
-		                      "recompile your program with debug information included!\n"
-		                      );
-		return false;
+		auto name = elf.sections[i]->get_name();
+		if (name == ".debug_aranges") debug_aranges_index = i;
+		else if (name == ".debug_info") debug_info_index = i;
+		else if (name == ".debug_abbrev") debug_abbrev_index = i;
+		else if (name == ".debug_frame") debug_frame_index = i;
+		else if (name == ".debug_ranges") debug_ranges_index = i;
+		else if (name == ".debug_str") debug_str_index = i;
+		else if (name == ".debug_line") debug_line_index = i;
+		else if (name == ".debug_loc") debug_loc_index = i;
 	}
 	return true;
 }
@@ -685,7 +603,7 @@ MainWindow::MainWindow(QWidget *parent) :
 				"Please, do take time to set up your directories properly, and re-run the troll<br><br>"
 				"Thank you for your interest in the troll!"
 				);
-			exit(3);
+			exit(4);
 		}
 	}
 	restoreGeometry(s.value("window-geometry").toByteArray());
@@ -734,6 +652,18 @@ there:
 		}
 	}
 	startup_time.start();
+
+	QTime t;
+	t.start();
+	if (!elf.load(elf_filename.toStdString()))
+	{
+		QMessageBox::critical(0, "error loading target ELF file",
+				      "cannot read ELF file " + elf_filename +
+				      "\n\nthe troll will now abort");
+		exit(2);
+	}
+	profiling.debug_sections_disk_read_time = t.elapsed();
+	
 	if (!readElfSections())
 		exit(1);
 	debug_file.setFileName(elf_filename);
@@ -769,25 +699,14 @@ there:
 		QMessageBox::critical(0, "error opening target executable", QString("error opening file ") + debug_file.fileName());
 		exit(2);
 	}
-	QTime t;
-	t.start();
-	debug_file.seek(debug_aranges_offset);
-	debug_aranges = debug_file.read(debug_aranges_len);
-	debug_file.seek(debug_info_offset);
-	debug_info = debug_file.read(debug_info_len);
-	debug_file.seek(debug_abbrev_offset);
-	debug_abbrev = debug_file.read(debug_abbrev_len);
-	debug_file.seek(debug_frame_offset);
-	debug_frame = debug_file.read(debug_frame_len);
-	debug_file.seek(debug_ranges_offset);
-	debug_ranges = debug_file.read(debug_ranges_len);
-	debug_file.seek(debug_str_offset);
-	debug_str = debug_file.read(debug_str_len);
-	debug_file.seek(debug_line_offset);
-	debug_line = debug_file.read(debug_line_len);
-	debug_file.seek(debug_loc_offset);
-	debug_loc = debug_file.read(debug_loc_len);
-	profiling.debug_sections_disk_read_time = t.elapsed();
+	if (debug_aranges_index) debug_aranges = QByteArray(elf.sections[debug_aranges_index]->get_data(), elf.sections[debug_aranges_index]->get_size());
+	if (debug_info_index) debug_info = QByteArray(elf.sections[debug_info_index]->get_data(), elf.sections[debug_info_index]->get_size());
+	if (debug_abbrev_index) debug_abbrev = QByteArray(elf.sections[debug_abbrev_index]->get_data(), elf.sections[debug_abbrev_index]->get_size());
+	if (debug_frame_index) debug_frame = QByteArray(elf.sections[debug_frame_index]->get_data(), elf.sections[debug_frame_index]->get_size());
+	if (debug_ranges_index) debug_ranges = QByteArray(elf.sections[debug_ranges_index]->get_data(), elf.sections[debug_ranges_index]->get_size());
+	if (debug_str_index) debug_str = QByteArray(elf.sections[debug_str_index]->get_data(), elf.sections[debug_str_index]->get_size());
+	if (debug_line_index) debug_line = QByteArray(elf.sections[debug_line_index]->get_data(), elf.sections[debug_line_index]->get_size());
+	if (debug_loc_index) debug_loc = QByteArray(elf.sections[debug_loc_index]->get_data(), elf.sections[debug_loc_index]->get_size());
 	
 	t.restart();
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
