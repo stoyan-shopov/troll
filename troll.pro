@@ -29,7 +29,17 @@ SOURCES +=\
     dwarf-evaluator.cxx \
     troll.cxx \
     blackmagic.cxx \
-    gdb-remote.cxx
+    gdb-remote.cxx \
+    external-sources/capstone/cs.c \
+    external-sources/capstone/MCInst.c \
+    external-sources/capstone/MCInstrDesc.c \
+    external-sources/capstone/MCRegisterInfo.c \
+    external-sources/capstone/SStream.c \
+    external-sources/capstone/utils.c \
+    external-sources/capstone/arch/ARM/ARMDisassembler.c \
+    external-sources/capstone/arch/ARM/ARMInstPrinter.c \
+    external-sources/capstone/arch/ARM/ARMMapping.c \
+    external-sources/capstone/arch/ARM/ARMModule.c
 
 HEADERS  += \
     libtroll/dwarf.h \
@@ -52,9 +62,9 @@ HEADERS  += \
 FORMS    += mainwindow.ui \
     notification.ui
 
-INCLUDEPATH += libtroll/ sforth/ external-sources/ELFIO/
+INCLUDEPATH += libtroll/ sforth/ external-sources/elfio/ external-sources/capstone/include
 
-DEFINES += CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 TEST_DRIVE_MODE=0
+DEFINES += CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 TEST_DRIVE_MODE=0 CAPSTONE_USE_SYS_DYN_MEM CAPSTONE_HAS_ARM
 
 DISTFILES += \
     unwinder.fs \

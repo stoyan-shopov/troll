@@ -482,7 +482,6 @@ int i;
 	for (i = 0; i < elf.segments.size(); i ++)
 		if (elf.segments[i]->get_type() == PT_LOAD || elf.segments[i]->get_type() == PT_ARM_EXIDX)
 			target_memory_contents.addRange(elf.segments[i]->get_physical_address(), QByteArray(elf.segments[i]->get_data(), elf.segments[i]->get_file_size()));
-	target_memory_contents.dump();
 }
 
 void MainWindow::updateRegisterView(int frame_number)
@@ -676,11 +675,14 @@ there:
 	if (!readElfSections())
 		exit(1);
 	debug_file.setFileName(elf_filename);
+
+	loadElfMemorySegments();
+
 	if (TEST_DRIVE_MODE)
 	{
 		QFile f("troll-test-drive-files/disassembly.txt");
 		f.open(QFile::ReadOnly);
-		disassembly = new Disassembly(f.readAll());
+		disassembly = new Disassembly(f.readAll(), target_memory_contents);
 	}
 	else
 	{
@@ -698,10 +700,10 @@ there:
 			                      "is indeed an ELF file!\n\n"
 			                      "disassembly will be unavailable in this session!"
 			                      );
-			disassembly = new Disassembly(QByteArray());
+			disassembly = new Disassembly(QByteArray(), target_memory_contents);
 		}
 		else
-			disassembly = new Disassembly(objdump.readAll());
+			disassembly = new Disassembly(objdump.readAll(), target_memory_contents);
 	}
 	if (!debug_file.open(QFile::ReadOnly))
 	{
@@ -723,8 +725,6 @@ there:
 	profiling.all_compilation_units_processing_time = t.elapsed();
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
 	dwdata->dumpStats();
-	
-	loadElfMemorySegments();
 	
 	dwundwind = new DwarfUnwinder(debug_frame.data(), debug_frame.length());
 	while (!dwundwind->at_end())

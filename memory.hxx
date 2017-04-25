@@ -99,6 +99,14 @@ public:
 		for (i = 0; i < ranges.size(); i ++)
 			qDebug() << "memory range at" << ranges[i].address << "size" << ranges[i].data.size();
 	}
+	QByteArray data(uint32_t address, int length)
+	{
+		int i;
+		for (i = 0; i < ranges.size(); i ++)
+			if (ranges[i].address <= address && address <= ranges[i].address + ranges[i].data.size())
+				return ranges[i].data.mid(address - ranges[i].address, length);
+		return QByteArray();
+	}
 };
 
 #endif // MEMORY_H

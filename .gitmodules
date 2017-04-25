@@ -4,3 +4,6 @@
 [submodule "external-sources/ELFIO"]
 	path = external-sources/ELFIO
 	url = https://github.com/stoyan-shopov/elfio.git
+[submodule "external-sources/capstone"]
+	path = external-sources/capstone
+	url = https://github.com/stoyan-shopov/capstone.git
