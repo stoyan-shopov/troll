@@ -1033,6 +1033,12 @@ static unsigned accumulator;
 						qDebug() << "filtered addresses:" << x.size();
 						if (x.empty())
 							break;
+						if (is_running_to_cursor)
+						{
+							for (i = 0; i < x.size(); run_to_cursor_breakpoints.push_back((struct MachineLevelBreakpoint){ .address = x.at(i++), }));
+							on_actionResume_triggered();
+							break;
+						}
 						b.addresses = QVector<uint32_t>::fromStdVector(x);
 						breakpoints.push_back(b);
 						if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
