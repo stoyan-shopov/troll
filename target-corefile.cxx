@@ -75,6 +75,7 @@ uint32_t TargetCorefile::readWord(uint32_t address)
 		return * (uint32_t *) (rom.data() + address - rom_base_address);
 	if (ram_base_address <= address && address < ram_base_address + ram.length() - sizeof(uint32_t) + 1)
 		return * (uint32_t *) (ram.data() + address - ram_base_address);
+	throw MEMORY_READ_ERROR;
 	Util::panic();
 }
 

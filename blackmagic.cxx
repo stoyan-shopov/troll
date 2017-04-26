@@ -110,7 +110,7 @@ int i;
 		if (GdbRemote::isErrorResponse(r[i]))
 			if (!is_failure_allowed)
 			{
-				throw 1;
+				throw MEMORY_READ_ERROR;
 				Util::panic();
 			}
 			else

@@ -1085,9 +1085,9 @@ static unsigned accumulator;
 		case Qt::Key_S:
 			if (execution_state == HALTED)
 			{
-				if (keyEvent->modifiers() == Qt::NoModifier)
+				if (keyEvent->text() == "s")
 					on_actionSingle_step_triggered();
-				else if (keyEvent->modifiers() == Qt::ShiftModifier)
+				else if (keyEvent->text() == "S")
 					on_actionSource_step_triggered();
 			}
 			break;

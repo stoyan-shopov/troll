@@ -36,7 +36,7 @@ void do_target_fetch(void)
 	{
 		sforth->push(target->readWord(x.at(0)));
 	}
-	catch (int error)
+	catch (enum TARGET_ERROR_ENUM error)
 	{
 		if (error == MEMORY_READ_ERROR)
 		{
