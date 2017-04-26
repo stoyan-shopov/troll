@@ -73,7 +73,7 @@ public:
 					      "this is a fatal error, and the troll will now abort");
 			Util::panic();
 		}
-		return;
+		//return;
 
 		disassembly_text = disassembly;
 		while (i < disassembly_text.size())

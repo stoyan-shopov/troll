@@ -29,7 +29,23 @@ static Sforth		* sforth;
 
 extern "C"
 {
-void do_target_fetch(void)		{ auto x = sforth->getResults(1); if (x.size() != 1) Util::panic(); sforth->push(target->readWord(x.at(0))); }
+void do_target_fetch(void)
+{
+	auto x = sforth->getResults(1); if (x.size() != 1) Util::panic();
+	try
+	{
+		sforth->push(target->readWord(x.at(0)));
+	}
+	catch (int error)
+	{
+		if (error == MEMORY_READ_ERROR)
+		{
+			QMessageBox::critical(0, "cannot read target memory", QString("failed to read memory at address $%1").arg(x.at(0), 8, 16, QChar('0')));
+			do_abort();
+		}
+		Util::panic();
+	}
+}
 void do_target_register_fetch(void)	{ Util::panic("access the cached register here"); }
 void do_panic(void)		{ Util::panic(); }
 }

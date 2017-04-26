@@ -39,6 +39,12 @@ enum TARGET_HALT_REASON
 	GENERIC_HALT_CONDITION,
 };
 
+enum TARGET_ERROR_ENUM
+{
+	INVALID		= 0,
+	MEMORY_READ_ERROR,
+};
+
 class Target : public QObject
 {
 	Q_OBJECT

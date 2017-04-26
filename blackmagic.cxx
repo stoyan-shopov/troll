@@ -109,7 +109,10 @@ int i;
 	for (i = 0; i < r.size(); i ++)
 		if (GdbRemote::isErrorResponse(r[i]))
 			if (!is_failure_allowed)
+			{
+				throw 1;
 				Util::panic();
+			}
 			else
 				return QByteArray();
 	return GdbRemote::readMemory(r);
