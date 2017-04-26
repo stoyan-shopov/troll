@@ -203,6 +203,9 @@ private:
 	}
 	execution_state;
 
+	void switchActionOn(QAction * action) { action->setEnabled(true); action->setVisible(true); }
+	void switchActionOff(QAction * action) { action->setEnabled(false); action->setVisible(false); }
+
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

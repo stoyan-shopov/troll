@@ -1418,39 +1418,39 @@ auto breakpointed_addresses = breakpointedAddresses();
 		x ++;
 	}
 	polishing_timer.stop();
-	ui->actionBlackstrikeConnect->setEnabled(false);
-	ui->actionSingle_step->setEnabled(true);
-	ui->actionSource_step->setEnabled(true);
-	ui->actionReset_target->setEnabled(true);
-	ui->actionResume->setEnabled(true);
-	ui->actionHalt->setEnabled(false);
-	ui->actionRead_state->setEnabled(true);
-	ui->actionCore_dump->setEnabled(true);
+	switchActionOff(ui->actionBlackstrikeConnect);
+	switchActionOn(ui->actionSingle_step);
+	switchActionOn(ui->actionSource_step);
+	switchActionOn(ui->actionReset_target);
+	switchActionOn(ui->actionResume);
+	switchActionOff(ui->actionHalt);
+	switchActionOn(ui->actionRead_state);
+	switchActionOn(ui->actionCore_dump);
 	backtrace();
 }
 
-void MainWindow::targetDisconnected()
+void MainWindow::targetDisconnected(void)
 {
-	ui->actionBlackstrikeConnect->setEnabled(true);
-	ui->actionSingle_step->setEnabled(false);
-	ui->actionSource_step->setEnabled(false);
-	ui->actionReset_target->setEnabled(false);
-	ui->actionResume->setEnabled(false);
-	ui->actionHalt->setEnabled(false);
-	ui->actionRead_state->setEnabled(false);
-	ui->actionCore_dump->setEnabled(false);
+	switchActionOn(ui->actionBlackstrikeConnect);
+	switchActionOff(ui->actionSingle_step);
+	switchActionOff(ui->actionSource_step);
+	switchActionOff(ui->actionReset_target);
+	switchActionOff(ui->actionResume);
+	switchActionOff(ui->actionHalt);
+	switchActionOff(ui->actionRead_state);
+	switchActionOff(ui->actionCore_dump);
 }
 
 void MainWindow::targetConnected()
 {
-	ui->actionBlackstrikeConnect->setEnabled(false);
-	ui->actionSingle_step->setEnabled(true);
-	ui->actionSource_step->setEnabled(true);
-	ui->actionReset_target->setEnabled(true);
-	ui->actionResume->setEnabled(true);
-	ui->actionHalt->setEnabled(true);
-	ui->actionRead_state->setEnabled(true);
-	ui->actionCore_dump->setEnabled(true);
+	switchActionOff(ui->actionBlackstrikeConnect);
+	switchActionOn(ui->actionSingle_step);
+	switchActionOn(ui->actionSource_step);
+	switchActionOn(ui->actionReset_target);
+	switchActionOn(ui->actionResume);
+	switchActionOn(ui->actionHalt);
+	switchActionOn(ui->actionRead_state);
+	switchActionOn(ui->actionCore_dump);
 
 	backtrace();
 }
@@ -1473,14 +1473,14 @@ static int i;
 
 void MainWindow::targetRunning()
 {
-	ui->actionBlackstrikeConnect->setEnabled(false);
-	ui->actionSingle_step->setEnabled(false);
-	ui->actionSource_step->setEnabled(false);
-	ui->actionReset_target->setEnabled(false);
-	ui->actionResume->setEnabled(false);
-	ui->actionHalt->setEnabled(true);
-	ui->actionRead_state->setEnabled(false);
-	ui->actionCore_dump->setEnabled(false);
+	switchActionOff(ui->actionBlackstrikeConnect);
+	switchActionOff(ui->actionSingle_step);
+	switchActionOff(ui->actionSource_step);
+	switchActionOff(ui->actionReset_target);
+	switchActionOff(ui->actionResume);
+	switchActionOn(ui->actionHalt);
+	switchActionOff(ui->actionRead_state);
+	switchActionOff(ui->actionCore_dump);
 	polishing_timer.start(500);
 	ui->tableWidgetBacktrace->setRowCount(0);
 	ui->tableWidgetLocalVariables->setRowCount(0);
