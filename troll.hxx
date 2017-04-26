@@ -143,7 +143,7 @@ private:
 		uint32_t	address;
 		struct SourceLevelBreakpoint inferred_breakpoint;
 	};
-	QVector<struct MachineLevelBreakpoint> machine_level_breakpoints;
+	QVector<struct MachineLevelBreakpoint> machine_level_breakpoints, run_to_cursor_breakpoints;
 	int machineBreakpointIndex(uint32_t address)
 	{
 		int i;
@@ -184,6 +184,8 @@ private:
 		}
 		for (i = 0; i < machine_level_breakpoints.size(); i ++)
 			breakpointed_addresses.operator [](machine_level_breakpoints.at(i).address) ++;
+		for (i = 0; i < run_to_cursor_breakpoints.size(); i ++)
+			breakpointed_addresses.operator [](run_to_cursor_breakpoints.at(i).address) ++;
 		auto x = breakpointed_addresses.begin();
 		while (x != breakpointed_addresses.end())
 		{

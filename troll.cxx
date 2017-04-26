@@ -999,6 +999,7 @@ QSettings s("troll.rc", QSettings::IniFormat);
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
 bool result = true;
+bool is_running_to_cursor = false;
 static unsigned accumulator;
 	if (event->type() == QEvent::KeyPress)
 	{
@@ -1007,6 +1008,8 @@ static unsigned accumulator;
 			accumulator *= 10, accumulator += keyEvent->key() - Qt::Key_0;
 		switch (keyEvent->key())
 		{
+			case Qt::Key_F4:
+				is_running_to_cursor = true;
 			case Qt::Key_Space:
 			{
 				bool ok;
@@ -1053,6 +1056,12 @@ static unsigned accumulator;
 						rx.setPattern("^\\s*(\\w+):");
 					if (rx.indexIn(l) != -1 && (address = rx.cap(1).toUInt(& ok, 16), ok))
 					{
+						if (is_running_to_cursor)
+						{
+							run_to_cursor_breakpoints.push_back((struct MachineLevelBreakpoint){ .address = address, });
+							on_actionResume_triggered();
+							break;
+						}
 						if ((i = machineBreakpointIndex(address)) == -1)
 						{
 							auto x = dwdata->sourceCodeCoordinatesForAddress(address);
@@ -1067,6 +1076,8 @@ static unsigned accumulator;
 						else
 							machine_level_breakpoints.removeAt(i);
 					}
+					else
+						break;
 				}
 				updateBreakpoints();
 				refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
@@ -1372,6 +1383,8 @@ int row(ui->tableWidgetFunctions->currentRow());
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
 auto breakpointed_addresses = breakpointedAddresses();
+
+	run_to_cursor_breakpoints.clear();
 
 	switch (execution_state)
 	{
