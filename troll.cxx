@@ -262,11 +262,11 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 		t = QString("cannot open source code file ") + src.fileName();
 	
 	QSet<uint32_t> breakpointed_addresses;
-	for (i = 0; i < breakpoints.size(); i ++)
+	for (i = 0; i < source_level_breakpoints.size(); i ++)
 	{
 		int j;
-		for (j = 0; j < breakpoints.at(i).addresses.size(); j ++)
-			breakpointed_addresses.insert(breakpoints.at(i).addresses.at(j));
+		for (j = 0; j < source_level_breakpoints.at(i).addresses.size(); j ++)
+			breakpointed_addresses.insert(source_level_breakpoints.at(i).addresses.at(j));
 	}
 	for (i = 0; i < machine_level_breakpoints.size(); i ++)
 		breakpointed_addresses.insert(machine_level_breakpoints.at(i).address);
@@ -515,9 +515,9 @@ void MainWindow::updateBreakpoints(void)
 {
 int i, j;
 	ui->treeWidgetBreakpoints->clear();
-	for (i = 0; i < breakpoints.size(); i ++)
+	for (i = 0; i < source_level_breakpoints.size(); i ++)
 	{
-		const SourceLevelBreakpoint & b(breakpoints.at(i));
+		const SourceLevelBreakpoint & b(source_level_breakpoints.at(i));
 		auto t = new QTreeWidgetItem(ui->treeWidgetBreakpoints, QStringList() << b.source_filename << QString("%1").arg(b.line_number));
 		if (b.addresses.size() == 1)
 			t->setText(2, QString("$%1").arg(b.addresses.at(0), 8, 16, QChar('0')));
@@ -625,7 +625,6 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->plainTextEditScratchpad->setPlainText(s.value("scratchpad-contents").toString());
 	{
 		QStringList bookmarks = s.value("bookmarks").toStringList();
-		int i;
 		for (i = 0; i < bookmarks.size() / 4; i ++)
 		{
 			ui->tableWidgetBookmarks->insertRow(i);
@@ -721,6 +720,39 @@ there:
 	
 	t.restart();
 	dwdata = new DwarfData(debug_aranges.data(), debug_aranges.length(), debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
+	
+	{
+		auto source_breakpoints = s.value("source-level-breakpoints", QStringList()).toStringList();
+		//QRegExp rx("(.+):(.*):(.*):(\\d+)$");
+		QRegExp rx("([^>]+)>([^>]*)>([^>]*)>(\\d+)$");
+		for (i = 0; i < source_breakpoints.size(); i ++)
+			if (rx.indexIn(source_breakpoints[i]) != -1)
+			{
+				SourceLevelBreakpoint b;
+				b.source_filename = rx.cap(1);
+				b.directory_name = rx.cap(2);
+				b.compilation_directory = rx.cap(3);
+				b.line_number = rx.cap(4).toUInt();
+				b.addresses = QVector<uint32_t>::fromStdVector(dwdata->filteredAddressesForFileAndLineNumber(b.source_filename.toLocal8Bit().constData(), b.line_number));
+				source_level_breakpoints.push_back(b);
+			}
+		QStringList breakpoints = s.value("machine-level-breakpoints", QStringList()).toStringList();
+		for (i = 0; i < breakpoints.length(); i ++)
+		{
+			uint32_t address = breakpoints[i].toUInt();
+
+			auto x = dwdata->sourceCodeCoordinatesForAddress(address);
+			SourceLevelBreakpoint b;
+			b.source_filename = QString::fromStdString(x.file_name);
+			b.directory_name = QString::fromStdString(x.directory_name);
+			b.compilation_directory = QString::fromStdString(x.compilation_directory_name);
+			b.line_number = x.line;
+			b.addresses.push_back(address);
+			machine_level_breakpoints.push_back((struct MachineLevelBreakpoint){ .address = address, .inferred_breakpoint = b, });
+		}
+		updateBreakpoints();
+	}
+	
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
 	profiling.all_compilation_units_processing_time = t.elapsed();
 	qDebug() << "all compilation units in .debug_info processed in" << profiling.all_compilation_units_processing_time << "milliseconds";
@@ -956,6 +988,7 @@ void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
 void MainWindow::closeEvent(QCloseEvent *e)
 {
 QSettings s("troll.rc", QSettings::IniFormat);
+int i;
 	s.setValue("window-geometry", saveGeometry());
 	s.setValue("window-state", saveState());
 	s.setValue("main-splitter/geometry", ui->splitterMain->saveGeometry());
@@ -965,8 +998,18 @@ QSettings s("troll.rc", QSettings::IniFormat);
 	s.setValue("data-display-numeric-base", ui->comboBoxDataDisplayNumericBase->currentIndex());
 	s.setValue("last-elf-file", elf_filename);
 	s.setValue("scratchpad-contents", ui->plainTextEditScratchpad->toPlainText());
+	QStringList source_breakpoints;
+	for (i = 0; i < source_level_breakpoints.size(); i ++)
+		source_breakpoints << QString("%1>%2>%3>%4")
+		                      .arg(source_level_breakpoints[i].source_filename)
+		                      .arg(source_level_breakpoints[i].directory_name)
+		                      .arg(source_level_breakpoints[i].compilation_directory)
+		                      .arg(source_level_breakpoints[i].line_number);
+	s.setValue("source-level-breakpoints", source_breakpoints);
+	QStringList machine_brekpoints;
+	for (i = 0; i < machine_level_breakpoints.size(); machine_brekpoints << QString("%1").arg(machine_level_breakpoints[i ++].address));
+	s.setValue("machine-level-breakpoints", machine_brekpoints);
 	QStringList bookmarks;
-	int i;
 	for (i = 0; i < ui->tableWidgetBookmarks->rowCount(); i ++)
 		bookmarks << ui->tableWidgetBookmarks->item(i, 0)->text()
 			<< ui->tableWidgetBookmarks->item(i, 1)->text()
@@ -1040,7 +1083,7 @@ static unsigned accumulator;
 							break;
 						}
 						b.addresses = QVector<uint32_t>::fromStdVector(x);
-						breakpoints.push_back(b);
+						source_level_breakpoints.push_back(b);
 						if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
 							profiling.max_time_for_retrieving_breakpoint_addresses_for_line = t.elapsed();
 						t.restart();
@@ -1050,7 +1093,7 @@ static unsigned accumulator;
 						qDebug() << "total addresses:" << x.size();
 					}
 					else
-						breakpoints.removeAt(j);
+						source_level_breakpoints.removeAt(j);
 				}
 				else
 				{

@@ -153,12 +153,12 @@ private:
 		return -1;
 	}
 
-	QVector<struct SourceLevelBreakpoint> breakpoints;
+	QVector<struct SourceLevelBreakpoint> source_level_breakpoints;
 	int breakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
 	{
 		int i;
-		for (i = 0; i < breakpoints.size(); i ++)
-			if (breakpoints.at(i) == breakpoint)
+		for (i = 0; i < source_level_breakpoints.size(); i ++)
+			if (source_level_breakpoints.at(i) == breakpoint)
 				return i;
 		return -1;
 	}
@@ -176,11 +176,11 @@ private:
 		QVector<uint32_t> addresses;
 		int i;
 
-		for (i = 0; i < breakpoints.size(); i ++)
+		for (i = 0; i < source_level_breakpoints.size(); i ++)
 		{
 			int j;
-			for (j = 0; j < breakpoints.at(i).addresses.size(); j ++)
-				breakpointed_addresses.operator [](breakpoints.at(i).addresses.at(j)) ++;
+			for (j = 0; j < source_level_breakpoints.at(i).addresses.size(); j ++)
+				breakpointed_addresses.operator [](source_level_breakpoints.at(i).addresses.at(j)) ++;
 		}
 		for (i = 0; i < machine_level_breakpoints.size(); i ++)
 			breakpointed_addresses.operator [](machine_level_breakpoints.at(i).address) ++;
