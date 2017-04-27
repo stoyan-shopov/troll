@@ -1673,3 +1673,8 @@ void MainWindow::on_actionView_windows_triggered()
 {
 	createPopupMenu()->popup(QCursor::pos());
 }
+
+void MainWindow::on_actionRun_dwarf_tests_triggered()
+{
+	dwdata->runTests();
+}

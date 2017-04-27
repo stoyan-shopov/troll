@@ -386,7 +386,10 @@ struct LocationList
 		while (* p || p[1])
 		{
 			if (* p == 0xffffffff)
+			{
 				compilation_unit_base_address = 1[p], p += 2;
+				continue;
+			}
 			else if (p[0] + compilation_unit_base_address <= address_for_location && address_for_location < p[1] + compilation_unit_base_address)
 				return (const uint8_t *) (p + 2);
 			p += 2;
@@ -2215,6 +2218,45 @@ public:
 
 		DwarfUtil::panic();
 	}
+	void runTests(void)
+	{
+		int i;
+		for (i = 0; i < die_fingerprints.size(); i ++)
+		{
+			Abbreviation a(debug_abbrev + die_fingerprints[i].abbrev_offset);
+			auto x = a.dataForAttribute(DW_AT_location, debug_info + die_fingerprints[i].offset);
+			switch (x.first)
+			{
+				{
+					int len;
+				case DW_FORM_block1:
+					len = * x.second, x.second ++; if (0)
+				case DW_FORM_block2:
+					len = * (uint16_t *) x.second, x.second += 2; if (0)
+				case DW_FORM_block4:
+					len = * (uint32_t *) x.second, x.second += 4; if (0)
+				case DW_FORM_block:
+				case DW_FORM_exprloc:
+					len = DwarfUtil::uleb128x(x.second);
+					DwarfExpression::sforthCode(x.second, len);
+					break;
+				}
+				case DW_FORM_data4:
+				case DW_FORM_sec_offset:
+				{
+qDebug() << "location list at offset" << QString("$%1").arg(* (uint32_t *) x.second, 0, 16);
+					const uint32_t * p((const uint32_t *)(debug_loc + * (uint32_t *) x.second));
+					while (* p || p[1])
+					{
+						p += 2;
+						if (* p != 0xffffffff)
+							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2);
+					}
+					break;
+				}
+			}
+		}
+	}
 };
 
 class DwarfUnwinder
@@ -2424,4 +2466,3 @@ public:
 		return std::pair<std::string, uint32_t>(sfcode.str(), fde.initial_location());
 	}
 };
-

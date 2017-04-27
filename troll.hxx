@@ -276,6 +276,8 @@ private slots:
 	
 	void on_actionView_windows_triggered();
 	
+	void on_actionRun_dwarf_tests_triggered();
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);

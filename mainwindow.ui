@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>943</width>
-    <height>654</height>
+    <width>1119</width>
+    <height>591</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -68,7 +68,7 @@ background-color: rgb(0, 0, 0);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>943</width>
+     <width>1119</width>
      <height>20</height>
     </rect>
    </property>
@@ -94,6 +94,7 @@ background-color: rgb(0, 0, 0);</string>
    <addaction name="actionHack_mode"/>
    <addaction name="actionShow_disassembly_address_ranges"/>
    <addaction name="actionView_windows"/>
+   <addaction name="actionRun_dwarf_tests"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -948,6 +949,11 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionView_windows">
    <property name="text">
     <string>view windows</string>
+   </property>
+  </action>
+  <action name="actionRun_dwarf_tests">
+   <property name="text">
+    <string>run dwarf tests</string>
    </property>
   </action>
  </widget>
