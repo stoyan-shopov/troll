@@ -34,6 +34,7 @@ THE SOFTWARE.
 #define DEBUG_DIE_READ_ENABLED		0
 #define DEBUG_ADDRESS_RANGE_ENABLED	0
 #define UNWIND_DEBUG_ENABLED		0
+#define DWARF_EXPRESSION_TESTS_DEBUG_ENABLED		0
 
 #define STATS_ENABLED			1
 
@@ -588,6 +589,80 @@ struct DwarfExpression
 					break;
 				case DW_OP_neg:
 					x << "DW_OP_neg ";
+					break;
+				case DW_OP_dup:
+					x << "DUP-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_swap:
+					x << "SWAP-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_over:
+					x << "OVER-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_drop:
+					x << "DROP-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_or:
+					x << "OR-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_xor:
+					x << "XOR-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_lt:
+					x << "LT-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_eq:
+					x << "EQ-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_mod:
+					x << "MOD-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_div:
+					x << "DIV-UNSUPPORTED!!! ";
+					break;
+				case DW_OP_deref_size:
+					x << "DEREF-SIZE-UNSUPPORTED!!! ";
+					dwarf_expression += sizeof(uint8_t), expression_len -= sizeof(uint8_t);
+					break;
+				case DW_OP_const1s:
+					x << "CONST1S-UNSUPPORTED!!! ";
+					dwarf_expression += sizeof(uint8_t), expression_len -= sizeof(uint8_t);
+					break;
+				case DW_OP_const2s:
+					x << "CONST2S-UNSUPPORTED!!! ";
+					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
+					break;
+				case DW_OP_const4u:
+					x << * ((uint32_t *) dwarf_expression) << " ";
+					dwarf_expression += sizeof(uint32_t), expression_len -= sizeof(uint32_t);
+					break;
+				case DW_OP_consts:
+					x << "CONSTS-UNSUPPORTED!!! ";
+					DwarfUtil::sleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					break;
+				case DW_OP_GNU_convert:
+					x << "GNU-CONVERT-UNSUPPORTED!!! ";
+					DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					break;
+				case DW_OP_GNU_regval_type:
+					x << "GNU-REGVAL-TYPE-UNSUPPORTED!!! ";
+					DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					break;
+				case DW_OP_piece:
+					x << "PIECE-UNSUPPORTED!!! ";
+					DwarfUtil::sleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					break;
+				case DW_OP_implicit_value:
+				{
+					x << "IMPLICIT-VALUE-UNSUPPORTED!!! ";
+					int i(DwarfUtil::uleb128(dwarf_expression, & len));
+					dwarf_expression += len + i, expression_len -= len + i;
+					break;
+				}
+				case DW_OP_bra:
+					x << "BRANCH-UNSUPPORTED!!! ";
+					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
 					break;
 				default:
 					DwarfUtil::panic();
@@ -2244,7 +2319,7 @@ public:
 				case DW_FORM_data4:
 				case DW_FORM_sec_offset:
 				{
-qDebug() << "location list at offset" << QString("$%1").arg(* (uint32_t *) x.second, 0, 16);
+if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" << QString("$%1").arg(* (uint32_t *) x.second, 0, 16);
 					const uint32_t * p((const uint32_t *)(debug_loc + * (uint32_t *) x.second));
 					while (* p || p[1])
 					{
