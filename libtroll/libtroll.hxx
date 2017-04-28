@@ -404,18 +404,18 @@ struct DwarfExpression
 	static std::string sforthCode(const uint8_t * dwarf_expression, uint32_t expression_len)
 	{
 		std::stringstream x;
-		int len;
+		int bytes_to_skip, i, branch_counter = 0x10000;
 		while (expression_len --)
 		{
+			bytes_to_skip = 0;
 			switch (* dwarf_expression ++)
 			{
 				case DW_OP_addr:
 					x << * ((uint32_t *) dwarf_expression) << " DW_OP_addr ";
-					dwarf_expression += sizeof(uint32_t), expression_len -= sizeof(uint32_t);
+					bytes_to_skip = sizeof(uint32_t);
 					break;
 				case DW_OP_fbreg:
-					x << DwarfUtil::sleb128(dwarf_expression, & len) << " DW_OP_fbreg ";
-					dwarf_expression += len, expression_len -= len;
+					x << DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip) << " DW_OP_fbreg ";
 					break;
 			{
 				int register_number;
@@ -451,7 +451,7 @@ struct DwarfExpression
 				case DW_OP_reg29: register_number = 29; if (0)
 				case DW_OP_reg30: register_number = 30; if (0)
 				case DW_OP_reg31: register_number = 31; if (0)
-				case DW_OP_regx: register_number = DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+				case DW_OP_regx: register_number = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
 					x << register_number << " DW_OP_regx ";
 					break;
 			}
@@ -489,9 +489,9 @@ struct DwarfExpression
 				case DW_OP_breg29: register_number = 29; if (0)
 				case DW_OP_breg30: register_number = 30; if (0)
 				case DW_OP_breg31: register_number = 31; if (0)
-				case DW_OP_bregx: register_number = DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
-					x << register_number << " " << DwarfUtil::sleb128(dwarf_expression, & len) << " DW_OP_bregx ";
-					dwarf_expression += len, expression_len -= len;
+				case DW_OP_bregx: register_number = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					x << DwarfUtil::sleb128(dwarf_expression + bytes_to_skip, & i) << " " << register_number << " DW_OP_bregx ";
+					bytes_to_skip += i;
 					break;
 			}
 			{
@@ -535,13 +535,10 @@ struct DwarfExpression
 					x << "DW_OP_stack_value ";
 					break;
 				case DW_OP_GNU_entry_value:
-				{
-					int i(DwarfUtil::uleb128(dwarf_expression, & len));
-					x << "DW_OP_GNU_entry_value " << sforthCode(dwarf_expression += len, i) << " DW_OP_GNU_entry_value-end ";
-					dwarf_expression += i;
-					expression_len -= len + i;
+					i = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					x << "DW_OP_GNU_entry_value " << sforthCode(dwarf_expression + bytes_to_skip, i) << " DW_OP_GNU_entry_value-end ";
+					bytes_to_skip += i;
 					break;
-				}
 				case DW_OP_call_frame_cfa:
 					x << "DW_OP_call_frame_cfa ";
 					break;
@@ -565,14 +562,14 @@ struct DwarfExpression
 					break;
 				case DW_OP_const1u:
 					x << (unsigned)(* ((uint8_t *) dwarf_expression)) << " ";
-					dwarf_expression += sizeof(uint8_t), expression_len -= sizeof(uint8_t);
+					bytes_to_skip = sizeof(uint8_t);
 					break;
 				case DW_OP_const2u:
 					x << * ((uint16_t *) dwarf_expression) << " ";
-					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
+					bytes_to_skip = sizeof(uint16_t);
 					break;
 				case DW_OP_plus_uconst:
-					x << DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					x << DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
 					x << " DW_OP_plus_uconst ";
 					break;
 				case DW_OP_plus:
@@ -622,51 +619,64 @@ struct DwarfExpression
 					break;
 				case DW_OP_deref_size:
 					x << "DEREF-SIZE-UNSUPPORTED!!! ";
-					dwarf_expression += sizeof(uint8_t), expression_len -= sizeof(uint8_t);
+					bytes_to_skip = sizeof(uint8_t);
 					break;
 				case DW_OP_const1s:
 					x << "CONST1S-UNSUPPORTED!!! ";
-					dwarf_expression += sizeof(uint8_t), expression_len -= sizeof(uint8_t);
+					bytes_to_skip = sizeof(uint8_t);
 					break;
 				case DW_OP_const2s:
 					x << "CONST2S-UNSUPPORTED!!! ";
-					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
+					bytes_to_skip = sizeof(uint16_t);
 					break;
 				case DW_OP_const4u:
 					x << * ((uint32_t *) dwarf_expression) << " ";
-					dwarf_expression += sizeof(uint32_t), expression_len -= sizeof(uint32_t);
+					bytes_to_skip = sizeof(uint32_t);
 					break;
 				case DW_OP_consts:
 					x << "CONSTS-UNSUPPORTED!!! ";
-					DwarfUtil::sleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip);
 					break;
 				case DW_OP_GNU_convert:
 					x << "GNU-CONVERT-UNSUPPORTED!!! ";
-					DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
 					break;
 				case DW_OP_GNU_regval_type:
 					x << "GNU-REGVAL-TYPE-UNSUPPORTED!!! ";
-					DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
-					DwarfUtil::uleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					DwarfUtil::uleb128(dwarf_expression, & i);
+					DwarfUtil::uleb128(dwarf_expression + i, & bytes_to_skip);
+					bytes_to_skip += i;
 					break;
 				case DW_OP_piece:
 					x << "PIECE-UNSUPPORTED!!! ";
-					DwarfUtil::sleb128(dwarf_expression, & len), dwarf_expression += len, expression_len -= len;
+					DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip);
 					break;
 				case DW_OP_implicit_value:
-				{
 					x << "IMPLICIT-VALUE-UNSUPPORTED!!! ";
-					int i(DwarfUtil::uleb128(dwarf_expression, & len));
-					dwarf_expression += len + i, expression_len -= len + i;
+					i = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					bytes_to_skip += i;
 					break;
-				}
 				case DW_OP_bra:
-					x << "BRANCH-UNSUPPORTED!!! ";
-					dwarf_expression += sizeof(uint16_t), expression_len -= sizeof(uint16_t);
+					x << "0= [if] ";
+					bytes_to_skip = sizeof(int16_t);
+					branch_counter = * (int16_t *) dwarf_expression;
+					if (branch_counter < 0)
+						/* requires special handling, not yet encountered for testing */
+						DwarfUtil::panic();
+					branch_counter +=
+						/* compensate for the subtractions below */ bytes_to_skip
+						+ /* compensate for the subtraction for the current dwarf opcode below */ 1;
 					break;
 				default:
 					DwarfUtil::panic();
 			}
+			dwarf_expression += bytes_to_skip;
+			expression_len -= bytes_to_skip;
+			branch_counter -= bytes_to_skip + /* one more byte for the dwarf opcode just processed */ 1;
+			if (branch_counter < 0)
+				DwarfUtil::panic();
+			else if (!branch_counter)
+				x << "[then] ", branch_counter = 0x10000;
 		}
 		return x.str();
 	}
@@ -2295,7 +2305,7 @@ public:
 	}
 	void runTests(void)
 	{
-		int i;
+		int i, test_count = 0;
 		for (i = 0; i < die_fingerprints.size(); i ++)
 		{
 			Abbreviation a(debug_abbrev + die_fingerprints[i].abbrev_offset);
@@ -2314,6 +2324,7 @@ public:
 				case DW_FORM_exprloc:
 					len = DwarfUtil::uleb128x(x.second);
 					DwarfExpression::sforthCode(x.second, len);
+					test_count ++;
 					break;
 				}
 				case DW_FORM_data4:
@@ -2325,12 +2336,13 @@ if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" 
 					{
 						p += 2;
 						if (* p != 0xffffffff)
-							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2);
+							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2), test_count ++;
 					}
 					break;
 				}
 			}
 		}
+		qDebug() << "executed dwarf expression decoding tests, total tests executed:" << test_count;
 	}
 };
 
