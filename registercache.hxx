@@ -30,13 +30,21 @@ class RegisterCache
 {
 private:
 	std::vector<std::vector<uint32_t> > register_frames;
+	int active_frame;
 public:
 	RegisterCache(void) { }
-	void clear(void) { register_frames.clear(); }
+	void clear(void) { register_frames.clear(); active_frame = -1; }
 	void pushFrame(const std::vector<uint32_t> & register_frame) { register_frames.push_back(register_frame); }
-	const std::vector<uint32_t> cachedRegisterFrame(uint32_t frame_number)
-	{ if (frame_number < register_frames.size()) return register_frames.at(frame_number); else Util::panic();}
 	int frameCount(void) { return register_frames.size(); }
+	int registerCount(void) { return register_frames[active_frame].size(); }
+	void setActiveFrame(int frame_number) { if (frame_number >= register_frames.size()) Util::panic(); active_frame = frame_number; }
+	uint32_t readCachedRegister(unsigned register_number, int frame_offset = 0)
+	{
+		if (active_frame + frame_offset >= register_frames.size())
+			Util::panic();
+		if (register_number >= register_frames[active_frame + frame_offset].size()) Util::panic();
+		return register_frames[active_frame + frame_offset][register_number];
+	}
 };
 
 #endif // REGISTERCACHE_H

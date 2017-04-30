@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 #include "sforth.hxx"
 #include "util.hxx"
+#include "registercache.hxx"
 
 class CortexM0
 {
@@ -35,7 +36,7 @@ private:
 	std::vector<uint32_t> registers;
 	void readRawRegistersFromTarget(void);
 public:
-	CortexM0(Sforth * sforth_engine, class Target * target_controller);
+	CortexM0(Sforth * sforth_engine, class Target * target_controller, RegisterCache *registers);
 	void setTargetController(class Target * target_controller);
 	void primeUnwinder(void);
 	bool unwindFrame(const QString & unwind_code, uint32_t start_address, uint32_t unwind_address);

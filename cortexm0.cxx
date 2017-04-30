@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 static Target		* target;
 static Sforth		* sforth;
+static RegisterCache	* register_cache;
 
 extern "C"
 {
@@ -67,10 +68,11 @@ void CortexM0::readRawRegistersFromTarget()
         for (i = 0; i < register_count; registers.push_back(*(cell *)(r.at(0) + i ++ * sizeof(cell))));
 }
 
-CortexM0::CortexM0(Sforth * sforth_engine, Target *target_controller)
+CortexM0::CortexM0(Sforth * sforth_engine, Target *target_controller, RegisterCache *registers)
 {
 	sforth = sforth_engine;
 	target = target_controller;
+	register_cache = registers;
 	QFile f(":/sforth/unwinder.fs");
 	f.open(QFile::ReadOnly);
 	sforth->push(register_count);

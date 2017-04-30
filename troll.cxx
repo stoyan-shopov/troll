@@ -333,8 +333,8 @@ void MainWindow::backtrace()
 	QTime t;
 	t.start();
 	cortexm0->primeUnwinder();
-	register_cache->clear();
-	register_cache->pushFrame(cortexm0->getRegisters());
+	register_cache.clear();
+	register_cache.pushFrame(cortexm0->getRegisters());
 	uint32_t last_pc, last_stack_pointer;
 	auto context = dwdata->executionContextForAddress(last_pc = cortexm0->programCounter());
 	last_stack_pointer = cortexm0->stackPointerValue();
@@ -355,8 +355,8 @@ void MainWindow::backtrace()
 		if (DEBUG_BACKTRACE) qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(subprogram));
 		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 		ui->tableWidgetBacktrace->setItem(row, 0, new QTableWidgetItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0'))));
-		ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem(QString("%1").arg(register_cache->frameCount())));
-		ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache->frameCount() - 1);
+		ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem(QString("%1").arg(register_cache.frameCount())));
+		ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache.frameCount() - 1);
 		ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(QString(dwdata->nameOfDie(subprogram))));
 		ui->tableWidgetBacktrace->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(x.file_name)));
 		ui->tableWidgetBacktrace->setItem(row, 3, new QTableWidgetItem(QString("%1").arg(x.line)));
@@ -371,24 +371,24 @@ void MainWindow::backtrace()
 		{
 			ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 			ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem("inlined"));
-			ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache->frameCount() - 1);
+			ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache.frameCount() - 1);
 			ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem(dwdata->nameOfDie(inlining_chain.at(i))));
 			ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString("$%1").arg(inlining_chain.at(i).offset, 0, 16)));
 		}
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
-			context = dwdata->executionContextForAddress(cortexm0->programCounter()), register_cache->pushFrame(cortexm0->getRegisters());
+			context = dwdata->executionContextForAddress(cortexm0->programCounter()), register_cache.pushFrame(cortexm0->getRegisters());
 		if (context.empty() && cortexm0->architecturalUnwind())
 		{
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
 			if (!context.empty())
 			{
 				if (DEBUG_BACKTRACE) qDebug() << "architecture-specific unwinding performed";
-				register_cache->pushFrame(cortexm0->getRegisters());
+				register_cache.pushFrame(cortexm0->getRegisters());
 				ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
 				ui->tableWidgetBacktrace->setItem(row, 1, new QTableWidgetItem("architecture-specific unwinding performed"));
-				ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem(QString("%1 (singularity)").arg(register_cache->frameCount() - 1)));
-				ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache->frameCount() - 2);
+				ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem(QString("%1 (singularity)").arg(register_cache.frameCount() - 1)));
+				ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache.frameCount() - 2);
 			}
 		}
 		if (last_pc == cortexm0->programCounter() && last_stack_pointer == cortexm0->stackPointerValue())
@@ -400,7 +400,7 @@ void MainWindow::backtrace()
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
 	int line_in_disassembly;
-	ui->plainTextEdit->setPlainText(disassembly->disassemblyAroundAddress(register_cache->cachedRegisterFrame(0).at(15), & line_in_disassembly));
+	ui->plainTextEdit->setPlainText(disassembly->disassemblyAroundAddress(target->readRawUncachedRegister(15), & line_in_disassembly));
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, line_in_disassembly);
 	QTextBlockFormat f;
@@ -409,7 +409,7 @@ void MainWindow::backtrace()
 	if (ui->tableWidgetBacktrace->rowCount())
 		ui->tableWidgetBacktrace->selectRow(0);
 	else
-		updateRegisterView(0);
+		register_cache.setActiveFrame(0), updateRegisterView();
 	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
 		profiling.max_backtrace_generation_time = t.elapsed();
 }
@@ -484,12 +484,11 @@ int i;
 			target_memory_contents.addRange(elf.segments[i]->get_physical_address(), QByteArray(elf.segments[i]->get_data(), elf.segments[i]->get_file_size()));
 }
 
-void MainWindow::updateRegisterView(int frame_number)
+void MainWindow::updateRegisterView(void)
 {
-	auto x = register_cache->cachedRegisterFrame(frame_number);
-	for (int row(0); row < x.size(); row ++)
+	for (int row(0); row < register_cache.registerCount(); row ++)
 	{
-		QString s(QString("$%1").arg(x.at(row), 0, 16)), t = ui->tableWidgetRegisters->item(row, 1)->text();
+		QString s(QString("$%1").arg(register_cache.readCachedRegister(row), 0, 16)), t = ui->tableWidgetRegisters->item(row, 1)->text();
 		ui->tableWidgetRegisters->setItem(row, 0, new QTableWidgetItem(QString("r%1").arg(row)));
 		ui->tableWidgetRegisters->setItem(row, 1, new QTableWidgetItem(s));
 		ui->tableWidgetRegisters->item(row, 1)->setForeground(QBrush((s != t) ? Qt::red : Qt::black));
@@ -768,10 +767,16 @@ there:
 		target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	
 	sforth = new Sforth(ui->plainTextEditSforthConsole);
-	cortexm0 = new CortexM0(sforth, target);
-	dwarf_evaluator = new DwarfEvaluator(sforth);
-	register_cache = new RegisterCache();
+	/*! \todo	WARNING!!! as of writing this note (30042017), the order of creating
+	 *		the objects of classes 'CortexM0' and 'DwarfEvaluator' is important,
+	 *		because they both define a value with the name 'cfa-value' - a
+	 *		misfortune that must be fixed; if the order of creation
+	 *		of these objects is reversed, the incorrect 'cfa-value' variable
+	 *		will be used when evaluating dwarf expression, leading to very
+	 *		bizarre and mystique misbehavior */
+	cortexm0 = new CortexM0(sforth, target, & register_cache);
 	cortexm0->primeUnwinder();
+	dwarf_evaluator = new DwarfEvaluator(sforth);
 	for (int row(0); row < CortexM0::registerCount(); row ++)
 	{
 		ui->tableWidgetRegisters->insertRow(row);
@@ -875,14 +880,15 @@ int row(ui->tableWidgetBacktrace->currentRow());
 if (row < 0)
 	return;
 int frame_number = ui->tableWidgetBacktrace->verticalHeaderItem(row)->data(Qt::UserRole).toInt();
-updateRegisterView(frame_number);
+register_cache.setActiveFrame(frame_number);
+updateRegisterView();
 ui->tableWidgetLocalVariables->setRowCount(0);
 if (!ui->tableWidgetBacktrace->item(row, 6))
 {
 	ui->plainTextEdit->setPlainText("singularity; context undefined");
 	return;
 }
-uint32_t cfa_value = (register_cache->frameCount() - 1 > frame_number) ? register_cache->cachedRegisterFrame(frame_number + 1).at(13) : -1;
+uint32_t cfa_value = (register_cache.frameCount() - 1 > frame_number) ? register_cache.readCachedRegister(/*! \todo fix this! don't hardcode it! */13, 1) : -1;
 QString frameBaseSforthCode;
 QString locationSforthCode;
 uint32_t pc = -1;
@@ -951,7 +957,7 @@ uint32_t pc = -1;
 			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
-				uint32_t register_contents = register_cache->cachedRegisterFrame(frame_number).at(x.value);
+				uint32_t register_contents = register_cache.readCachedRegister(x.value);
 				n->addChild(itemForNode(node, QByteArray((const char *) & register_contents, sizeof register_contents), 0, base, ""));
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
@@ -1343,8 +1349,11 @@ int i;
 	f.setFileName(dirname + "/registers.bin");
 	if (!f.open(QFile::WriteOnly))
 		Util::panic();
-	for (i = 0; i < register_cache->cachedRegisterFrame(0).size(); i ++)
-		f.write((const char * ) & register_cache->cachedRegisterFrame(0).at(i), sizeof register_cache->cachedRegisterFrame(0).at(i));
+	for (i = 0; i < /*! \todo fix this! do not hardcode it! */16; i ++)
+	{
+		auto x = target->readRawUncachedRegister(i);
+		f.write((const char * ) x, sizeof x);
+	}
 	f.close();
 	f.setFileName(elf_filename);
 	if (!f.copy(dirname + "/" + QFileInfo(elf_filename).fileName()))

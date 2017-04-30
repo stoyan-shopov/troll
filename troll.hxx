@@ -99,7 +99,7 @@ class MainWindow : public QMainWindow
 	Highlighter	* highlighter;
 	Sforth	* sforth;
 	Target	* target;
-	RegisterCache	* register_cache;
+	RegisterCache	register_cache;
 	DwarfUnwinder	* dwundwind;
 	CortexM0	* cortexm0;
 	DwarfEvaluator	* dwarf_evaluator;
@@ -123,7 +123,7 @@ private:
 	bool loadElfMemorySegments(void);
 	QString elf_filename;
 	ELFIO::elfio elf;
-	void updateRegisterView(int frame_number);
+	void updateRegisterView(void);
 	std::string typeStringForDieOffset(uint32_t die_offset);
 	void dumpData(uint32_t address, const QByteArray & data);
 	void updateBreakpoints(void);
