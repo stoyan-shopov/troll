@@ -1351,8 +1351,8 @@ int i;
 		Util::panic();
 	for (i = 0; i < /*! \todo fix this! do not hardcode it! */16; i ++)
 	{
-		auto x = target->readRawUncachedRegister(i);
-		f.write((const char * ) x, sizeof x);
+		uint32_t x = target->readRawUncachedRegister(i);
+		f.write((const char * ) & x, sizeof x);
 	}
 	f.close();
 	f.setFileName(elf_filename);

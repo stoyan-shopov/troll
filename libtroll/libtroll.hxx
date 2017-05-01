@@ -588,16 +588,16 @@ struct DwarfExpression
 					x << "DW_OP_neg ";
 					break;
 				case DW_OP_dup:
-					x << "DUP-UNSUPPORTED!!! ";
+					x << "DW_OP_dup ";
 					break;
 				case DW_OP_swap:
-					x << "SWAP-UNSUPPORTED!!! ";
+					x << "DW_OP_swap ";
 					break;
 				case DW_OP_over:
-					x << "OVER-UNSUPPORTED!!! ";
+					x << "DW_OP_over ";
 					break;
 				case DW_OP_drop:
-					x << "DROP-UNSUPPORTED!!! ";
+					x << "DW_OP_drop ";
 					break;
 				case DW_OP_or:
 					x << "OR-UNSUPPORTED!!! ";
@@ -606,7 +606,7 @@ struct DwarfExpression
 					x << "XOR-UNSUPPORTED!!! ";
 					break;
 				case DW_OP_lt:
-					x << "LT-UNSUPPORTED!!! ";
+					x << "DW_OP_lt ";
 					break;
 				case DW_OP_eq:
 					x << "EQ-UNSUPPORTED!!! ";

@@ -47,7 +47,7 @@ void do_target_fetch(void)
 		Util::panic();
 	}
 }
-void do_target_register_fetch(void)	{ Util::panic("access the cached register here"); }
+void do_target_register_fetch(void)	{ sf_push(register_cache->readCachedRegister(sf_pop())); }
 void do_panic(void)		{ Util::panic(); }
 }
 

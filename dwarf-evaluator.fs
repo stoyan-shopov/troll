@@ -61,6 +61,25 @@ vector frame-base-rule
 	
 : DW_OP_regx ( register-number -- register-number)
 	expression-is-a-register-number to expression-value-type ;
+	
+: DW_OP_bregx ( offset register-number -- target-address)
+	tr@ + ;
+	
+: DW_OP_dup ( x -- x x)
+	dup ;
+	
+: DW_OP_swap ( x y -- y x)
+	swap ;
+	
+: DW_OP_over ( x y -- x y x)
+	over ;
+	
+: DW_OP_drop ( x -- )
+	drop ;
+	
+: DW_OP_lt ( x y -- t:if x < y|f:otherwise)
+	< ;
+	
 : DW_OP_stack_value ( x -- x)
 	depth 1 <> abort" bad stack"
 	expression-is-a-constant to expression-value-type
