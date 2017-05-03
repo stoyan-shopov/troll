@@ -278,6 +278,8 @@ private slots:
 	
 	void on_actionRun_dwarf_tests_triggered();
 	
+	void on_treeWidgetBreakpoints_itemDoubleClicked(QTreeWidgetItem *item, int column);
+	
 protected:
 	void closeEvent(QCloseEvent * e);
 	bool eventFilter(QObject * watched, QEvent * event);

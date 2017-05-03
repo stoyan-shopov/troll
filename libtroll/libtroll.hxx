@@ -1627,6 +1627,7 @@ there:
 	struct SourceCodeCoordinates sourceCodeCoordinatesForAddress(uint32_t address, bool * is_address_on_exact_line_number_boundary = 0)
 	{
 		SourceCodeCoordinates s;
+		s.address = address;
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address) + /* skip compilation unit header */ 11;
 		if (cu_die_offset == -1)
 			return s;

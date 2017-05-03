@@ -518,6 +518,7 @@ int i, j;
 	{
 		const SourceLevelBreakpoint & b(source_level_breakpoints.at(i));
 		auto t = new QTreeWidgetItem(ui->treeWidgetBreakpoints, QStringList() << b.source_filename << QString("%1").arg(b.line_number));
+		t->setData(0, Qt::UserRole, QStringList() << b.source_filename << b.directory_name << b.compilation_directory << QString("%1").arg(b.line_number));
 		if (b.addresses.size() == 1)
 			t->setText(2, QString("$%1").arg(b.addresses.at(0), 8, 16, QChar('0')));
 		else
@@ -526,6 +527,7 @@ int i, j;
 			for (j = 0; j < b.addresses.size(); j ++)
 			{
 				auto n = new QTreeWidgetItem(t);
+				n->setData(0, Qt::UserRole, QStringList() << QString("%1").arg(b.addresses.at(j)));
 				n->setText(2, QString("$%1").arg(b.addresses.at(j), 8, 16, QChar('0')));
 			}
 		}
@@ -534,10 +536,11 @@ int i, j;
 	{
 		auto t = new QTreeWidgetItem(ui->treeWidgetBreakpoints, QStringList() << "machine-level breakpoints");
 		for (i = 0; i < machine_level_breakpoints.size(); i ++)
-			new QTreeWidgetItem(t, QStringList()
+			(new QTreeWidgetItem(t, QStringList()
 				<< machine_level_breakpoints.at(i).inferred_breakpoint.source_filename
 				<< QString("%1").arg(machine_level_breakpoints.at(i).inferred_breakpoint.line_number)
-				<< QString("$%1").arg(machine_level_breakpoints.at(i).address, 8, 16, QChar('0')));
+				<< QString("$%1").arg(machine_level_breakpoints.at(i).address, 8, 16, QChar('0'))))
+				->setData(0, Qt::UserRole, QStringList() << QString("%1").arg(machine_level_breakpoints.at(i).address));
 		ui->treeWidgetBreakpoints->expandItem(t);
 	}
 	
@@ -1686,4 +1689,20 @@ void MainWindow::on_actionView_windows_triggered()
 void MainWindow::on_actionRun_dwarf_tests_triggered()
 {
 	dwdata->runTests();
+}
+
+void MainWindow::on_treeWidgetBreakpoints_itemDoubleClicked(QTreeWidgetItem *item, int column)
+{
+QStringList x = item->data(0, Qt::UserRole).toStringList();
+
+	if (x.size() == 4)
+		displaySourceCodeFile(x[0], x[1], x[2], x[3].toInt());
+	else if (x.size() == 1)
+	{
+		auto s = dwdata->sourceCodeCoordinatesForAddress(x[0].toInt());
+		if (s.call_line == -1 || !s.call_file_name)
+			displaySourceCodeFile(s.file_name, s.directory_name, s.compilation_directory_name, s.line, s.address);
+		else
+			displaySourceCodeFile(s.call_file_name, s.call_directory_name, s.compilation_directory_name, s.call_line, s.address);
+	}
 }
