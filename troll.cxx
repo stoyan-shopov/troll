@@ -520,30 +520,32 @@ QMap<QString, QVariant> user_data;
 		const SourceLevelBreakpoint & b(source_level_breakpoints.at(i));
 		auto t = new QTreeWidgetItem(ui->treeWidgetBreakpoints, QStringList() << b.source_filename << QString("%1").arg(b.line_number));
 		user_data.clear();
-		user_data["source_location"] = QStringList() << b.source_filename << b.directory_name << b.compilation_directory << QString("%1").arg(b.line_number);
+		user_data["source-breakpoint-index"] = i;
 		t->setData(0, Qt::UserRole, user_data);
 		if (b.addresses.size() == 1)
+		{
 			t->setText(2, QString("$%1").arg(b.addresses.at(0), 8, 16, QChar('0')));
+			user_data["source-breakpoint-sub-index"] = 0;
+		}
 		else
 		{
 			t->setText(2, t->text(2) + QString("%1 locations").arg(b.addresses.size()));
 			for (j = 0; j < b.addresses.size(); j ++)
 			{
 				auto n = new QTreeWidgetItem(t);
-				user_data.clear();
-				user_data["address"] = QStringList() << QString("%1").arg(b.addresses.at(j));
+				user_data["source-breakpoint-sub-index"] = j;
 				n->setData(0, Qt::UserRole, user_data);
 				n->setText(2, QString("$%1").arg(b.addresses.at(j), 8, 16, QChar('0')));
 			}
 		}
 	}
+	user_data.clear();
 	if (machine_level_breakpoints.size())
 	{
 		auto t = new QTreeWidgetItem(ui->treeWidgetBreakpoints, QStringList() << "machine-level breakpoints");
 		for (i = 0; i < machine_level_breakpoints.size(); i ++)
 		{
-			user_data.clear();
-			user_data["address"] = QStringList() << QString("%1").arg(machine_level_breakpoints.at(i).address);
+			user_data["machine-breakpoint-index"] = i;
 			(new QTreeWidgetItem(t, QStringList()
 				<< machine_level_breakpoints.at(i).inferred_breakpoint.source_filename
 				<< QString("%1").arg(machine_level_breakpoints.at(i).inferred_breakpoint.line_number)
@@ -1703,16 +1705,15 @@ void MainWindow::on_actionRun_dwarf_tests_triggered()
 void MainWindow::on_treeWidgetBreakpoints_itemDoubleClicked(QTreeWidgetItem *item, int column)
 {
 QMap<QString, QVariant> x = item->data(0, Qt::UserRole).toMap();
-QStringList source = x["source_location"].toStringList(), address = x["address"].toStringList();
-
-	if (source.size() == 4)
-		displaySourceCodeFile(source[0], source[1], source[2], source[3].toInt());
-	else if (address.size() == 1)
+	if (x.contains("source-breakpoint-index"))
 	{
-		auto s = dwdata->sourceCodeCoordinatesForAddress(address[0].toInt());
-		if (s.call_line == -1 || !s.call_file_name)
-			displaySourceCodeFile(s.file_name, s.directory_name, s.compilation_directory_name, s.line, s.address);
-		else
-			displaySourceCodeFile(s.call_file_name, s.call_directory_name, s.compilation_directory_name, s.call_line, s.address);
+		const SourceLevelBreakpoint b(source_level_breakpoints[x["source-breakpoint-index"].toInt()]);
+		uint32_t address = x.contains("source-breakpoint-sub-index") ? b.addresses[x["source-breakpoint-sub-index"].toInt()] : -1;
+		displaySourceCodeFile(b.source_filename, b.directory_name, b.compilation_directory, b.line_number, address);
+	}
+	else if (x.contains("machine-breakpoint-index"))
+	{
+		const SourceLevelBreakpoint b(machine_level_breakpoints[x["machine-breakpoint-index"].toInt()].inferred_breakpoint);
+		displaySourceCodeFile(b.source_filename, b.directory_name, b.compilation_directory, b.line_number, b.addresses[0]);
 	}
 }
