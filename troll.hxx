@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include <QTimer>
 #include "s-record.hxx"
 #include "disassembly.hxx"
+#include "breakpoint-cache.hxx"
 #include <elfio/elfio.hpp>
 
 enum
@@ -104,6 +105,7 @@ class MainWindow : public QMainWindow
 	CortexM0	* cortexm0;
 	DwarfEvaluator	* dwarf_evaluator;
 	Memory		target_memory_contents;
+	BreakpointCache	breakpoints;
 public:
 	struct TreeWidgetNodeData
 	{
@@ -126,68 +128,26 @@ private:
 	void updateRegisterView(void);
 	std::string typeStringForDieOffset(uint32_t die_offset);
 	void dumpData(uint32_t address, const QByteArray & data);
-	void updateBreakpoints(void);
-	struct SourceLevelBreakpoint
-	{
-		QString source_filename, directory_name, compilation_directory;
-		bool enabled;
-		int line_number;
-		QVector<uint32_t> addresses;
-		bool operator == (const struct SourceLevelBreakpoint & other) const
-		{
-			return line_number == other.line_number && source_filename == other.source_filename
-					&& directory_name == other.directory_name && compilation_directory == other.compilation_directory;
-		}
-	};
-	struct MachineLevelBreakpoint
-	{
-		uint32_t	address;
-		struct SourceLevelBreakpoint inferred_breakpoint;
-		bool		enabled;
-	};
-	QVector<struct MachineLevelBreakpoint> machine_level_breakpoints, run_to_cursor_breakpoints;
-	int machineBreakpointIndex(uint32_t address)
-	{
-		int i;
-		for (i = 0; i < machine_level_breakpoints.size(); i ++)
-			if (machine_level_breakpoints.at(i).address == address)
-				return i;
-		return -1;
-	}
+	void updateBreakpointsView(void);
 
-	QVector<struct SourceLevelBreakpoint> source_level_breakpoints;
-	int sourceBreakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
-	{
-		int i;
-		for (i = 0; i < source_level_breakpoints.size(); i ++)
-			if (source_level_breakpoints.at(i) == breakpoint)
-				return i;
-		return -1;
-	}
-	int inferredBreakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
-	{
-		int i;
-		for (i = 0; i < machine_level_breakpoints.size(); i ++)
-			if (machine_level_breakpoints.at(i).inferred_breakpoint == breakpoint)
-				return i;
-		return -1;
-	}
 	QVector<uint32_t> breakpointedAddresses(void)
 	{
 		QMap<uint32_t, int> breakpointed_addresses;
 		QVector<uint32_t> addresses;
 		int i;
 
-		for (i = 0; i < source_level_breakpoints.size(); i ++)
+		for (i = 0; i < breakpoints.sourceCodeBreakpoints.size(); i ++)
 		{
 			int j;
-			for (j = 0; j < source_level_breakpoints.at(i).addresses.size(); j ++)
-				breakpointed_addresses.operator [](source_level_breakpoints.at(i).addresses.at(j)) ++;
+			for (j = 0; j < breakpoints.sourceCodeBreakpoints.at(i).addresses.size(); j ++)
+				breakpointed_addresses.operator [](breakpoints.sourceCodeBreakpoints.at(i).addresses.at(j)) ++;
 		}
-		for (i = 0; i < machine_level_breakpoints.size(); i ++)
-			breakpointed_addresses.operator [](machine_level_breakpoints.at(i).address) ++;
+		for (i = 0; i < breakpoints.machineAddressBreakpoints.size(); i ++)
+			breakpointed_addresses.operator [](breakpoints.machineAddressBreakpoints.at(i).address) ++;
+#if 0
 		for (i = 0; i < run_to_cursor_breakpoints.size(); i ++)
 			breakpointed_addresses.operator [](run_to_cursor_breakpoints.at(i).address) ++;
+#endif
 		auto x = breakpointed_addresses.begin();
 		while (x != breakpointed_addresses.end())
 		{

@@ -42,6 +42,14 @@ public:
 				return i;
 		return -1;
 	}
+	int inferredBreakpointIndex(const struct SourceCodeBreakpoint & breakpoint)
+	{
+		int i;
+		for (i = 0; i < machineAddressBreakpoints.size(); i ++)
+			if (machineAddressBreakpoints[i].inferred_breakpoint == breakpoint)
+				return i;
+		return -1;
+	}
 
 	int sourceBreakpointIndex(const struct SourceCodeBreakpoint & breakpoint)
 	{
@@ -60,8 +68,5 @@ public:
 	void addMachineAddressBreakpoint(const struct MachineAddressBreakpoint & breakpoint) { machineAddressBreakpoints.push_back(breakpoint); updateBreakpointSets(); }
 	void removeMachineAddressBreakpointAtIndex(int breakpoint_index) { machineAddressBreakpoints.removeAt(breakpoint_index); updateBreakpointSets(); }
 };
-
-uint qHash(const BreakpointCache::SourceCodeBreakpoint & key)
-{ return qHash(key.source_filename) ^ qHash(key.directory_name) ^ qHash(key.compilation_directory) ^ qHash(key.line_number); }
 
 #endif // BREAKPOINTCACHE_H

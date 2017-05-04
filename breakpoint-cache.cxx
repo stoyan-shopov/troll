@@ -1,5 +1,8 @@
 #include "breakpoint-cache.hxx"
 
+uint qHash(const BreakpointCache::SourceCodeBreakpoint & key)
+{ return qHash(key.source_filename) ^ qHash(key.directory_name) ^ qHash(key.compilation_directory) ^ qHash(key.line_number); }
+
 void BreakpointCache::updateBreakpointSets()
 {
 int i, j;
