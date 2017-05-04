@@ -39,7 +39,8 @@ SOURCES +=\
     external-sources/capstone/arch/ARM/ARMDisassembler.c \
     external-sources/capstone/arch/ARM/ARMInstPrinter.c \
     external-sources/capstone/arch/ARM/ARMMapping.c \
-    external-sources/capstone/arch/ARM/ARMModule.c
+    external-sources/capstone/arch/ARM/ARMModule.c \
+    breakpoint-cache.cxx
 
 HEADERS  += \
     libtroll/dwarf.h \
@@ -57,7 +58,8 @@ HEADERS  += \
     dwarf-evaluator.hxx \
     troll.hxx \
     blackmagic.hxx \
-    gdb-remote.hxx
+    gdb-remote.hxx \
+    breakpoint-cache.hxx
 
 FORMS    += mainwindow.ui \
     notification.ui

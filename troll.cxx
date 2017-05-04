@@ -1068,7 +1068,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
 bool result = true;
 bool is_running_to_cursor = false;
-bool is_breakpoint_toggle = false;
+bool is_breakpoint_toggled = false;
 static unsigned accumulator;
 	if (event->type() == QEvent::KeyPress)
 	{
@@ -1081,7 +1081,7 @@ static unsigned accumulator;
 				is_running_to_cursor = true;
 				if (0)
 			case Qt::Key_T:
-					is_breakpoint_toggle = true;
+					is_breakpoint_toggled = true;
 			case Qt::Key_Space:
 			{
 				bool ok;
@@ -1153,7 +1153,7 @@ static unsigned accumulator;
 						}
 						else
 						{
-							if (is_breakpoint_toggle)
+							if (is_breakpoint_toggled)
 								machine_level_breakpoints[i].enabled = ! machine_level_breakpoints[i].enabled;
 							else
 								machine_level_breakpoints.removeAt(i);
