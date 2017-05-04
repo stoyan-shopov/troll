@@ -185,6 +185,7 @@ void MainWindow::displaySourceCodeFile(QString source_filename, QString director
 		QRegExp rx("^[xX]:[/\\\\]");
 		source_filename.replace(rx, "troll-test-drive-files/"), directory_name.replace(rx, "troll-test-drive-files/"), compilation_directory.replace(rx, "troll-test-drive-files/");
         }
+
 QTime stime;
 stime.start();
 QFile src;
@@ -194,9 +195,9 @@ QTextCharFormat cf;
 QTime x;
 int i, cursor_position_for_line(0);
 QFileInfo finfo(directory_name + "/" + source_filename);
-struct BreakpointCache::SourceCodeBreakpoint b = { .source_filename = source_filename, .directory_name = directory_name, .compilation_directory = compilation_directory, .enabled = true, };
-QVector<uint32_t> breakpoint_positions;
+QVector<uint32_t> enabled_breakpoint_positions, disabled_breakpoint_positions;
 QMap<uint32_t /* address */, int /* line position in text document */> addresses;
+struct BreakpointCache::SourceCodeBreakpoint b;
 
 	if (!finfo.exists())
                 finfo.setFile(compilation_directory + "/" + source_filename);
@@ -221,6 +222,10 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 		lines[line_addresses.at(i).line] = & line_addresses.at(i);
 	}
 
+	b.source_filename = source_filename;
+	b.directory_name = directory_name;
+	b.compilation_directory = compilation_directory;
+
 	if (src.open(QFile::ReadOnly))
 	{
 		int i(1);
@@ -230,8 +235,10 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
 			b.line_number = i;
-			if (breakpoints.sourceBreakpointIndex(b) != -1 || breakpoints.inferredBreakpointIndex(b) != -1)
-				breakpoint_positions.push_back(t.length());
+			if (breakpoints.enabledSourceCodeBreakpoints.contains(b))
+				enabled_breakpoint_positions.push_back(t.length());
+			else if (breakpoints.disabledSourceCodeBreakpoints.contains(b))
+				disabled_breakpoint_positions.push_back(t.length());
 			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
 			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
 			if (ui->actionShow_disassembly_address_ranges->isChecked())
@@ -261,28 +268,29 @@ QMap<uint32_t /* address */, int /* line position in text document */> addresses
 	else
 		t = QString("cannot open source code file ") + src.fileName();
 	
-	QSet<uint32_t> breakpointed_addresses;
-	for (i = 0; i < breakpoints.sourceCodeBreakpoints.size(); i ++)
-	{
-		int j;
-		for (j = 0; j < breakpoints.sourceCodeBreakpoints.at(i).addresses.size(); j ++)
-			breakpointed_addresses.insert(breakpoints.sourceCodeBreakpoints.at(i).addresses.at(j));
-	}
-	for (i = 0; i < breakpoints.machineAddressBreakpoints.size(); i ++)
-		breakpointed_addresses.insert(breakpoints.machineAddressBreakpoints.at(i).address);
-	QSet<uint32_t>::const_iterator bset = breakpointed_addresses.constBegin();
-	while (bset != breakpointed_addresses.constEnd())
+	QSet<uint32_t>::const_iterator bset = breakpoints.enabledMachineAddressBreakpoints.constBegin();
+	while (bset != breakpoints.enabledMachineAddressBreakpoints.constEnd())
 	{
 		if (addresses.contains(* bset))
-			breakpoint_positions.push_back(addresses.operator [](*bset));
+			enabled_breakpoint_positions.push_back(addresses.operator [](*bset));
+		bset ++;
+	}
+	bset = breakpoints.disabledMachineAddressBreakpoints.constBegin();
+	while (bset != breakpoints.disabledMachineAddressBreakpoints.constEnd())
+	{
+		if (addresses.contains(* bset))
+			disabled_breakpoint_positions.push_back(addresses.operator [](*bset));
 		bset ++;
 	}
 
 	ui->plainTextEdit->appendPlainText(t);
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	f.setBackground(QBrush(Qt::red));
-	for (i = 0; i < breakpoint_positions.size(); i ++)
-		c.setPosition(breakpoint_positions.at(i)), c.setBlockFormat(f);
+	for (i = 0; i < enabled_breakpoint_positions.size(); i ++)
+		c.setPosition(enabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
+	f.setBackground(QBrush(Qt::yellow));
+	for (i = 0; i < disabled_breakpoint_positions.size(); i ++)
+		c.setPosition(disabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
 
 #if 0
 	c.movePosition(QTextCursor::Start);
@@ -751,7 +759,8 @@ there:
 				b.compilation_directory = rx.cap(3);
 				b.line_number = rx.cap(4).toUInt();
 				b.addresses = QVector<uint32_t>::fromStdVector(dwdata->filteredAddressesForFileAndLineNumber(b.source_filename.toLocal8Bit().constData(), b.line_number));
-				breakpoints.sourceCodeBreakpoints.push_back(b);
+				b.enabled = true;
+				breakpoints.addSourceCodeBreakpoint(b);
 			}
 		QStringList saved_breakpoints = s.value("machine-level-breakpoints", QStringList()).toStringList();
 		for (i = 0; i < saved_breakpoints.length(); i ++)
@@ -766,7 +775,7 @@ there:
 			b.line_number = x.line;
 			b.addresses.push_back(address);
 			b.enabled = true;
-			breakpoints.machineAddressBreakpoints.push_back((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, .inferred_breakpoint = b, .enabled = true, });
+			breakpoints.addMachineAddressBreakpoint((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, .inferred_breakpoint = b, .enabled = true, });
 		}
 		updateBreakpointsView();
 	}
@@ -1112,7 +1121,7 @@ static unsigned accumulator;
 							break;
 						}
 						b.addresses = QVector<uint32_t>::fromStdVector(x);
-						breakpoints.sourceCodeBreakpoints.push_back(b);
+						breakpoints.addSourceCodeBreakpoint(b);
 						if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
 							profiling.max_time_for_retrieving_breakpoint_addresses_for_line = t.elapsed();
 						t.restart();
@@ -1122,7 +1131,10 @@ static unsigned accumulator;
 						qDebug() << "total addresses:" << x.size();
 					}
 					else
-						breakpoints.sourceCodeBreakpoints.removeAt(j);
+						if (is_breakpoint_toggled)
+							breakpoints.toggleSourceBreakpointAtIndex(j);
+						else
+							breakpoints.removeSourceCodeBreakpointAtIndex(j);
 				}
 				else
 				{
@@ -1142,6 +1154,8 @@ static unsigned accumulator;
 						}
 						if ((i = breakpoints.machineBreakpointIndex(address)) == -1)
 						{
+							if (is_breakpoint_toggled)
+								break;
 							auto x = dwdata->sourceCodeCoordinatesForAddress(address);
 							BreakpointCache::SourceCodeBreakpoint b;
 							b.source_filename = QString::fromStdString(x.file_name);
@@ -1149,14 +1163,14 @@ static unsigned accumulator;
 							b.compilation_directory = QString::fromStdString(x.compilation_directory_name);
 							b.line_number = x.line;
 							b.addresses.push_back(address);
-							breakpoints.machineAddressBreakpoints.push_back((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, .inferred_breakpoint = b, });
+							breakpoints.addMachineAddressBreakpoint((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, .inferred_breakpoint = b, .enabled = true, });
 						}
 						else
 						{
 							if (is_breakpoint_toggled)
-								breakpoints.machineAddressBreakpoints[i].enabled = ! breakpoints.machineAddressBreakpoints[i].enabled;
+								breakpoints.toggleMachineBreakpointAtIndex(i);
 							else
-								breakpoints.machineAddressBreakpoints.removeAt(i);
+								breakpoints.removeMachineAddressBreakpointAtIndex(i);
 						}
 					}
 					else

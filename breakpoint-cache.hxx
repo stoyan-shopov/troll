@@ -4,6 +4,7 @@
 #include <QSet>
 #include <QVector>
 #include <QHash>
+#include <QDir>
 
 class BreakpointCache
 {
@@ -20,8 +21,9 @@ public:
 		QVector<uint32_t> addresses;
 		bool operator == (const struct SourceCodeBreakpoint & other) const
 		{
-			return line_number == other.line_number && source_filename == other.source_filename
-					&& directory_name == other.directory_name && compilation_directory == other.compilation_directory;
+			return line_number == other.line_number && QDir::toNativeSeparators(source_filename) == QDir::toNativeSeparators(other.source_filename)
+					&& QDir::toNativeSeparators(directory_name) == QDir::toNativeSeparators(other.directory_name)
+					&& QDir::toNativeSeparators(compilation_directory) == QDir::toNativeSeparators(other.compilation_directory);
 		}
 	};
 	struct MachineAddressBreakpoint
@@ -67,6 +69,11 @@ public:
 	void removeSourceCodeBreakpointAtIndex(int breakpoint_index) { sourceCodeBreakpoints.removeAt(breakpoint_index); updateBreakpointSets(); }
 	void addMachineAddressBreakpoint(const struct MachineAddressBreakpoint & breakpoint) { machineAddressBreakpoints.push_back(breakpoint); updateBreakpointSets(); }
 	void removeMachineAddressBreakpointAtIndex(int breakpoint_index) { machineAddressBreakpoints.removeAt(breakpoint_index); updateBreakpointSets(); }
+	
+	void toggleMachineBreakpointAtIndex(int breakpoint_index) { machineAddressBreakpoints[breakpoint_index].enabled = ! machineAddressBreakpoints[breakpoint_index].enabled; updateBreakpointSets(); }
+	void toggleSourceBreakpointAtIndex(int breakpoint_index) { sourceCodeBreakpoints[breakpoint_index].enabled = ! sourceCodeBreakpoints[breakpoint_index].enabled; updateBreakpointSets(); }
 };
+
+uint qHash(const BreakpointCache::SourceCodeBreakpoint & key);
 
 #endif // BREAKPOINTCACHE_H

@@ -41,6 +41,6 @@ int i, j;
 			disabledMachineAddressBreakpoints.insert(b.address);
 		}
 	}
-	disabledSourceCodeBreakpoints.subtract(disabledSourceCodeBreakpoints.intersect(enabledSourceCodeBreakpoints));
-	disabledMachineAddressBreakpoints.subtract(disabledMachineAddressBreakpoints.intersect(enabledMachineAddressBreakpoints));
+	disabledSourceCodeBreakpoints.subtract(enabledSourceCodeBreakpoints);
+	disabledMachineAddressBreakpoints.subtract(enabledMachineAddressBreakpoints);
 }
