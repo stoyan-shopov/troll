@@ -130,6 +130,7 @@ private:
 	struct SourceLevelBreakpoint
 	{
 		QString source_filename, directory_name, compilation_directory;
+		bool enabled;
 		int line_number;
 		QVector<uint32_t> addresses;
 		bool operator == (const struct SourceLevelBreakpoint & other) const
@@ -142,6 +143,7 @@ private:
 	{
 		uint32_t	address;
 		struct SourceLevelBreakpoint inferred_breakpoint;
+		bool		enabled;
 	};
 	QVector<struct MachineLevelBreakpoint> machine_level_breakpoints, run_to_cursor_breakpoints;
 	int machineBreakpointIndex(uint32_t address)
@@ -154,7 +156,7 @@ private:
 	}
 
 	QVector<struct SourceLevelBreakpoint> source_level_breakpoints;
-	int breakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
+	int sourceBreakpointIndex(const struct SourceLevelBreakpoint & breakpoint)
 	{
 		int i;
 		for (i = 0; i < source_level_breakpoints.size(); i ++)
@@ -279,6 +281,8 @@ private slots:
 	void on_actionRun_dwarf_tests_triggered();
 	
 	void on_treeWidgetBreakpoints_itemDoubleClicked(QTreeWidgetItem *item, int column);
+	
+	void on_treeWidgetBreakpoints_itemChanged(QTreeWidgetItem *item, int column);
 	
 protected:
 	void closeEvent(QCloseEvent * e);
