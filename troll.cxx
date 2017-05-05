@@ -522,6 +522,7 @@ void MainWindow::updateBreakpointsView(void)
 {
 int i, j;
 QMap<QString, QVariant> user_data;
+	ui->treeWidgetBreakpoints->blockSignals(true);
 	ui->treeWidgetBreakpoints->clear();
 	for (i = 0; i < breakpoints.sourceCodeBreakpoints.size(); i ++)
 	{
@@ -566,7 +567,7 @@ QMap<QString, QVariant> user_data;
 		}
 		ui->treeWidgetBreakpoints->expandItem(t);
 	}
-	
+	ui->treeWidgetBreakpoints->blockSignals(false);
 }
 
 static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const struct DebugLine::sourceFileNames & b)
@@ -748,6 +749,7 @@ there:
 	
 	{
 		auto source_breakpoints = s.value("source-level-breakpoints", QStringList()).toStringList();
+		ui->treeWidgetBreakpoints->blockSignals(true);
 		//QRegExp rx("(.+):(.*):(.*):(\\d+)$");
 		QRegExp rx("([^>]+)>([^>]*)>([^>]*)>(\\d+)$");
 		for (i = 0; i < source_breakpoints.size(); i ++)
@@ -778,6 +780,7 @@ there:
 			breakpoints.addMachineAddressBreakpoint((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, .inferred_breakpoint = b, .enabled = true, });
 		}
 		updateBreakpointsView();
+		ui->treeWidgetBreakpoints->blockSignals(false);
 	}
 	
 	ui->plainTextEdit->appendPlainText(QString("compilation unit count in the .debug_aranges section : %1").arg(dwdata->compilation_unit_count()));
@@ -1736,18 +1739,35 @@ void MainWindow::on_treeWidgetBreakpoints_itemDoubleClicked(QTreeWidgetItem *ite
 QMap<QString, QVariant> x = item->data(0, Qt::UserRole).toMap();
 	if (x.contains("source-breakpoint-index"))
 	{
-		const BreakpointCache::SourceCodeBreakpoint b(breakpoints.sourceCodeBreakpoints[x["source-breakpoint-index"].toInt()]);
+		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.sourceCodeBreakpoints[x["source-breakpoint-index"].toInt()]);
 		uint32_t address = x.contains("source-breakpoint-sub-index") ? b.addresses[x["source-breakpoint-sub-index"].toInt()] : -1;
 		displaySourceCodeFile(b.source_filename, b.directory_name, b.compilation_directory, b.line_number, address);
 	}
 	else if (x.contains("machine-breakpoint-index"))
 	{
-		const BreakpointCache::SourceCodeBreakpoint b(breakpoints.machineAddressBreakpoints[x["machine-breakpoint-index"].toInt()].inferred_breakpoint);
+		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.machineAddressBreakpoints[x["machine-breakpoint-index"].toInt()].inferred_breakpoint);
 		displaySourceCodeFile(b.source_filename, b.directory_name, b.compilation_directory, b.line_number, b.addresses[0]);
 	}
 }
 
 void MainWindow::on_treeWidgetBreakpoints_itemChanged(QTreeWidgetItem *item, int column)
 {
-	qDebug() << "item changed";
+	if (column)
+		return;
+QMap<QString, QVariant> x = item->data(0, Qt::UserRole).toMap();
+int i;
+	if (x.contains("source-breakpoint-index"))
+	{
+		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.sourceCodeBreakpoints[x["source-breakpoint-index"].toInt()]);
+		i = x["source-breakpoint-index"].toInt();
+		if (breakpoints.sourceCodeBreakpoints[i].enabled != (item->checkState(0) == Qt::Checked))
+			breakpoints.setSourceBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView();
+	}
+	else if (x.contains("machine-breakpoint-index"))
+	{
+		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.machineAddressBreakpoints[x["machine-breakpoint-index"].toInt()].inferred_breakpoint);
+		i = x["machine-breakpoint-index"].toInt();
+		if (breakpoints.machineAddressBreakpoints[i].enabled != (item->checkState(0) == Qt::Checked))
+			breakpoints.setMachineBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView();
+	}
 }

@@ -73,7 +73,9 @@ public:
 	void removeMachineAddressBreakpointAtIndex(int breakpoint_index) { machineAddressBreakpoints.removeAt(breakpoint_index); updateBreakpointSets(); }
 	
 	void toggleMachineBreakpointAtIndex(int breakpoint_index) { machineAddressBreakpoints[breakpoint_index].enabled = ! machineAddressBreakpoints[breakpoint_index].enabled; updateBreakpointSets(); }
+	void setMachineBreakpointAtIndexEnabled(int breakpoint_index, bool is_enabled) { machineAddressBreakpoints[breakpoint_index].enabled = is_enabled; updateBreakpointSets(); }
 	void toggleSourceBreakpointAtIndex(int breakpoint_index) { sourceCodeBreakpoints[breakpoint_index].enabled = ! sourceCodeBreakpoints[breakpoint_index].enabled; updateBreakpointSets(); }
+	void setSourceBreakpointAtIndexEnabled(int breakpoint_index, bool is_enabled) { sourceCodeBreakpoints[breakpoint_index].enabled = is_enabled; updateBreakpointSets(); }
 };
 
 uint qHash(const BreakpointCache::SourceCodeBreakpoint & key);
