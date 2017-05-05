@@ -31,6 +31,7 @@ public:
 		uint32_t	address;
 		struct SourceCodeBreakpoint inferred_breakpoint;
 		bool		enabled;
+		bool operator == (const struct MachineAddressBreakpoint & other) const { return address == other.address; }
 	};
 
 	QVector<struct MachineAddressBreakpoint> machineAddressBreakpoints;
@@ -76,5 +77,6 @@ public:
 };
 
 uint qHash(const BreakpointCache::SourceCodeBreakpoint & key);
+uint qHash(const BreakpointCache::MachineAddressBreakpoint & key);
 
 #endif // BREAKPOINTCACHE_H
