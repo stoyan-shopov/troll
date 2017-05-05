@@ -129,6 +129,7 @@ private:
 	std::string typeStringForDieOffset(uint32_t die_offset);
 	void dumpData(uint32_t address, const QByteArray & data);
 	void updateBreakpointsView(void);
+	QVector<int> run_to_cursor_breakpoint_indices;
 
 	QVector<uint32_t> breakpointedAddresses(void)
 	{

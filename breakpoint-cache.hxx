@@ -67,7 +67,8 @@ public:
 	
 	void addSourceCodeBreakpoint(const struct SourceCodeBreakpoint & breakpoint) { sourceCodeBreakpoints.push_back(breakpoint); updateBreakpointSets(); }
 	void removeSourceCodeBreakpointAtIndex(int breakpoint_index) { sourceCodeBreakpoints.removeAt(breakpoint_index); updateBreakpointSets(); }
-	void addMachineAddressBreakpoint(const struct MachineAddressBreakpoint & breakpoint) { machineAddressBreakpoints.push_back(breakpoint); updateBreakpointSets(); }
+	int /* returns the index at which the breakpoint was placed */ addMachineAddressBreakpoint(const struct MachineAddressBreakpoint & breakpoint)
+	{ machineAddressBreakpoints.push_back(breakpoint); updateBreakpointSets(); return machineAddressBreakpoints.size() - 1; }
 	void removeMachineAddressBreakpointAtIndex(int breakpoint_index) { machineAddressBreakpoints.removeAt(breakpoint_index); updateBreakpointSets(); }
 	
 	void toggleMachineBreakpointAtIndex(int breakpoint_index) { machineAddressBreakpoints[breakpoint_index].enabled = ! machineAddressBreakpoints[breakpoint_index].enabled; updateBreakpointSets(); }
