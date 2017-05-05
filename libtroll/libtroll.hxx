@@ -375,7 +375,7 @@ struct SourceCodeCoordinates
 	const char	* compilation_directory_name;
 	uint32_t	address;
 	uint32_t	line, call_line;
-	SourceCodeCoordinates(void) { file_name = "<<< unknown filename >>>", call_file_name = directory_name = call_directory_name = compilation_directory_name = 0, address = line = call_line = -1; }
+	SourceCodeCoordinates(void) { file_name = "<<< unknown filename >>>", call_file_name = directory_name = call_directory_name = compilation_directory_name = "<<< unknown >>>", address = line = call_line = -1; }
 };
 
 struct LocationList
@@ -1628,9 +1628,10 @@ there:
 	{
 		SourceCodeCoordinates s;
 		s.address = address;
-		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address) + /* skip compilation unit header */ 11;
+		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address);
 		if (cu_die_offset == -1)
 			return s;
+		cu_die_offset += /* skip compilation unit header */ 11;
 
 		auto compilation_unit_die = read_die(cu_die_offset);
 		uint32_t file_number;
