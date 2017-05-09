@@ -1761,13 +1761,13 @@ int i;
 		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.sourceCodeBreakpoints[x["source-breakpoint-index"].toInt()]);
 		i = x["source-breakpoint-index"].toInt();
 		if (breakpoints.sourceCodeBreakpoints[i].enabled != (item->checkState(0) == Qt::Checked))
-			breakpoints.setSourceBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView();
+			breakpoints.setSourceBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
 	}
 	else if (x.contains("machine-breakpoint-index"))
 	{
 		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.machineAddressBreakpoints[x["machine-breakpoint-index"].toInt()].inferred_breakpoint);
 		i = x["machine-breakpoint-index"].toInt();
 		if (breakpoints.machineAddressBreakpoints[i].enabled != (item->checkState(0) == Qt::Checked))
-			breakpoints.setMachineBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView();
+			breakpoints.setMachineBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
 	}
 }
