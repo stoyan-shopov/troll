@@ -188,15 +188,13 @@ void MainWindow::displaySourceCodeFile(QString source_filename, QString director
 
 QTime stime;
 stime.start();
-QFile src;
+QFile source_file;
 QString t;
 QTextBlockFormat f;
 QTextCharFormat cf;
 QTime x;
 int i, cursor_position_for_line(0);
 QFileInfo finfo(directory_name + "/" + source_filename);
-QVector<uint32_t> enabled_breakpoint_positions, disabled_breakpoint_positions;
-QMap<uint32_t /* address */, int /* line position in text document */> addresses;
 struct BreakpointCache::SourceCodeBreakpoint b;
 
 	if (!finfo.exists())
@@ -204,48 +202,47 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 	if (!finfo.exists())
                 finfo.setFile(compilation_directory + "/" + directory_name + "/" + source_filename);
 	ui->plainTextEdit->clear();
-	src.setFileName(finfo.canonicalFilePath());
+	source_file.setFileName(finfo.canonicalFilePath());
 	
-	std::vector<struct DebugLine::lineAddress> line_addresses;
 	x.start();
-	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), src.line_addresses);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
-	qDebug() << "addresses for file count: " << line_addresses.size();
+	qDebug() << "addresses for file count: " << src.line_addresses.size();
 	x.restart();
 	
-	std::map<uint32_t, struct DebugLine::lineAddress *> lines;
-	for (i = line_addresses.size() - 1; i >= 0; i --)
+	for (i = src.line_addresses.size() - 1; i >= 0; i --)
 	{
-		line_addresses.at(i).next = lines[line_addresses.at(i).line];
-		lines[line_addresses.at(i).line] = & line_addresses.at(i);
+		src.line_addresses.at(i).next = src.line_indices[src.line_addresses.at(i).line];
+		src.line_indices[src.line_addresses.at(i).line] = & src.line_addresses.at(i);
 	}
 
 	b.source_filename = source_filename;
 	b.directory_name = directory_name;
 	b.compilation_directory = compilation_directory;
 
-	if (src.open(QFile::ReadOnly))
+	if (source_file.open(QFile::ReadOnly))
 	{
 		int i(1);
 		struct DebugLine::lineAddress * dis;
-		while (!src.atEnd())
+		while (!source_file.atEnd())
 		{
+			src.line_positions_in_document[i + 1] = t.length();
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
 			b.line_number = i;
 			if (breakpoints.enabledSourceCodeBreakpoints.contains(b))
-				enabled_breakpoint_positions.push_back(t.length());
+				src.enabled_breakpoint_positions.push_back(t.length());
 			else if (breakpoints.disabledSourceCodeBreakpoints.contains(b))
-				disabled_breakpoint_positions.push_back(t.length());
-			t += QString("%1 %2|").arg(lines[i] ? '*' : ' ')
-			                .arg(i, 4, 10, QChar(' ')) + src.readLine().replace('\t', "        ").replace('\r', "");
+				src.disabled_breakpoint_positions.push_back(t.length());
+			t += QString("%1 %2|").arg(src.line_indices[i] ? '*' : ' ')
+			                .arg(i, 4, 10, QChar(' ')) + source_file.readLine().replace('\t', "        ").replace('\r', "");
 			if (ui->actionShow_disassembly_address_ranges->isChecked())
 			{
 				if (0 && address == -1)
 					Util::panic();
-				dis = lines[i];
+				dis = src.line_indices[i];
 				while (dis)
 				{
 					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
@@ -253,7 +250,7 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 					int i;
 					for (i = 0; i < x.size(); i ++)
 					{
-						addresses.insert(x.at(i).first, t.length());
+						src.address_positions_in_document.insert(x.at(i).first, t.length());
 						if (address == x.at(i).first)
 							cursor_position_for_line = t.length();
 						t += QString(x.at(i).second).replace('\r', "") + "\n";
@@ -266,31 +263,31 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 		}
 	}
 	else
-		t = QString("cannot open source code file ") + src.fileName();
+		t = QString("cannot open source code file ") + source_file.fileName();
 	
 	QSet<uint32_t>::const_iterator bset = breakpoints.enabledMachineAddressBreakpoints.constBegin();
 	while (bset != breakpoints.enabledMachineAddressBreakpoints.constEnd())
 	{
-		if (addresses.contains(* bset))
-			enabled_breakpoint_positions.push_back(addresses.operator [](*bset));
+		if (src.address_positions_in_document.contains(* bset))
+			src.enabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
 		bset ++;
 	}
 	bset = breakpoints.disabledMachineAddressBreakpoints.constBegin();
 	while (bset != breakpoints.disabledMachineAddressBreakpoints.constEnd())
 	{
-		if (addresses.contains(* bset))
-			disabled_breakpoint_positions.push_back(addresses.operator [](*bset));
+		if (src.address_positions_in_document.contains(* bset))
+			src.disabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
 		bset ++;
 	}
 
 	ui->plainTextEdit->appendPlainText(t);
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	f.setBackground(QBrush(Qt::red));
-	for (i = 0; i < enabled_breakpoint_positions.size(); i ++)
-		c.setPosition(enabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
+	for (i = 0; i < src.enabled_breakpoint_positions.size(); i ++)
+		c.setPosition(src.enabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
 	f.setBackground(QBrush(Qt::yellow));
-	for (i = 0; i < disabled_breakpoint_positions.size(); i ++)
-		c.setPosition(disabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
+	for (i = 0; i < src.disabled_breakpoint_positions.size(); i ++)
+		c.setPosition(src.disabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
 
 #if 0
 	c.movePosition(QTextCursor::Start);
@@ -327,12 +324,11 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
 		profiling.max_context_view_generation_time = stime.elapsed();
-	last_source_filename = source_filename;
+	current_source_code_file_displayed = last_source_filename = source_filename;
 	last_directory_name = directory_name;
 	last_compilation_directory = compilation_directory;
 	last_highlighted_line = highlighted_line;
 	last_source_highlighted_address = address;
-	current_source_code_file_displayed = src.fileName();
 	statusBar()->showMessage(current_source_code_file_displayed);
 }
 

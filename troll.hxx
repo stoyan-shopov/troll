@@ -106,6 +106,16 @@ class MainWindow : public QMainWindow
 	DwarfEvaluator	* dwarf_evaluator;
 	Memory		target_memory_contents;
 	BreakpointCache	breakpoints;
+	
+	struct SourceCodeDisplayData
+	{
+		std::vector<struct DebugLine::lineAddress> line_addresses;
+		std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
+		QVector<uint32_t> enabled_breakpoint_positions, disabled_breakpoint_positions;
+		QMap<uint32_t /* address */, int /* line position in text document */> address_positions_in_document;
+		QMap<int /* line number */, int /* line position in text document */> line_positions_in_document;
+	}
+	src;
 public:
 	struct TreeWidgetNodeData
 	{
