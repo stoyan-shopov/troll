@@ -764,9 +764,12 @@ public:
 					default:
 						DwarfUtil::panic();
 					case DW_LNE_set_discriminator:
-						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
+				{
+						auto d = DwarfUtil::uleb128(p, & x);
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << d << "!!! IGNORED !!!";
 						if (len != x + 1) DwarfUtil::panic();
 						p += x;
+				}
 						break;
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
