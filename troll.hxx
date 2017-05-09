@@ -109,9 +109,7 @@ class MainWindow : public QMainWindow
 	
 	struct SourceCodeDisplayData
 	{
-		std::vector<struct DebugLine::lineAddress> line_addresses;
-		std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
-		QVector<uint32_t> enabled_breakpoint_positions, disabled_breakpoint_positions;
+		//QVector<uint32_t> enabled_breakpoint_positions, disabled_breakpoint_positions;
 		QMap<uint32_t /* address */, int /* line position in text document */> address_positions_in_document;
 		QMap<int /* line number */, int /* line position in text document */> line_positions_in_document;
 	}
@@ -140,6 +138,7 @@ private:
 	void dumpData(uint32_t address, const QByteArray & data);
 	void updateBreakpointsView(void);
 	QVector<int> run_to_cursor_breakpoint_indices;
+	void colorSourceCodeView(void);
 
 	QVector<uint32_t> breakpointedAddresses(void)
 	{

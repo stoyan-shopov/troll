@@ -175,6 +175,50 @@ break;
 	return n;
 }
 
+void MainWindow::colorSourceCodeView()
+{
+#if 0
+struct BreakpointCache::SourceCodeBreakpoint b;
+
+	b.source_filename = source_filename;
+	b.directory_name = directory_name;
+	b.compilation_directory = compilation_directory;
+	
+	...
+			b.line_number = i;
+			if (breakpoints.enabledSourceCodeBreakpoints.contains(b))
+				src.enabled_breakpoint_positions.push_back(t.length());
+			else if (breakpoints.disabledSourceCodeBreakpoints.contains(b))
+				src.disabled_breakpoint_positions.push_back(t.length());
+	...
+
+
+	QSet<uint32_t>::const_iterator bset = breakpoints.enabledMachineAddressBreakpoints.constBegin();
+	while (bset != breakpoints.enabledMachineAddressBreakpoints.constEnd())
+	{
+		if (src.address_positions_in_document.contains(* bset))
+			src.enabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
+		bset ++;
+	}
+	bset = breakpoints.disabledMachineAddressBreakpoints.constBegin();
+	while (bset != breakpoints.disabledMachineAddressBreakpoints.constEnd())
+	{
+		if (src.address_positions_in_document.contains(* bset))
+			src.disabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
+		bset ++;
+	}
+
+	QTextCursor c(ui->plainTextEdit->textCursor());
+	f.setBackground(QBrush(Qt::red));
+	for (i = 0; i < src.enabled_breakpoint_positions.size(); i ++)
+		c.setPosition(src.enabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
+	f.setBackground(QBrush(Qt::yellow));
+	for (i = 0; i < src.disabled_breakpoint_positions.size(); i ++)
+		c.setPosition(src.disabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
+
+#endif
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
         source_filename.replace(QChar('\\'), QChar('/'));
@@ -195,7 +239,11 @@ QTextCharFormat cf;
 QTime x;
 int i, cursor_position_for_line(0);
 QFileInfo finfo(directory_name + "/" + source_filename);
-struct BreakpointCache::SourceCodeBreakpoint b;
+std::vector<struct DebugLine::lineAddress> line_addresses;
+std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
+
+	src.address_positions_in_document.clear();
+	src.line_positions_in_document.clear();
 
 	if (!finfo.exists())
                 finfo.setFile(compilation_directory + "/" + source_filename);
@@ -205,22 +253,18 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 	source_file.setFileName(finfo.canonicalFilePath());
 	
 	x.start();
-	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), src.line_addresses);
+	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
-	qDebug() << "addresses for file count: " << src.line_addresses.size();
+	qDebug() << "addresses for file count: " << line_addresses.size();
 	x.restart();
 	
-	for (i = src.line_addresses.size() - 1; i >= 0; i --)
+	for (i = line_addresses.size() - 1; i >= 0; i --)
 	{
-		src.line_addresses.at(i).next = src.line_indices[src.line_addresses.at(i).line];
-		src.line_indices[src.line_addresses.at(i).line] = & src.line_addresses.at(i);
+		line_addresses.at(i).next = line_indices[line_addresses.at(i).line];
+		line_indices[line_addresses.at(i).line] = & line_addresses.at(i);
 	}
-
-	b.source_filename = source_filename;
-	b.directory_name = directory_name;
-	b.compilation_directory = compilation_directory;
 
 	if (source_file.open(QFile::ReadOnly))
 	{
@@ -231,18 +275,13 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 			src.line_positions_in_document[i + 1] = t.length();
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
-			b.line_number = i;
-			if (breakpoints.enabledSourceCodeBreakpoints.contains(b))
-				src.enabled_breakpoint_positions.push_back(t.length());
-			else if (breakpoints.disabledSourceCodeBreakpoints.contains(b))
-				src.disabled_breakpoint_positions.push_back(t.length());
-			t += QString("%1 %2|").arg(src.line_indices[i] ? '*' : ' ')
+			t += QString("%1 %2|").arg(line_indices[i] ? '*' : ' ')
 			                .arg(i, 4, 10, QChar(' ')) + source_file.readLine().replace('\t', "        ").replace('\r', "");
 			if (ui->actionShow_disassembly_address_ranges->isChecked())
 			{
 				if (0 && address == -1)
 					Util::panic();
-				dis = src.line_indices[i];
+				dis = line_indices[i];
 				while (dis)
 				{
 					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
@@ -265,29 +304,7 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 	else
 		t = QString("cannot open source code file ") + source_file.fileName();
 	
-	QSet<uint32_t>::const_iterator bset = breakpoints.enabledMachineAddressBreakpoints.constBegin();
-	while (bset != breakpoints.enabledMachineAddressBreakpoints.constEnd())
-	{
-		if (src.address_positions_in_document.contains(* bset))
-			src.enabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
-		bset ++;
-	}
-	bset = breakpoints.disabledMachineAddressBreakpoints.constBegin();
-	while (bset != breakpoints.disabledMachineAddressBreakpoints.constEnd())
-	{
-		if (src.address_positions_in_document.contains(* bset))
-			src.disabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
-		bset ++;
-	}
-
 	ui->plainTextEdit->appendPlainText(t);
-	QTextCursor c(ui->plainTextEdit->textCursor());
-	f.setBackground(QBrush(Qt::red));
-	for (i = 0; i < src.enabled_breakpoint_positions.size(); i ++)
-		c.setPosition(src.enabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
-	f.setBackground(QBrush(Qt::yellow));
-	for (i = 0; i < src.disabled_breakpoint_positions.size(); i ++)
-		c.setPosition(src.disabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
 
 #if 0
 	c.movePosition(QTextCursor::Start);
@@ -302,6 +319,7 @@ struct BreakpointCache::SourceCodeBreakpoint b;
 			break;
 	}
 #endif
+	QTextCursor c(ui->plainTextEdit->textCursor());
 	c.movePosition(QTextCursor::Start);
 #if 0
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
