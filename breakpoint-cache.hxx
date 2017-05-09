@@ -25,6 +25,14 @@ public:
 					&& QDir::toNativeSeparators(directory_name) == QDir::toNativeSeparators(other.directory_name)
 					&& QDir::toNativeSeparators(compilation_directory) == QDir::toNativeSeparators(other.compilation_directory);
 		}
+		/* returns -1 if the breakpoint is not inside the source code file */
+		int breakpointedLineNumberForSourceCode(const QString & source_filename, const QString & directory_name, const QString & compilation_directory) const
+		{
+			return (QDir::toNativeSeparators(source_filename) == QDir::toNativeSeparators(this->source_filename)
+					&& QDir::toNativeSeparators(directory_name) == QDir::toNativeSeparators(this->directory_name)
+					&& QDir::toNativeSeparators(compilation_directory) == QDir::toNativeSeparators(this->compilation_directory))
+				? line_number : -1;
+		}
 	};
 	struct MachineAddressBreakpoint
 	{

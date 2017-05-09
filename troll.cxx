@@ -175,46 +175,74 @@ break;
 	return n;
 }
 
-void MainWindow::colorSourceCodeView()
+void MainWindow::colorizeSourceCodeView(void)
 {
-#if 0
-struct BreakpointCache::SourceCodeBreakpoint b;
+#if 1
+QVector<int> enabled_breakpoint_positions, disabled_breakpoint_positions;
+QTextBlockFormat f;
+int i, x;
+QList<QTextEdit::ExtraSelection> selections;
+QTextEdit::ExtraSelection sel;
+QTextCharFormat cf;
 
-	b.source_filename = source_filename;
-	b.directory_name = directory_name;
-	b.compilation_directory = compilation_directory;
-	
-	...
-			b.line_number = i;
-			if (breakpoints.enabledSourceCodeBreakpoints.contains(b))
-				src.enabled_breakpoint_positions.push_back(t.length());
-			else if (breakpoints.disabledSourceCodeBreakpoints.contains(b))
-				src.disabled_breakpoint_positions.push_back(t.length());
-	...
-
-
+	ui->plainTextEdit->setExtraSelections(selections);
+	QSet<struct BreakpointCache::SourceCodeBreakpoint>::const_iterator sset = breakpoints.enabledSourceCodeBreakpoints.constBegin();
+	while (sset != breakpoints.enabledSourceCodeBreakpoints.constEnd())
+	{
+		if ((x = (* sset).breakpointedLineNumberForSourceCode(last_source_filename, last_directory_name, last_compilation_directory)) != -1)
+			if (src.line_positions_in_document.contains(x))
+				enabled_breakpoint_positions << src.line_positions_in_document[x];
+		sset ++;
+	}
+	sset = breakpoints.disabledSourceCodeBreakpoints.constBegin();
+	while (sset != breakpoints.disabledSourceCodeBreakpoints.constEnd())
+	{
+		if ((x = (* sset).breakpointedLineNumberForSourceCode(last_source_filename, last_directory_name, last_compilation_directory)) != -1)
+			if (src.line_positions_in_document.contains(x))
+				disabled_breakpoint_positions << src.line_positions_in_document[x];
+		sset ++;
+	}
 	QSet<uint32_t>::const_iterator bset = breakpoints.enabledMachineAddressBreakpoints.constBegin();
 	while (bset != breakpoints.enabledMachineAddressBreakpoints.constEnd())
 	{
 		if (src.address_positions_in_document.contains(* bset))
-			src.enabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
+			enabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
 		bset ++;
 	}
 	bset = breakpoints.disabledMachineAddressBreakpoints.constBegin();
 	while (bset != breakpoints.disabledMachineAddressBreakpoints.constEnd())
 	{
 		if (src.address_positions_in_document.contains(* bset))
-			src.disabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
+			disabled_breakpoint_positions.push_back(src.address_positions_in_document.operator [](*bset));
 		bset ++;
 	}
 
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	f.setBackground(QBrush(Qt::red));
-	for (i = 0; i < src.enabled_breakpoint_positions.size(); i ++)
-		c.setPosition(src.enabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
+	cf.setForeground(QBrush(Qt::white));
+	cf.setBackground(QBrush(Qt::red));
+	for (i = 0; i < enabled_breakpoint_positions.size(); i ++)
+	{
+		c.setPosition(enabled_breakpoint_positions.at(i));
+		c.select(QTextCursor::LineUnderCursor);
+		sel.cursor = c;
+		sel.format = cf;
+		selections << sel;
+		//c.setBlockFormat(f);
+	}
 	f.setBackground(QBrush(Qt::yellow));
-	for (i = 0; i < src.disabled_breakpoint_positions.size(); i ++)
-		c.setPosition(src.disabled_breakpoint_positions.at(i)), c.setBlockFormat(f);
+	cf.setForeground(QBrush(Qt::red));
+	cf.setBackground(QBrush(Qt::yellow));
+	for (i = 0; i < disabled_breakpoint_positions.size(); i ++)
+	{
+		c.setPosition(disabled_breakpoint_positions.at(i));
+		c.select(QTextCursor::LineUnderCursor);
+		sel.cursor = c;
+		sel.format = cf;
+		selections << sel;
+		//c.setBlockFormat(f);
+	}
+	ui->plainTextEdit->setExtraSelections(selections);
 
 #endif
 }
@@ -272,7 +300,7 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 		struct DebugLine::lineAddress * dis;
 		while (!source_file.atEnd())
 		{
-			src.line_positions_in_document[i + 1] = t.length();
+			src.line_positions_in_document[i] = t.length();
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
 			t += QString("%1 %2|").arg(line_indices[i] ? '*' : ' ')
@@ -348,6 +376,8 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	last_highlighted_line = highlighted_line;
 	last_source_highlighted_address = address;
 	statusBar()->showMessage(current_source_code_file_displayed);
+	
+	colorizeSourceCodeView();
 }
 
 void MainWindow::backtrace()
@@ -1194,7 +1224,7 @@ static unsigned accumulator;
 						break;
 				}
 				updateBreakpointsView();
-				refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
+				colorizeSourceCodeView();
 			}
 				break;
 		case Qt::Key_G:
@@ -1775,13 +1805,13 @@ int i;
 		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.sourceCodeBreakpoints[x["source-breakpoint-index"].toInt()]);
 		i = x["source-breakpoint-index"].toInt();
 		if (breakpoints.sourceCodeBreakpoints[i].enabled != (item->checkState(0) == Qt::Checked))
-			breakpoints.setSourceBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
+			breakpoints.setSourceBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), colorizeSourceCodeView();
 	}
 	else if (x.contains("machine-breakpoint-index"))
 	{
 		const BreakpointCache::SourceCodeBreakpoint & b(breakpoints.machineAddressBreakpoints[x["machine-breakpoint-index"].toInt()].inferred_breakpoint);
 		i = x["machine-breakpoint-index"].toInt();
 		if (breakpoints.machineAddressBreakpoints[i].enabled != (item->checkState(0) == Qt::Checked))
-			breakpoints.setMachineBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), refreshSourceCodeView(ui->plainTextEdit->textCursor().blockNumber());
+			breakpoints.setMachineBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), colorizeSourceCodeView();
 	}
 }

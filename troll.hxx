@@ -138,7 +138,7 @@ private:
 	void dumpData(uint32_t address, const QByteArray & data);
 	void updateBreakpointsView(void);
 	QVector<int> run_to_cursor_breakpoint_indices;
-	void colorSourceCodeView(void);
+	void colorizeSourceCodeView(void);
 
 	QVector<uint32_t> breakpointedAddresses(void)
 	{
