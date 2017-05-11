@@ -530,10 +530,17 @@ QString outfile = QFileInfo(elf_filename).fileName();
 
 bool MainWindow::loadElfMemorySegments(void)
 {
-int i;
+int i, j;
 	for (i = 0; i < elf.segments.size(); i ++)
 		if (elf.segments[i]->get_type() == PT_LOAD || elf.segments[i]->get_type() == PT_ARM_EXIDX)
-			target_memory_contents.addRange(elf.segments[i]->get_physical_address(), QByteArray(elf.segments[i]->get_data(), elf.segments[i]->get_file_size()));
+		{
+			/* this is very confusing, I could not think of anything better */
+			uint32_t l = elf.segments[i]->get_physical_address(), h = l + elf.segments[i]->get_file_size(), address;
+			for (j = 0; j < elf.sections.size(); j ++)
+				if (l <= (address = elf.sections[j]->get_address()) && address < h)
+					target_memory_contents.addRange(address, QByteArray(elf.sections[j]->get_data(), elf.sections[j]->get_size()));
+		}
+	target_memory_contents.dump();
 }
 
 void MainWindow::updateRegisterView(void)

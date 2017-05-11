@@ -59,6 +59,9 @@ public:
 				else
 					x = data + ranges[i].data.right(ranges[i].data.size() - ((address + data.size()) - ranges[i].address));
 				ranges[i] = (struct memory_range) { .address = address, .data = x, };
+				auto s = ranges[i];
+				ranges.removeAt(i);
+				addRange(s.address, s.data);
 				return;
 			}
 		ranges.push_back((struct memory_range) { .address = address, .data = data, });
