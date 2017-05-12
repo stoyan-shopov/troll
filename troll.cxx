@@ -451,17 +451,33 @@ void MainWindow::backtrace()
 	if (DEBUG_BACKTRACE) qDebug() << "registers: " << cortexm0->getRegisters();
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
-	int line_in_disassembly;
-	ui->plainTextEdit->setPlainText(disassembly->disassemblyAroundAddress(target->readRawUncachedRegister(15), & line_in_disassembly));
-	QTextCursor c(ui->plainTextEdit->textCursor());
-	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, line_in_disassembly);
-	QTextBlockFormat f;
-	f.setBackground(QBrush(Qt::cyan));
-	c.setBlockFormat(f);
+	
 	if (ui->tableWidgetBacktrace->rowCount())
 		ui->tableWidgetBacktrace->selectRow(0);
 	else
+	{
 		register_cache.setActiveFrame(0), updateRegisterView();
+		int line_in_disassembly, cursor_position_for_line = -1, i;
+		QString t;
+		auto x = disassembly->disassemblyAroundAddress(target->readRawUncachedRegister(15), target, & line_in_disassembly);
+		src.address_positions_in_document.clear();
+		src.line_positions_in_document.clear();
+		for (i = 0; i < x.size(); i ++)
+		{
+			src.address_positions_in_document.insert(x.at(i).first, t.length());
+			if (i == line_in_disassembly)
+				cursor_position_for_line = t.length();
+			t += QString(x.at(i).second).replace('\r', "") + "\n";
+		}
+		ui->plainTextEdit->setPlainText(t);
+		QTextCursor c(ui->plainTextEdit->textCursor());
+		c.setPosition(cursor_position_for_line);
+		QTextBlockFormat f;
+		f.setBackground(QBrush(Qt::cyan));
+		c.setBlockFormat(f);
+		ui->plainTextEdit->setTextCursor(c);
+		ui->plainTextEdit->centerCursor();
+	}
 	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
 		profiling.max_backtrace_generation_time = t.elapsed();
 }

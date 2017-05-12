@@ -30,10 +30,16 @@ THE SOFTWARE.
 #include <QMessageBox>
 #include <stdint.h>
 #include "memory.hxx"
+#include "target.hxx"
 #include "util.hxx"
 
 #include <platform.h>
 #include <capstone.h>
+
+enum
+{
+	DISASSEMBLY_AROUND_ADDRESS_CONTEXT_LINE_COUNT	= 100,
+};
 
 class Disassembly
 {
@@ -58,6 +64,22 @@ private:
 		if (l > h)
 			return -1;
 		return m;
+	}
+	QString disassembleBytes(const QByteArray & data, uint32_t address)
+	{
+		QString dis;
+		int count;
+		if (data.size() != 2 && data.size() != 4)
+			Util::panic();
+		cs_insn		* insn;
+
+		if ((count = cs_disasm(cs_handle, (const uint8_t *) data.constData(), data.length(), address, 0, & insn) == 1) && insn->size == data.size())
+			dis = QString("%1:\t%2\t%3\t\t%4")
+		                                  .arg(insn->address, 8, 16, QChar('0'))
+		                                  .arg(QString(QByteArray((const char *) insn->bytes, insn->size).toHex()))
+		                                  .arg(insn->mnemonic).arg(insn->op_str);
+		cs_free(insn, count);
+		return dis;
 	}
 public:
 	Disassembly(QByteArray disassembly, const Memory & memory)
@@ -93,20 +115,50 @@ public:
 			if (index_table.at(i).first <= index_table.at(i - 1).first)
 				Util::panic();
 	}
-	QString disassemblyAroundAddress(uint32_t address, int * line_for_address = 0)
+	/*! \todo	reading target memory here with	'readBytes()' is ***slow*** - maybe fix this */
+	QList<QPair<uint32_t, QString> > disassemblyAroundAddress(uint32_t address, class Target * target, int * line_for_address = 0)
 	{
-		int l, m = indexOfAddress(address), h;
-		if (m == -1)
-			return QString("<<< no disassembly for address $%1 >>>").arg(address, 8, 16, QChar('0'));
-		if ((l = m - 5) < 0)
-			l = 0;
-		if ((h = m + 6) >= index_table.size())
-			h = index_table.size() - 1;
+		QString x;
+		QList<QPair<uint32_t, QString> > dis;
+		QPair<uint32_t, QString> t;
+		uint32_t l, h, i = 0;
+		QByteArray data;
 		if (line_for_address)
+			* line_for_address = -1;
+		data = target->readBytes(address, 4);
+		if (!(x = disassembleBytes(data.left(2), address)).isEmpty())
+			h = address + 2, dis.push_back(QPair<uint32_t, QString> (address, x));
+		else if (!(x = disassembleBytes(data, address)).isEmpty())
+			h = address + 4, dis.push_back(QPair<uint32_t, QString> (address, x));
+		else
 		{
-			* line_for_address = disassembly_text.mid(index_table.at(l).second, index_table.at(m).second - index_table.at(l).second).count('\n');
+			dis.push_back(QPair<uint32_t, QString> (address, QString("<<< cannot disassemble bytes at address $%1 >>>").arg(address, 8, 16, QChar('0'))));
+			return dis;
 		}
-		return disassembly_text.mid(index_table.at(l).second, disassembly_text.indexOf('\n', index_table.at(h).second) - index_table.at(l).second);
+		l = address;
+		for (i = 0; i < DISASSEMBLY_AROUND_ADDRESS_CONTEXT_LINE_COUNT; i ++)
+		{
+			l -= 4;
+			data = target->readBytes(l, 4);
+			if (!(x = disassembleBytes(data.right(2), l + 2)).isEmpty())
+				l += 2, t.first = l, t.second = x, dis.push_front(t);
+			else if (!(x = disassembleBytes(data, l)).isEmpty())
+				t.first = l, t.second = x, dis.push_front(t);
+			else
+				l += 2,t.first = l + 2, t.second = QString("<<< cannot disassemble bytes at address $%1 >>>").arg(l, 8, 16, QChar('0')),  dis.push_front(t);
+
+			t.first = h;
+			data = target->readBytes(h, 4);
+			if (!(x = disassembleBytes(data, h)).isEmpty())
+				h += 4, t.second = x, dis.push_back(t);
+			else if (!(x = disassembleBytes(data.left(2), h)).isEmpty())
+				h += 2, t.second = x, dis.push_back(t);
+			else
+				h += 2, t.second = QString("<<< cannot disassemble bytes at address $%1 >>>").arg(h, 8, 16, QChar('0')), dis.push_back(t);
+		}
+		if (line_for_address)
+			* line_for_address = i;
+		return dis;
 	}
 	QList<QPair<uint32_t /* address */, QString /* disassembly */> > disassemblyForRange(uint32_t start, uint32_t end)
 	{

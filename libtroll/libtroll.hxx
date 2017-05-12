@@ -48,8 +48,10 @@ public:
 		uint8_t x;
 		int shift = * decoded_len = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
+		/*
 		if (result > 0xffffffff)
 			panic();
+			*/
 		return result;
 	}
 	static uint32_t uleb128(const uint8_t * data)
@@ -58,8 +60,10 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
+		/*
 		if (result > 0xffffffff)
 			panic();
+			*/
 		return result;
 	}
 	static uint32_t uleb128x(const uint8_t * & data)
@@ -68,8 +72,10 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
+		/*
 		if (result > 0xffffffff)
 			panic();
+			*/
 		return result;
 	}
 	static int32_t sleb128(const uint8_t * data, int * decoded_len)
@@ -94,8 +100,10 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
+		/*
 		if (result > 0xffffffff)
 			panic();
+			*/
 		/* handle sign */
 		if (x & 0x40)
 			/* propagate sign bit */
@@ -633,13 +641,32 @@ struct DwarfExpression
 					x << * ((uint32_t *) dwarf_expression) << " ";
 					bytes_to_skip = sizeof(uint32_t);
 					break;
+				case DW_OP_GNU_parameter_ref:
+				/* I found this:
+				 *
+				 * https://lists.fedorahosted.org/pipermail/elfutils-devel/2012-July/002389.html
+				 * DW_OP_GNU_parameter_ref takes as operand a 4 byte CU relative reference
+				 * to the abstract optimized away DW_TAG_formal_parameter.
+				 */
+					x << "GNU-PARAMETER-REF-UNSUPPORTED!!! ";
+					bytes_to_skip = sizeof(uint32_t);
+					break;
 				case DW_OP_consts:
 					x << "CONSTS-UNSUPPORTED!!! ";
 					DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip);
 					break;
+				case DW_OP_constu:
+					x << "CONSTU-UNSUPPORTED!!! ";
+					DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					break;
 				case DW_OP_GNU_convert:
 					x << "GNU-CONVERT-UNSUPPORTED!!! ";
 					DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					break;
+				case DW_OP_GNU_implicit_pointer:
+					x << "GNU-IMPLICIT-POINTER-UNSUPPORTED!!! ";
+					DwarfUtil::sleb128(dwarf_expression + sizeof(uint32_t), & bytes_to_skip);
+					bytes_to_skip += sizeof(uint32_t);
 					break;
 				case DW_OP_GNU_regval_type:
 					x << "GNU-REGVAL-TYPE-UNSUPPORTED!!! ";
@@ -799,6 +826,9 @@ public:
 			{
 				default:
 					DwarfUtil::panic();
+					break;
+				case DW_LNS_set_prologue_end:
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set prologue end to true";
 					break;
 				case DW_LNS_copy:
 				/*
@@ -1062,7 +1092,9 @@ public:
 			else switch (* p ++)
 			{
 				default:
-					DwarfUtil::panic();
+					break;
+				case DW_LNS_set_prologue_end:
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set prologue end to true";
 					break;
 				case DW_LNS_copy:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
@@ -1096,7 +1128,9 @@ public:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current->file;
 					break;
 				case DW_LNS_set_column:
-					DwarfUtil::panic();
+					current->column = DwarfUtil::uleb128(p, & len);
+					p += len;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current->column;
 					break;
 				case DW_LNS_negate_stmt:
 					current->is_stmt = ! current->is_stmt;
