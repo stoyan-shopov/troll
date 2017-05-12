@@ -242,6 +242,7 @@ bool Blackmagic::syncFlash(const Memory &memory_contents)
 	int i;
 	QString s;
 	uint32_t total;
+	memory_contents.dump();
 	if (memory_contents.isMemoryMatching(this))
 		return true;
 	auto ranges = flashAreasForRange(memory_contents.ranges[0].address, memory_contents.ranges[0].data.size());

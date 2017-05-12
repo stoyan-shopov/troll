@@ -473,10 +473,19 @@ void MainWindow::backtrace()
 		QTextCursor c(ui->plainTextEdit->textCursor());
 		c.setPosition(cursor_position_for_line);
 		QTextBlockFormat f;
+		QTextCharFormat cf, original_format;
 		f.setBackground(QBrush(Qt::cyan));
+		cf.setForeground(QBrush(Qt::black));
+		c.select(QTextCursor::LineUnderCursor);
 		c.setBlockFormat(f);
+		c.setCharFormat(cf);
+		c.clearSelection();
+		ui->plainTextEdit->setTextCursor(c);
+		c.setCharFormat(original_format);
 		ui->plainTextEdit->setTextCursor(c);
 		ui->plainTextEdit->centerCursor();
+
+		colorizeSourceCodeView();
 	}
 	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
 		profiling.max_backtrace_generation_time = t.elapsed();

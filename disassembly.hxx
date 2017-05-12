@@ -125,7 +125,12 @@ public:
 		QByteArray data;
 		if (line_for_address)
 			* line_for_address = -1;
-		data = target->readBytes(address, 4);
+		data = target->readBytes(address, 4, true);
+		if (!data.size())
+		{
+			dis.push_back(QPair<uint32_t, QString> (address, QString("<<< cannot read memory at address $%1 >>>").arg(address, 8, 16, QChar('0'))));
+			return dis;
+		}
 		if (!(x = disassembleBytes(data.left(2), address)).isEmpty())
 			h = address + 2, dis.push_back(QPair<uint32_t, QString> (address, x));
 		else if (!(x = disassembleBytes(data, address)).isEmpty())
@@ -139,7 +144,12 @@ public:
 		for (i = 0; i < DISASSEMBLY_AROUND_ADDRESS_CONTEXT_LINE_COUNT; i ++)
 		{
 			l -= 4;
-			data = target->readBytes(l, 4);
+			data = target->readBytes(l, 4, true);
+			if (!data.size())
+			{
+				dis.push_back(QPair<uint32_t, QString> (address, QString("<<< cannot read memory at address $%1 >>>").arg(l, 8, 16, QChar('0'))));
+				return dis;
+			}
 			if (!(x = disassembleBytes(data.right(2), l + 2)).isEmpty())
 				l += 2, t.first = l, t.second = x, dis.push_front(t);
 			else if (!(x = disassembleBytes(data, l)).isEmpty())
@@ -148,7 +158,12 @@ public:
 				l += 2,t.first = l + 2, t.second = QString("<<< cannot disassemble bytes at address $%1 >>>").arg(l, 8, 16, QChar('0')),  dis.push_front(t);
 
 			t.first = h;
-			data = target->readBytes(h, 4);
+			data = target->readBytes(h, 4, true);
+			if (!data.size())
+			{
+				dis.push_back(QPair<uint32_t, QString> (address, QString("<<< cannot read memory at address $%1 >>>").arg(h, 8, 16, QChar('0'))));
+				return dis;
+			}
 			if (!(x = disassembleBytes(data, h)).isEmpty())
 				h += 4, t.second = x, dis.push_back(t);
 			else if (!(x = disassembleBytes(data.left(2), h)).isEmpty())

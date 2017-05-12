@@ -96,7 +96,7 @@ public:
 		}
 		return true;
 	}
-	void dump(void)
+	void dump(void) const
 	{
 		int i;
 		for (i = 0; i < ranges.size(); i ++)
