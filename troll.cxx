@@ -1489,17 +1489,16 @@ void MainWindow::on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index
 
 void MainWindow::on_actionResume_triggered()
 {
-auto breakpointed_addresses = breakpointedAddresses();
+auto breakpointed_addresses = breakpoints.enabledMachineAddressBreakpoints.constBegin();
 
-	auto x = breakpointed_addresses.begin();
-	while (x != breakpointed_addresses.end())
+	while (breakpointed_addresses != breakpoints.enabledMachineAddressBreakpoints.constEnd())
 	{
-		if (!target->breakpointSet(* x, 2))
+		if (!target->breakpointSet(* breakpointed_addresses, 2))
 		{
 			QMessageBox::critical(0, "failed to set breakpoint", "failed to set breakpoint!\ntoo many breakpoints requested?");
 			Util::panic();
 		}
-		x ++;
+		breakpointed_addresses ++;
 	}
 	execution_state = FREE_RUNNING;
 	target->resume();
@@ -1561,7 +1560,7 @@ int row(ui->tableWidgetFunctions->currentRow());
 
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
-auto breakpointed_addresses = breakpointedAddresses();
+auto breakpointed_addresses = breakpoints.enabledMachineAddressBreakpoints.constBegin();
 int i;
 
 	for (i = 0; i < run_to_cursor_breakpoint_indices.size(); breakpoints.removeMachineAddressBreakpointAtIndex(run_to_cursor_breakpoint_indices.front()), run_to_cursor_breakpoint_indices.pop_front(), i ++);
@@ -1585,11 +1584,10 @@ int i;
 			break;
 	}
 	execution_state = HALTED;
-	auto x = breakpointed_addresses.begin();
-	while (x != breakpointed_addresses.end())
+	while (breakpointed_addresses != breakpoints.enabledMachineAddressBreakpoints.constEnd())
 	{
-		target->breakpointClear(* x, 2);
-		x ++;
+		target->breakpointClear(* breakpointed_addresses, 2);
+		breakpointed_addresses ++;
 	}
 	polishing_timer.stop();
 	switchActionOff(ui->actionBlackstrikeConnect);
