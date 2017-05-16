@@ -560,10 +560,10 @@ int i, j;
 		if (elf.segments[i]->get_type() == PT_LOAD || elf.segments[i]->get_type() == PT_ARM_EXIDX)
 		{
 			/* this is very confusing, I could not think of anything better */
-			uint32_t l = elf.segments[i]->get_physical_address(), h = l + elf.segments[i]->get_file_size(), address;
+			uint64_t l = elf.segments[i]->get_virtual_address(), h = l + elf.segments[i]->get_file_size(), pa = elf.segments[i]->get_physical_address(), address;
 			for (j = 0; j < elf.sections.size(); j ++)
 				if (l <= (address = elf.sections[j]->get_address()) && address < h)
-					target_memory_contents.addRange(address, QByteArray(elf.sections[j]->get_data(), elf.sections[j]->get_size()));
+					target_memory_contents.addRange(pa + address - l, QByteArray(elf.sections[j]->get_data(), elf.sections[j]->get_size()));
 		}
 	target_memory_contents.dump();
 }
