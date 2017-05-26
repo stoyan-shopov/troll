@@ -263,6 +263,11 @@ background-color: rgb(0, 0, 0);</string>
          <string>frame base</string>
         </property>
        </column>
+       <column>
+        <property name="text">
+         <string>call site resolved?</string>
+        </property>
+       </column>
       </widget>
      </item>
     </layout>

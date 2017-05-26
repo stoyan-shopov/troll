@@ -383,6 +383,7 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 void MainWindow::backtrace()
 {
 	QTime t;
+	struct Die call_site;
 	t.start();
 	cortexm0->primeUnwinder();
 	register_cache.clear();
@@ -401,11 +402,13 @@ void MainWindow::backtrace()
 		auto subprogram = dwdata->topLevelSubprogramOfContext(context);
 		auto unwind_data = dwundwind->sforthCodeForAddress(cortexm0->programCounter());
 		auto x = dwdata->sourceCodeCoordinatesForAddress(cortexm0->programCounter());
+		row = ui->tableWidgetBacktrace->rowCount();
+		if (row) ui->tableWidgetBacktrace->setItem(row - 1, 8, new QTableWidgetItem(dwdata->callSiteAtAddress(cortexm0->programCounter(), call_site) ? "yes" : "no"));
 		if (DEBUG_BACKTRACE) qDebug() << x.file_name << (signed) x.line;
 		if (DEBUG_BACKTRACE) qDebug() << "dwarf unwind program:" << QString::fromStdString(unwind_data.first) << "address:" << unwind_data.second;
 
 		if (DEBUG_BACKTRACE) qDebug() << cortexm0->programCounter() << QString(dwdata->nameOfDie(subprogram));
-		ui->tableWidgetBacktrace->insertRow(row = ui->tableWidgetBacktrace->rowCount());
+		ui->tableWidgetBacktrace->insertRow(row);
 		ui->tableWidgetBacktrace->setItem(row, 0, new QTableWidgetItem(QString("$%1").arg(cortexm0->programCounter(), 8, 16, QChar('0'))));
 		ui->tableWidgetBacktrace->setVerticalHeaderItem(row, new QTableWidgetItem(QString("%1").arg(register_cache.frameCount())));
 		ui->tableWidgetBacktrace->verticalHeaderItem(row)->setData(Qt::UserRole, register_cache.frameCount() - 1);

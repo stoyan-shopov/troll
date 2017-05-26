@@ -1587,6 +1587,40 @@ there:
 				i ++;
 		return context;
 	}
+	bool callSiteAtAddress(uint32_t address, struct Die & call_site)
+	{
+		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address);
+		if (cu_die_offset == -1)
+			return false;
+		cu_die_offset += /* discard the compilation unit header */ 11;
+		auto compilation_unit_die = debug_tree_of_die(cu_die_offset, 0, 1);
+		int i(0);
+		std::vector<struct Die> * die_list(& compilation_unit_die);
+		while (i < die_list->size())
+			if (isAddressInRange(die_list->at(i), address, compilation_unit_die.at(0)))
+			{
+				uint32_t die_offset(die_list->at(i).offset);
+				die_list->at(i).children = debug_tree_of_die(die_offset, /* read only immediate die children */ 0, 2).at(0).children;
+				die_list = & die_list->at(i).children;
+				i = 0;
+			}
+			else
+			{
+				if (die_list->at(i).tag == DW_TAG_GNU_call_site)
+				{
+					Abbreviation a(debug_abbrev + die_list->at(i).abbrev_offset);
+					auto x = a.dataForAttribute(DW_AT_low_pc, debug_info + die_list->at(i).offset);
+					if (x.first && DwarfUtil::fetchHighLowPC(x.first, x.second) == address)
+					{
+						call_site = die_list->at(i);
+						return true;
+					}
+				}
+				i ++;
+			}
+
+		return false;
+	}
 	std::vector<struct Die> inliningChainOfContext(const std::vector<struct Die> & context)
 	{
 		std::vector<struct Die> inlining_chain;
