@@ -80,6 +80,12 @@ vector frame-base-rule
 : DW_OP_and ( x y -- z)
 	and ;
 	
+: DW_OP_shl ( x y -- z)
+	lshift ;
+	
+: DW_OP_ne ( x y -- z)
+	<> ( normalize result)if 1 else 0 then ;
+	
 : DW_OP_lt ( x y -- t:if x < y|f:otherwise)
 	< ;
 	
