@@ -630,8 +630,8 @@ struct DwarfExpression
 					bytes_to_skip = sizeof(uint8_t);
 					break;
 				case DW_OP_const1s:
-					x << "CONST1S-UNSUPPORTED!!! ";
-					bytes_to_skip = sizeof(uint8_t);
+					x << (int32_t) * ((int8_t *) dwarf_expression) << " ";
+					bytes_to_skip = sizeof(int8_t);
 					break;
 				case DW_OP_const2s:
 					x << "CONST2S-UNSUPPORTED!!! ";

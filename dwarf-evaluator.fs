@@ -77,6 +77,9 @@ vector frame-base-rule
 : DW_OP_drop ( x -- )
 	drop ;
 	
+: DW_OP_and ( x y -- z)
+	and ;
+	
 : DW_OP_lt ( x y -- t:if x < y|f:otherwise)
 	< ;
 	
