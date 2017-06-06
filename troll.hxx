@@ -139,6 +139,7 @@ private:
 	void updateBreakpointsView(void);
 	QVector<int> run_to_cursor_breakpoint_indices;
 	void colorizeSourceCodeView(void);
+	void populateSourceFilesView(bool show_only_files_with_generated_machine_code);
 
 	enum
 	{
@@ -227,6 +228,8 @@ private slots:
 	void on_treeWidgetBreakpoints_itemDoubleClicked(QTreeWidgetItem *item, int column);
 	
 	void on_treeWidgetBreakpoints_itemChanged(QTreeWidgetItem *item, int column);
+	
+	void on_checkBoxShowOnlyFilesWithMachineCode_stateChanged(int is_checked);
 	
 protected:
 	void closeEvent(QCloseEvent * e);

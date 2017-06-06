@@ -247,6 +247,37 @@ QTextCharFormat cf;
 #endif
 }
 
+static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const struct DebugLine::sourceFileNames & b)
+{ auto x = strcmp(a.file, b.file); if (x) return x < 0; return strcmp(a.directory, b.directory) < 0; }
+
+void MainWindow::populateSourceFilesView(bool show_only_files_with_generated_machine_code)
+{
+	ui->tableWidgetFiles->setRowCount(0);
+	std::vector<DebugLine::sourceFileNames> sources;
+	dwdata->getFileAndDirectoryNamesPointers(sources);
+	std::sort(sources.begin(), sources.end(), sortSourcefiles);
+	int row, i;
+	for (row = i = 0; i < sources.size(); i ++)
+	{
+		if (i && !strcmp(sources.at(i).file, sources.at(i - 1).file) && !strcmp(sources.at(i).directory, sources.at(i - 1).directory))
+			continue;
+		if (show_only_files_with_generated_machine_code)
+		{
+			std::vector<struct DebugLine::lineAddress> line_addresses;
+			dwdata->addressesForFile(sources.at(i).file, line_addresses);
+			if (!line_addresses.size())
+				continue;
+		}
+		ui->tableWidgetFiles->insertRow(row);
+		ui->tableWidgetFiles->setItem(row, 0, new QTableWidgetItem(sources.at(i).file));
+		ui->tableWidgetFiles->setItem(row, 1, new QTableWidgetItem(sources.at(i).directory));
+		ui->tableWidgetFiles->setItem(row, 2, new QTableWidgetItem(sources.at(i).compilation_directory));
+		row ++;
+	}
+	ui->tableWidgetFiles->sortItems(0);
+	
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
         source_filename.replace(QChar('\\'), QChar('/'));
@@ -649,9 +680,6 @@ QMap<QString, QVariant> user_data;
 	ui->treeWidgetBreakpoints->blockSignals(false);
 }
 
-static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const struct DebugLine::sourceFileNames & b)
-{ auto x = strcmp(a.file, b.file); if (x) return x < 0; return strcmp(a.directory, b.directory) < 0; }
-
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow)
@@ -946,23 +974,9 @@ there:
 	qDebug() << "debugger startup time:" << profiling.debugger_startup_time << "milliseconds";
 
 	connect(& blackstrike_port, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(blackstrikeError(QSerialPort::SerialPortError)));
-
-	std::vector<DebugLine::sourceFileNames> sources;
-	dwdata->getFileAndDirectoryNamesPointers(sources);
-	std::sort(sources.begin(), sources.end(), sortSourcefiles);
-	int row;
-	for (row = i = 0; i < sources.size(); i ++)
-	{
-		if (i && !strcmp(sources.at(i).file, sources.at(i - 1).file) && !strcmp(sources.at(i).directory, sources.at(i - 1).directory))
-			continue;
-		ui->tableWidgetFiles->insertRow(row);
-		ui->tableWidgetFiles->setItem(row, 0, new QTableWidgetItem(sources.at(i).file));
-		ui->tableWidgetFiles->setItem(row, 1, new QTableWidgetItem(sources.at(i).directory));
-		ui->tableWidgetFiles->setItem(row, 2, new QTableWidgetItem(sources.at(i).compilation_directory));
-		row ++;
-	}
-	ui->tableWidgetFiles->sortItems(0);
 	
+	populateSourceFilesView(false);
+
 	ui->plainTextEdit->installEventFilter(this);
 	targetDisconnected();
 	highlighter = new Highlighter(ui->plainTextEdit->document());
@@ -1847,4 +1861,9 @@ int i;
 		if (breakpoints.machineAddressBreakpoints[i].enabled != (item->checkState(0) == Qt::Checked))
 			breakpoints.setMachineBreakpointAtIndexEnabled(i, item->checkState(0) == Qt::Checked), colorizeSourceCodeView();
 	}
+}
+
+void MainWindow::on_checkBoxShowOnlyFilesWithMachineCode_stateChanged(int is_checked)
+{
+	populateSourceFilesView(is_checked);
 }

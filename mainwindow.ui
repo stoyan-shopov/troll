@@ -629,6 +629,13 @@ background-color: rgb(0, 0, 0);</string>
       <number>0</number>
      </property>
      <item>
+      <widget class="QCheckBox" name="checkBoxShowOnlyFilesWithMachineCode">
+       <property name="text">
+        <string>show only files with machine code</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QTableWidget" name="tableWidgetFiles">
        <property name="alternatingRowColors">
         <bool>true</bool>
