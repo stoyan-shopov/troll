@@ -252,6 +252,7 @@ static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const s
 
 void MainWindow::populateSourceFilesView(bool show_only_files_with_generated_machine_code)
 {
+	ui->tableWidgetFiles->blockSignals(true);
 	ui->tableWidgetFiles->setRowCount(0);
 	std::vector<DebugLine::sourceFileNames> sources;
 	dwdata->getFileAndDirectoryNamesPointers(sources);
@@ -275,7 +276,7 @@ void MainWindow::populateSourceFilesView(bool show_only_files_with_generated_mac
 		row ++;
 	}
 	ui->tableWidgetFiles->sortItems(0);
-	
+	ui->tableWidgetFiles->blockSignals(false);
 }
 
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
