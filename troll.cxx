@@ -487,8 +487,11 @@ void MainWindow::backtrace()
 	ui->tableWidgetBacktrace->resizeColumnsToContents();
 	ui->tableWidgetBacktrace->resizeRowsToContents();
 	
-	if (ui->tableWidgetBacktrace->rowCount())
+	if (row = ui->tableWidgetBacktrace->rowCount())
+	{
 		ui->tableWidgetBacktrace->selectRow(0);
+		ui->tableWidgetBacktrace->setItem(row - 1, 8, new QTableWidgetItem("n/a"));
+	}
 	else
 	{
 		register_cache.setActiveFrame(0), updateRegisterView();
