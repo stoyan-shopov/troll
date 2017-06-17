@@ -544,7 +544,10 @@ struct DwarfExpression
 					break;
 				case DW_OP_GNU_entry_value:
 					i = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
-					x << "DW_OP_GNU_entry_value " << sforthCode(dwarf_expression + bytes_to_skip, i) << " DW_OP_GNU_entry_value-end ";
+					x << "( disassembled entry value expression: DW_OP_GNU_entry_value-start " << sforthCode(dwarf_expression + bytes_to_skip, i) << " DW_OP_GNU_entry_value-end ) ";
+					for (int j = 0; j < i; j ++)
+						x << (unsigned) dwarf_expression[bytes_to_skip + j] << " ";
+					x << i << " entry-value-expression-block ";
 					bytes_to_skip += i;
 					break;
 				case DW_OP_call_frame_cfa:
