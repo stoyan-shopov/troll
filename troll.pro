@@ -64,7 +64,7 @@ HEADERS  += \
 FORMS    += mainwindow.ui \
     notification.ui
 
-INCLUDEPATH += libtroll/ sforth/ external-sources/elfio/ external-sources/capstone/include
+INCLUDEPATH += libtroll/ sforth/ external-sources/ELFIO/ external-sources/capstone/include
 
 DEFINES += CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 TEST_DRIVE_MODE=0 CAPSTONE_USE_SYS_DYN_MEM CAPSTONE_HAS_ARM
 
