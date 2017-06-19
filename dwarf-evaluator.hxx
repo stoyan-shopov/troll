@@ -24,11 +24,14 @@ THE SOFTWARE.
 
 #include "sforth.hxx"
 #include "util.hxx"
+#include "libtroll.hxx"
+#include "registercache.hxx"
 
 class DwarfEvaluator
 {
 private:
 	Sforth	* sforth;
+	int saved_active_register_frame_number;
 public:
 	/*! \warning	these constants must match the dwarf expression type constants in file 'dwarf-evaluator.fs' */
 	enum DwarfExpressionType
@@ -43,8 +46,11 @@ public:
 		uint32_t			value;
 		enum DwarfExpressionType	type;
 	};
-	DwarfEvaluator(class Sforth * sforth);
-	struct DwarfExpressionValue evaluateLocation(uint32_t cfa_value, const QString & frameBaseSforthCode, const QString & locationSforthCode);
+	DwarfEvaluator(class Sforth * sforth,
+	               class DwarfData * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ libtroll_class,
+	               class RegisterCache * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ register_cache_class
+	               );
+	struct DwarfExpressionValue evaluateLocation(uint32_t cfa_value, const QString & frameBaseSforthCode, const QString & locationSforthCode, bool reset_expression_evaluator = true);
 };
 
 #endif // DWARFEXPRESSION_HXX

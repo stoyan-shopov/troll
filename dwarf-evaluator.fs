@@ -49,6 +49,45 @@ vector frame-base-rule
 
 
 0 value cfa-value
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ \\\\\ DWARF entry value evaluation support
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\ dwarf expression evaluation stack - used for evaluating expressions containing 'DW_OP_entry_value' opcodes
+\ the convention of this stack is 'empty - ascending'
+\ the layout of a frame in this stack is as follows:
+\	cell 0 - 'frame-base-rule'
+\	cell 1 - 'frame-base-value'
+\	cell 2 - 'cfa-value'
+\	cell 3 - 'expression-value-type'
+16 constant expression-stack-depth
+4 cells constant expression-stack-frame-size
+0 value expression-stack-sp
+create expression-stack expression-stack-depth expression-stack-frame-size * allot
+: expression-stack-reset ( --) 0 to expression-stack-sp ;
+: >expression-stack ( --)
+	expression-stack-sp expression-stack-depth = abort" dwarf expression stack overflow"
+	expression-stack-sp expression-stack-frame-size * expression-stack +
+	[ ' frame-base-rule >body ] literal @ over 0 cells + !
+	frame-base-value over 1 cells + !
+	cfa-value over 2 cells + !
+	expression-value-type swap 3 cells + !
+	expression-stack-sp 1+ to expression-stack-sp
+	;
+: expression-stack> ( --)
+	expression-stack-sp 0= abort" dwarf expression stack underflow"
+	expression-stack-sp 1- dup to expression-stack-sp
+	expression-stack-frame-size * expression-stack +
+	dup 0 cells + @ [ ' frame-base-rule >body ] literal !
+	dup 1 cells + @ to frame-base-value
+	dup 2 cells + @ to cfa-value
+	3 cells + to expression-value-type
+	;
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 : DW_OP_call_frame_cfa ( -- cfa-value)
 	cfa-value ;
 : DW_OP_fbreg ( offset -- address)
@@ -93,6 +132,10 @@ vector frame-base-rule
 	depth 1 <> abort" bad stack"
 	expression-is-a-constant to expression-value-type
 	;
+
+: DW_OP_addr ( x -- x)
+        expression-is-a-memory-address to expression-value-type
+        ;
 	
 : init-dwarf-evaluator ( --)
 	['] frame-base-undefined ['] frame-base-rule >body !

@@ -40,7 +40,8 @@ SOURCES +=\
     external-sources/capstone/arch/ARM/ARMInstPrinter.c \
     external-sources/capstone/arch/ARM/ARMMapping.c \
     external-sources/capstone/arch/ARM/ARMModule.c \
-    breakpoint-cache.cxx
+    breakpoint-cache.cxx \
+    dwarf-evaluator-sfext.c
 
 HEADERS  += \
     libtroll/dwarf.h \

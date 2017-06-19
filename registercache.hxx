@@ -38,6 +38,7 @@ public:
 	int frameCount(void) { return register_frames.size(); }
 	int registerCount(void) { return register_frames[active_frame].size(); }
 	void setActiveFrame(int frame_number) { if (frame_number >= register_frames.size()) Util::panic(); active_frame = frame_number; }
+	int activeFrame(void) { return active_frame; }
 	uint32_t readCachedRegister(unsigned register_number, int frame_offset = 0)
 	{
 		if (active_frame + frame_offset >= register_frames.size())

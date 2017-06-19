@@ -918,7 +918,7 @@ there:
 	 *		bizarre and mystique misbehavior */
 	cortexm0 = new CortexM0(sforth, target, & register_cache);
 	cortexm0->primeUnwinder();
-	dwarf_evaluator = new DwarfEvaluator(sforth);
+	dwarf_evaluator = new DwarfEvaluator(sforth, dwdata, & register_cache);
 	for (int row(0); row < CortexM0::registerCount(); row ++)
 	{
 		ui->tableWidgetRegisters->insertRow(row);

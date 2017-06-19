@@ -19,6 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+#ifndef __LIBTROLL_HXX__
+#define __LIBTROLL_HXX__
 
 #include <dwarf.h>
 #include <stdint.h>
@@ -709,6 +711,8 @@ struct DwarfExpression
 				x << "[then] ", branch_counter = 0x10000;
 		}
 		return x.str();
+	}
+	static int registerNumberOfRegXOpcode(unsigned opcode) { return (DW_OP_reg0 <= opcode && opcode <= DW_OP_reg31) ? opcode - DW_OP_reg0 : -1;
 	}
 };
 
@@ -1493,7 +1497,6 @@ private:
 		}
 		return false;
 	}
-public:
 	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
 	 * 		is because of the dwarf die flattenned tree representation */
 	std::vector<struct Die> debug_tree_of_die(uint32_t & die_offset, int depth = 0, int max_depth = -1)
@@ -1550,6 +1553,7 @@ there:
 
 		return dies;
 	}
+public:
 	struct Die read_die(uint32_t die_offset) { return debug_tree_of_die(die_offset, 0, 1).at(0); }
 	uint32_t next_compilation_unit(uint32_t compilation_unit_offset)
 	{
@@ -1590,7 +1594,7 @@ there:
 				i ++;
 		return context;
 	}
-	bool callSiteAtAddress(uint32_t address, struct Die & call_site)
+	bool callSiteAtAddress(uint32_t address, struct Die & call_site, std::vector<struct Die> * execution_context = 0)
 	{
 		auto x = executionContextForAddress(address);
 		if (!x.size())
@@ -1601,10 +1605,12 @@ there:
 			if ((* d).tag == DW_TAG_GNU_call_site)
 			{
 				Abbreviation a(debug_abbrev + d->abbrev_offset);
-				auto x = a.dataForAttribute(DW_AT_low_pc, debug_info + d->offset);
-				if (x.first && DwarfUtil::fetchHighLowPC(x.first, x.second) == address)
+				auto l = a.dataForAttribute(DW_AT_low_pc, debug_info + d->offset);
+				if (l.first && DwarfUtil::fetchHighLowPC(l.first, l.second) == address)
 				{
 					call_site = * d;
+					if (execution_context)
+						* execution_context = x;
 					return true;
 				}
 			}
@@ -2367,6 +2373,44 @@ public:
 
 		DwarfUtil::panic();
 	}
+	std::pair<int /* dwarf expression block length */, const uint8_t * /* dwarf expression bytes */> callSiteValueDwarfExpressionForRegisterNumber(const struct Die & call_site, int register_number)
+	{
+		std::pair<int, const uint8_t *> x(0, 0);
+		auto i = call_site.children.begin();
+		while (i != call_site.children.end())
+		{
+			if (i->tag != DW_TAG_GNU_call_site_parameter)
+			{
+				i ++;
+				continue;
+			}
+			Abbreviation a(debug_abbrev + i->abbrev_offset);
+			auto l = a.dataForAttribute(DW_AT_location, debug_info + i->offset);
+			switch (l.first)
+			{
+				default: DwarfUtil::panic();
+				case DW_FORM_block:
+				case DW_FORM_exprloc:
+					if (DwarfUtil::uleb128x(l.second) == 1 && * l.second == DW_OP_reg0 + register_number)
+					{
+						auto l = a.dataForAttribute(DW_AT_GNU_call_site_value, debug_info + i->offset);
+						if (!l.first)
+							continue;
+						switch (l.first)
+						{
+							default: DwarfUtil::panic();
+							case DW_FORM_block:
+							case DW_FORM_exprloc:
+								x.first = DwarfUtil::uleb128x(l.second), x.second = l.second;
+								return x;
+						}
+					}
+					break;
+			}
+			i ++;
+		}
+		return x;
+	}
 	void runTests(void)
 	{
 		int i, test_count = 0;
@@ -2617,3 +2661,5 @@ public:
 		return std::pair<std::string, uint32_t>(sfcode.str(), fde.initial_location());
 	}
 };
+
+#endif /* __LIBTROLL_HXX__ */
