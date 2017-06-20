@@ -1551,6 +1551,10 @@ void MainWindow::on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index
 void MainWindow::on_actionResume_triggered()
 {
 auto b = breakpoints.enabledMachineAddressBreakpoints + run_to_cursor_breakpoints.enabledMachineAddressBreakpoints;
+	execution_state = FREE_RUNNING;
+	auto x = b.find(address_of_step_over_breakpoint = target->readRawUncachedRegister(15));
+	if (x != b.end())
+		b.erase(x), execution_state = STEPPING_OVER_BREAKPOINT_AND_THEN_RESUMING;
 auto breakpointed_addresses = b.constBegin();
 
 	while (breakpointed_addresses != b.constEnd())
@@ -1562,8 +1566,10 @@ auto breakpointed_addresses = b.constBegin();
 		}
 		breakpointed_addresses ++;
 	}
-	execution_state = FREE_RUNNING;
-	target->resume();
+	if (execution_state == STEPPING_OVER_BREAKPOINT_AND_THEN_RESUMING)
+		target->requestSingleStep();
+	else
+		target->resume();
 }
 
 void MainWindow::on_actionHalt_triggered()
@@ -1622,11 +1628,6 @@ int row(ui->tableWidgetFunctions->currentRow());
 
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
-	auto b = run_to_cursor_breakpoints.enabledMachineAddressBreakpoints.constBegin();
-	while (b != run_to_cursor_breakpoints.enabledMachineAddressBreakpoints.constEnd())
-		target->breakpointClear(* b, 2), b ++;
-	run_to_cursor_breakpoints.removeAll();
-
 	switch (execution_state)
 	{
 		case SOURCE_LEVEL_SINGLE_STEPPING:
@@ -1642,9 +1643,21 @@ void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 			}
 		}
 		break;
+		case STEPPING_OVER_BREAKPOINT_AND_THEN_RESUMING:
+			if (!target->breakpointSet(address_of_step_over_breakpoint, 2))
+				Util::panic();
+			execution_state = FREE_RUNNING;
+			target->resume();
+			return;
+			break;
 		case FREE_RUNNING:
 			break;
 	}
+	auto b = run_to_cursor_breakpoints.enabledMachineAddressBreakpoints.constBegin();
+	while (b != run_to_cursor_breakpoints.enabledMachineAddressBreakpoints.constEnd())
+		target->breakpointClear(* b, 2), b ++;
+	run_to_cursor_breakpoints.removeAll();
+
 	execution_state = HALTED;
 
 	auto breakpointed_addresses = breakpoints.enabledMachineAddressBreakpoints.constBegin();

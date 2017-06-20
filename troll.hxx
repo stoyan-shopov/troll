@@ -146,10 +146,12 @@ private:
 	{
 		INVALID_EXECUTION_STATE = 0,
 		FREE_RUNNING,
+		STEPPING_OVER_BREAKPOINT_AND_THEN_RESUMING,
 		HALTED,
 		SOURCE_LEVEL_SINGLE_STEPPING,
 	}
 	execution_state;
+	uint32_t address_of_step_over_breakpoint;
 
 	void switchActionOn(QAction * action) { action->setEnabled(true); action->setVisible(true); }
 	void switchActionOff(QAction * action) { action->setEnabled(false); action->setVisible(false); }
