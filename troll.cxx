@@ -1228,7 +1228,7 @@ static unsigned accumulator;
 								struct BreakpointCache::MachineAddressBreakpoint b;
 								b.address = x.at(i);
 								b.enabled = true;
-								run_to_cursor_breakpoint_indices.push_back(breakpoints.addMachineAddressBreakpoint(b));
+								run_to_cursor_breakpoints.addMachineAddressBreakpoint(b);
 							}
 							on_actionResume_triggered();
 							break;
@@ -1261,7 +1261,10 @@ static unsigned accumulator;
 					{
 						if (is_running_to_cursor)
 						{
-							run_to_cursor_breakpoint_indices.push_back(breakpoints.addMachineAddressBreakpoint((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, }));
+							struct BreakpointCache::MachineAddressBreakpoint b;
+							b.address = address;
+							b.enabled = true;
+							run_to_cursor_breakpoints.addMachineAddressBreakpoint(b);
 							on_actionResume_triggered();
 							break;
 						}
@@ -1523,9 +1526,10 @@ void MainWindow::on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index
 
 void MainWindow::on_actionResume_triggered()
 {
-auto breakpointed_addresses = breakpoints.enabledMachineAddressBreakpoints.constBegin();
+auto b = breakpoints.enabledMachineAddressBreakpoints + run_to_cursor_breakpoints.enabledMachineAddressBreakpoints;
+auto breakpointed_addresses = b.constBegin();
 
-	while (breakpointed_addresses != breakpoints.enabledMachineAddressBreakpoints.constEnd())
+	while (breakpointed_addresses != b.constEnd())
 	{
 		if (!target->breakpointSet(* breakpointed_addresses, 2))
 		{
@@ -1594,9 +1598,10 @@ int row(ui->tableWidgetFunctions->currentRow());
 
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
-int i;
-
-	for (i = 0; i < run_to_cursor_breakpoint_indices.size(); breakpoints.removeMachineAddressBreakpointAtIndex(run_to_cursor_breakpoint_indices.front()), run_to_cursor_breakpoint_indices.pop_front(), i ++);
+	auto b = run_to_cursor_breakpoints.enabledMachineAddressBreakpoints.constBegin();
+	while (b != run_to_cursor_breakpoints.enabledMachineAddressBreakpoints.constEnd())
+		target->breakpointClear(* b, 2), b ++;
+	run_to_cursor_breakpoints.removeAll();
 
 	switch (execution_state)
 	{

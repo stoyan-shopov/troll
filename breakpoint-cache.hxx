@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QDir>
 
+/*! \todo	this class gradually went quite braindamaged... maybe rework it */
 class BreakpointCache
 {
 private:
@@ -84,6 +85,8 @@ public:
 	void setMachineBreakpointAtIndexEnabled(int breakpoint_index, bool is_enabled) { machineAddressBreakpoints[breakpoint_index].enabled = is_enabled; updateBreakpointSets(); }
 	void toggleSourceBreakpointAtIndex(int breakpoint_index) { sourceCodeBreakpoints[breakpoint_index].enabled = ! sourceCodeBreakpoints[breakpoint_index].enabled; updateBreakpointSets(); }
 	void setSourceBreakpointAtIndexEnabled(int breakpoint_index, bool is_enabled) { sourceCodeBreakpoints[breakpoint_index].enabled = is_enabled; updateBreakpointSets(); }
+	
+	void removeAll(void) { sourceCodeBreakpoints.clear(); machineAddressBreakpoints.clear(); updateBreakpointSets(); }
 };
 
 uint qHash(const BreakpointCache::SourceCodeBreakpoint & key);

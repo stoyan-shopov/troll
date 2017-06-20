@@ -107,6 +107,7 @@ class MainWindow : public QMainWindow
 	DwarfEvaluator	* dwarf_evaluator;
 	Memory		target_memory_contents;
 	BreakpointCache	breakpoints;
+	BreakpointCache	run_to_cursor_breakpoints;
 	
 	struct SourceCodeDisplayData
 	{
@@ -138,7 +139,6 @@ private:
 	std::string typeStringForDieOffset(uint32_t die_offset);
 	void dumpData(uint32_t address, const QByteArray & data);
 	void updateBreakpointsView(void);
-	QVector<int> run_to_cursor_breakpoint_indices;
 	void colorizeSourceCodeView(void);
 	void populateSourceFilesView(bool show_only_files_with_generated_machine_code);
 
