@@ -1237,7 +1237,8 @@ static unsigned accumulator;
 					QTime t;
 					t.start();
 					struct BreakpointCache::SourceCodeBreakpoint b = { .source_filename = last_source_filename, .directory_name = last_directory_name, .compilation_directory = last_compilation_directory, .enabled = true, .line_number = i, };
-					if ((j = breakpoints.sourceBreakpointIndex(b)) == -1)
+					if ((j = breakpoints.sourceBreakpointIndex(b)) == -1
+							|| is_running_to_cursor)
 					{
 						auto x = dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
 						qDebug() << "filtered addresses:" << x.size();
@@ -1279,7 +1280,8 @@ static unsigned accumulator;
 					if (rx.indexIn(l) == -1)
 						/* objdump disassembly dump format */
 						rx.setPattern("^\\s*(\\w+):");
-					if (rx.indexIn(l) != -1 && (address = rx.cap(1).toUInt(& ok, 16), ok))
+					if ((rx.indexIn(l) != -1 && (address = rx.cap(1).toUInt(& ok, 16), ok))
+							|| is_running_to_cursor)
 					{
 						if (is_running_to_cursor)
 						{
