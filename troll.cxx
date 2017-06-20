@@ -1193,6 +1193,28 @@ static unsigned accumulator;
 			accumulator *= 10, accumulator += keyEvent->key() - Qt::Key_0;
 		switch (keyEvent->key())
 		{
+			case Qt::Key_Asterisk:
+			{
+				auto c = ui->plainTextEdit->textCursor();
+				int x = c.position();
+
+				c.select(QTextCursor::WordUnderCursor);
+				auto w = c.selectedText();
+				if (!w.isEmpty())
+				{
+					c = ui->plainTextEdit->document()->find(w, c, QTextDocument::FindWholeWords);
+					if (!c.isNull())
+						c.setPosition(c.anchor()), c.clearSelection(), ui->plainTextEdit->setTextCursor(c);
+					else
+					{
+						c.movePosition(QTextCursor::Start);
+						c = ui->plainTextEdit->document()->find(w, c);
+						if (!c.isNull() && c.anchor() != x)
+							c.setPosition(c.anchor()), c.clearSelection(), ui->plainTextEdit->setTextCursor(c);
+					}
+				}
+			}
+				break;
 			case Qt::Key_F4:
 				is_running_to_cursor = true;
 				if (0)
