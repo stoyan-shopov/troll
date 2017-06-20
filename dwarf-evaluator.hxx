@@ -22,13 +22,16 @@ THE SOFTWARE.
 #ifndef DWARFEXPRESSION_HXX
 #define DWARFEXPRESSION_HXX
 
+#include <QObject>
+
 #include "sforth.hxx"
 #include "util.hxx"
 #include "libtroll.hxx"
 #include "registercache.hxx"
 
-class DwarfEvaluator
+class DwarfEvaluator : public QObject
 {
+	Q_OBJECT
 private:
 	Sforth	* sforth;
 	int saved_active_register_frame_number;
@@ -51,6 +54,9 @@ public:
 	               class RegisterCache * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ register_cache_class
 	               );
 	struct DwarfExpressionValue evaluateLocation(uint32_t cfa_value, const QString & frameBaseSforthCode, const QString & locationSforthCode, bool reset_expression_evaluator = true);
+	void entryValueReady(struct DwarfExpressionValue entry_value) { emit entryValueComputed(entry_value); }
+signals:
+	void entryValueComputed(struct DwarfEvaluator::DwarfExpressionValue entry_value);
 };
 
 #endif // DWARFEXPRESSION_HXX

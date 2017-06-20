@@ -68,19 +68,7 @@ extern "C"
 		sf_eval("expression-stack>");
 		register_cache->setActiveFrame(register_cache->activeFrame() - 1);
 		sf_push(result.value);
-#if 0
-		print_str(__func__);
-		print_str("(): entry value data resolved");
-		do_cr();
-		print_str("frame base: ");
-		print_str(libtroll->sforthCodeFrameBaseForContext(context).c_str());
-		do_cr();
-		print_str("dwarf expression: ");
-		print_str(DwarfExpression::sforthCode(l.second, l.first).c_str());
-		do_cr();
-		do_abort();
-		Util::panic();
-#endif
+		dwarf_evaluator->entryValueReady(result);
 	}
 }
 

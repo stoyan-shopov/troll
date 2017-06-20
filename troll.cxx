@@ -919,6 +919,7 @@ there:
 	cortexm0 = new CortexM0(sforth, target, & register_cache);
 	cortexm0->primeUnwinder();
 	dwarf_evaluator = new DwarfEvaluator(sforth, dwdata, & register_cache);
+	connect(dwarf_evaluator, SIGNAL(entryValueComputed(DwarfEvaluator::DwarfExpressionValue)), this, SLOT(dwarfEntryValueComputed(DwarfEvaluator::DwarfExpressionValue)));
 	for (int row(0); row < CortexM0::registerCount(); row ++)
 	{
 		ui->tableWidgetRegisters->insertRow(row);
@@ -994,6 +995,11 @@ MainWindow::~MainWindow()
 	delete ui;
 }
 
+void MainWindow::dwarfEntryValueComputed(DwarfEvaluator::DwarfExpressionValue entry_value)
+{
+	currently_evaluated_local_data_object->setText(QString("%1 ").arg(entry_value.value));
+}
+
 void MainWindow::on_lineEditSforthCommand_returnPressed()
 {
 	sforth->evaluate(ui->lineEditSforthCommand->text() + '\n');
@@ -1051,6 +1057,7 @@ uint32_t pc = -1;
 		dwdata->readType(locals.at(i).offset, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
 		locationSforthCode = QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc));
+		ui->tableWidgetLocalVariables->setItem(row, 3, currently_evaluated_local_data_object = new QTableWidgetItem("n/a"));
 		auto x = dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
 		if (x.type == DwarfEvaluator::INVALID)
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem("cannot evaluate"));
@@ -1090,11 +1097,11 @@ uint32_t pc = -1;
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
 		}
-		ui->tableWidgetLocalVariables->setItem(row, 3, new QTableWidgetItem(locationSforthCode));
-		if (ui->tableWidgetLocalVariables->item(row, 3)->text().isEmpty())
+		ui->tableWidgetLocalVariables->setItem(row, 4, new QTableWidgetItem(locationSforthCode));
+		if (ui->tableWidgetLocalVariables->item(row, 4)->text().isEmpty())
 			/* the data object may have been evaluated as a compile-time constant - try that */
-			ui->tableWidgetLocalVariables->item(row, 3)->setText(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc, DW_AT_const_value)));
-		ui->tableWidgetLocalVariables->setItem(row, 4, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
+			ui->tableWidgetLocalVariables->item(row, 4)->setText(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc, DW_AT_const_value)));
+		ui->tableWidgetLocalVariables->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
 	}
 	ui->tableWidgetLocalVariables->resizeColumnsToContents();
 	ui->tableWidgetLocalVariables->resizeRowsToContents();
@@ -1441,8 +1448,8 @@ bool hack_mode(ui->actionHack_mode->isChecked());
 	
 	ui->tableWidgetLocalVariables->setColumnHidden(1, !hack_mode);
 	ui->tableWidgetLocalVariables->setColumnHidden(2, !hack_mode);
-	ui->tableWidgetLocalVariables->setColumnHidden(3, !hack_mode);
 	ui->tableWidgetLocalVariables->setColumnHidden(4, !hack_mode);
+	ui->tableWidgetLocalVariables->setColumnHidden(5, !hack_mode);
 	
 	ui->tableWidgetFunctions->setColumnHidden(1, !hack_mode);
 	ui->tableWidgetFunctions->setColumnHidden(2, !hack_mode);
@@ -1564,7 +1571,7 @@ void MainWindow::on_tableWidgetLocalVariables_itemSelectionChanged()
 int row(ui->tableWidgetLocalVariables->currentRow());
 	if (row < 0)
 		return;
-	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetLocalVariables->item(row, 4)->text().remove(0, 1).toUInt(0, 16));
+	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetLocalVariables->item(row, 5)->text().remove(0, 1).toUInt(0, 16));
 	if (source_coordinates.line != -1)
 		displaySourceCodeFile(source_coordinates.file_name, source_coordinates.directory_name, source_coordinates.compilation_directory_name, source_coordinates.line);
 }

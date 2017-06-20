@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 #include <QMainWindow>
 #include <QTreeWidget>
+#include <QTableWidget>
 #include "libtroll.hxx"
 #include "sforth.hxx"
 #include "target-corefile.hxx"
@@ -152,12 +153,13 @@ private:
 
 	void switchActionOn(QAction * action) { action->setEnabled(true); action->setVisible(true); }
 	void switchActionOff(QAction * action) { action->setEnabled(false); action->setVisible(false); }
-
+	QTableWidgetItem	* currently_evaluated_local_data_object;
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
 	
 private slots:
+	void dwarfEntryValueComputed(struct DwarfEvaluator::DwarfExpressionValue entry_value);
 	void on_lineEditSforthCommand_returnPressed();
 	void on_tableWidgetBacktrace_itemSelectionChanged();
 	void blackstrikeError(QSerialPort::SerialPortError error);

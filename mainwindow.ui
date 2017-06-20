@@ -98,7 +98,7 @@ background-color: rgb(0, 0, 0);</string>
    <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
-  <widget class="QDockWidget" name="dockWidget">
+  <widget class="QDockWidget" name="dockWidgetDataObjects">
    <property name="windowTitle">
     <string>data objects</string>
    </property>
@@ -503,6 +503,11 @@ background-color: rgb(0, 0, 0);</string>
        <column>
         <property name="text">
          <string>location</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>entry value</string>
         </property>
        </column>
        <column>
