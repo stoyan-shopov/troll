@@ -1223,7 +1223,13 @@ static unsigned accumulator;
 							break;
 						if (is_running_to_cursor)
 						{
-							for (i = 0; i < x.size(); run_to_cursor_breakpoint_indices.push_back(breakpoints.addMachineAddressBreakpoint((struct BreakpointCache::MachineAddressBreakpoint){ .address = x.at(i++), })));
+							for (i = 0; i < x.size(); i ++)
+							{
+								struct BreakpointCache::MachineAddressBreakpoint b;
+								b.address = x.at(i);
+								b.enabled = true;
+								run_to_cursor_breakpoint_indices.push_back(breakpoints.addMachineAddressBreakpoint(b));
+							}
 							on_actionResume_triggered();
 							break;
 						}
@@ -1588,7 +1594,6 @@ int row(ui->tableWidgetFunctions->currentRow());
 
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
-auto breakpointed_addresses = breakpoints.enabledMachineAddressBreakpoints.constBegin();
 int i;
 
 	for (i = 0; i < run_to_cursor_breakpoint_indices.size(); breakpoints.removeMachineAddressBreakpointAtIndex(run_to_cursor_breakpoint_indices.front()), run_to_cursor_breakpoint_indices.pop_front(), i ++);
@@ -1612,6 +1617,8 @@ int i;
 			break;
 	}
 	execution_state = HALTED;
+
+	auto breakpointed_addresses = breakpoints.enabledMachineAddressBreakpoints.constBegin();
 	while (breakpointed_addresses != breakpoints.enabledMachineAddressBreakpoints.constEnd())
 	{
 		target->breakpointClear(* breakpointed_addresses, 2);
