@@ -144,6 +144,8 @@ private:
 	void colorizeSourceCodeView(void);
 	void populateSourceFilesView(bool show_only_files_with_generated_machine_code);
 	void showDisassembly(void);
+	void attachBlackmagicProbe(Target * blackmagic);
+	void detachBlackmagicProbe(void);
 
 	enum
 	{

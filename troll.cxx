@@ -313,6 +313,28 @@ void MainWindow::showDisassembly()
 	colorizeSourceCodeView();
 }
 
+void MainWindow::attachBlackmagicProbe(Target *blackmagic)
+{
+	delete target;
+	cortexm0->setTargetController(target = blackmagic);
+	connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
+	connect(target, SIGNAL(targetRunning()), this, SLOT(targetRunning()));
+	targetConnected();
+	execution_state = HALTED;
+	
+}
+
+void MainWindow::detachBlackmagicProbe()
+{
+	polishing_timer.stop();
+	blackstrike_port.close();
+	delete target;
+	target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
+	cortexm0->setTargetController(target);
+	targetDisconnected();
+	execution_state = INVALID_EXECUTION_STATE;
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
         source_filename.replace(QChar('\\'), QChar('/'));
@@ -1119,6 +1141,10 @@ void MainWindow::blackstrikeError(QSerialPort::SerialPortError error)
 	case QSerialPort::PermissionError:
 		QMessageBox::critical(0, "error connecting to the blackstrike probe", "error connecting to the blackstrike probe\npermission denied(port already open?)");
 		break;
+	case QSerialPort::ResourceError:
+		QMessageBox::critical(0, "blackmagic probe connection error", "blackmagic probe connection error - probe disconnected?");
+		detachBlackmagicProbe();
+		break;
 	}
 }
 
@@ -1387,20 +1413,16 @@ class Target * t;
 						continue;
 					}
 				}
-				cortexm0->setTargetController(target = t);
-				connect(target, SIGNAL(targetHalted(TARGET_HALT_REASON)), this, SLOT(targetHalted(TARGET_HALT_REASON)));
-				connect(target, SIGNAL(targetRunning()), this, SLOT(targetRunning()));
-				targetConnected();
-				auto s = target->memoryMap();
-				target->parseMemoryAreas(s);
-				if (!target->syncFlash(target_memory_contents))
+				auto s = t->memoryMap();
+				t->parseMemoryAreas(s);
+				if (!t->syncFlash(target_memory_contents))
 				{
 					QMessageBox::critical(0, "memory contents mismatch", "target memory contents mismatch");
 					Util::panic();
 				}
 				else
 					QMessageBox::information(0, "memory contents match", "target memory contents match");
-				execution_state = HALTED;
+				attachBlackmagicProbe(t);
 				return;
 			}
 		}
