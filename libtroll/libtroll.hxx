@@ -1609,6 +1609,9 @@ public:
 				if (l.first && DwarfUtil::fetchHighLowPC(l.first, l.second) == address)
 				{
 					call_site = * d;
+					/* make sure that the call site's children have been read */
+					if (call_site.children.empty())
+						call_site.children = debug_tree_of_die(call_site.offset, /* read only immediate die children */ 0, 2)[0].children;
 					if (execution_context)
 						* execution_context = x;
 					return true;
