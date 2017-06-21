@@ -807,6 +807,8 @@ there:
 		exit(2);
 	}
 	profiling.debug_sections_disk_read_time = t.elapsed();
+	connect(& elf_file_modification_watcher, SIGNAL(fileChanged(QString)), this, SLOT(elfFileModified(QString)));
+	elf_file_modification_watcher.addPath(elf_filename);
 	
 	if (!readElfSections())
 		exit(1);
@@ -993,6 +995,11 @@ there:
 MainWindow::~MainWindow()
 {
 	delete ui;
+}
+
+void MainWindow::elfFileModified(QString name)
+{
+	QMessageBox::warning(0, "Loaded ELF file changed", "The loaded ELF file has been changed!");
 }
 
 void MainWindow::dwarfEntryValueComputed(DwarfEvaluator::DwarfExpressionValue entry_value)

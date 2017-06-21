@@ -25,6 +25,7 @@ THE SOFTWARE.
 #include <QMainWindow>
 #include <QTreeWidget>
 #include <QTableWidget>
+#include <QFileSystemWatcher>
 #include "libtroll.hxx"
 #include "sforth.hxx"
 #include "target-corefile.hxx"
@@ -122,6 +123,7 @@ public:
 		uint32_t	pointer_type_die_offset;
 	};
 private:
+	QFileSystemWatcher	elf_file_modification_watcher;
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	QString last_source_filename, last_directory_name, last_compilation_directory;
 	QString current_source_code_file_displayed;
@@ -161,6 +163,7 @@ public:
 	~MainWindow();
 	
 private slots:
+	void elfFileModified(QString name);
 	void dwarfEntryValueComputed(struct DwarfEvaluator::DwarfExpressionValue entry_value);
 	void on_lineEditSforthCommand_returnPressed();
 	void on_tableWidgetBacktrace_itemSelectionChanged();
