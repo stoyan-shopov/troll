@@ -147,7 +147,7 @@ public:
 			data = target->readBytes(l, 4, true);
 			if (!data.size())
 			{
-				dis.push_back(QPair<uint32_t, QString> (address, QString("<<< cannot read memory at address $%1 >>>").arg(l, 8, 16, QChar('0'))));
+				dis.push_front(QPair<uint32_t, QString> (l, QString("<<< cannot read memory at address $%1 >>>").arg(l, 8, 16, QChar('0'))));
 				return dis;
 			}
 			if (!(x = disassembleBytes(data.right(2), l + 2)).isEmpty())
@@ -161,7 +161,7 @@ public:
 			data = target->readBytes(h, 4, true);
 			if (!data.size())
 			{
-				dis.push_back(QPair<uint32_t, QString> (address, QString("<<< cannot read memory at address $%1 >>>").arg(h, 8, 16, QChar('0'))));
+				dis.push_back(QPair<uint32_t, QString> (h, QString("<<< cannot read memory at address $%1 >>>").arg(h, 8, 16, QChar('0'))));
 				return dis;
 			}
 			if (!(x = disassembleBytes(data, h)).isEmpty())
