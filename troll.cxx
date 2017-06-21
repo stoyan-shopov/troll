@@ -279,6 +279,40 @@ void MainWindow::populateSourceFilesView(bool show_only_files_with_generated_mac
 	ui->tableWidgetFiles->blockSignals(false);
 }
 
+void MainWindow::showDisassembly()
+{
+	int line_in_disassembly, cursor_position_for_line = -1, i;
+	ui->plainTextEdit->clear();
+	QString t;
+	auto x = disassembly->disassemblyAroundAddress(register_cache.readCachedRegister(15), target, & line_in_disassembly);
+	src.address_positions_in_document.clear();
+	src.line_positions_in_document.clear();
+	for (i = 0; i < x.size(); i ++)
+	{
+		src.address_positions_in_document.insert(x.at(i).first, t.length());
+		if (i == line_in_disassembly)
+			cursor_position_for_line = t.length();
+		t += QString(x.at(i).second).replace('\r', "") + "\n";
+	}
+	ui->plainTextEdit->setPlainText(t);
+	QTextCursor c(ui->plainTextEdit->textCursor());
+	c.setPosition(cursor_position_for_line);
+	QTextBlockFormat f;
+	QTextCharFormat cf, original_format;
+	f.setBackground(QBrush(Qt::cyan));
+	cf.setForeground(QBrush(Qt::black));
+	c.select(QTextCursor::LineUnderCursor);
+	c.setBlockFormat(f);
+	c.setCharFormat(cf);
+	c.clearSelection();
+	ui->plainTextEdit->setTextCursor(c);
+	c.setCharFormat(original_format);
+	ui->plainTextEdit->setTextCursor(c);
+	ui->plainTextEdit->centerCursor();
+
+	colorizeSourceCodeView();
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
         source_filename.replace(QChar('\\'), QChar('/'));
@@ -362,31 +396,17 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 		}
 	}
 	else
-		t = QString("cannot open source code file ") + source_file.fileName();
+	{
+		statusBar()->showMessage(QString("cannot open source code file ") + source_file.fileName());
+		showDisassembly();
+		return;
+	}
 	
 	ui->plainTextEdit->appendPlainText(t);
 
-#if 0
-	c.movePosition(QTextCursor::Start);
-	dis.setBackground(QBrush(Qt::lightGray));
-	i = 0;
-	while (!c.atEnd())
-	{
-		i ++;
-		if (lines[i])
-			c.setBlockFormat(dis);
-		if (!c.movePosition(QTextCursor::NextBlock))
-			break;
-	}
-#endif
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	c.movePosition(QTextCursor::Start);
-#if 0
-	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, ui->tableWidgetBacktrace->item(row, 3)->text().toInt() - 1);
-	qDebug() << "line" << l << "computed position" << cursor_position_for_line << "real position" << c.position() << "delta" << cursor_position_for_line - c.position();
-#else
 	c.setPosition(cursor_position_for_line);
-#endif
 	f.setBackground(QBrush(Qt::cyan));
 	cf.setForeground(QBrush(Qt::blue));
 	c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
@@ -493,38 +513,7 @@ void MainWindow::backtrace()
 		ui->tableWidgetBacktrace->setItem(row - 1, 8, new QTableWidgetItem("n/a"));
 	}
 	else
-	{
-		register_cache.setActiveFrame(0), updateRegisterView();
-		int line_in_disassembly, cursor_position_for_line = -1, i;
-		QString t;
-		auto x = disassembly->disassemblyAroundAddress(target->readRawUncachedRegister(15), target, & line_in_disassembly);
-		src.address_positions_in_document.clear();
-		src.line_positions_in_document.clear();
-		for (i = 0; i < x.size(); i ++)
-		{
-			src.address_positions_in_document.insert(x.at(i).first, t.length());
-			if (i == line_in_disassembly)
-				cursor_position_for_line = t.length();
-			t += QString(x.at(i).second).replace('\r', "") + "\n";
-		}
-		ui->plainTextEdit->setPlainText(t);
-		QTextCursor c(ui->plainTextEdit->textCursor());
-		c.setPosition(cursor_position_for_line);
-		QTextBlockFormat f;
-		QTextCharFormat cf, original_format;
-		f.setBackground(QBrush(Qt::cyan));
-		cf.setForeground(QBrush(Qt::black));
-		c.select(QTextCursor::LineUnderCursor);
-		c.setBlockFormat(f);
-		c.setCharFormat(cf);
-		c.clearSelection();
-		ui->plainTextEdit->setTextCursor(c);
-		c.setCharFormat(original_format);
-		ui->plainTextEdit->setTextCursor(c);
-		ui->plainTextEdit->centerCursor();
-
-		colorizeSourceCodeView();
-	}
+		register_cache.setActiveFrame(0), updateRegisterView(), showDisassembly();
 	if (/* this is not exact, which it needs not be */ t.elapsed() > profiling.max_backtrace_generation_time)
 		profiling.max_backtrace_generation_time = t.elapsed();
 }

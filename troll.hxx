@@ -143,6 +143,7 @@ private:
 	void updateBreakpointsView(void);
 	void colorizeSourceCodeView(void);
 	void populateSourceFilesView(bool show_only_files_with_generated_machine_code);
+	void showDisassembly(void);
 
 	enum
 	{
