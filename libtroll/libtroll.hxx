@@ -1948,7 +1948,7 @@ if (is_prefix_printed)
 							if (subrange.first == 0)
 								type_string += "[]";
 							else
-								type_string += "[" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
+								type_string += "[!" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
 						}
 					else
 						type_string += "[]";

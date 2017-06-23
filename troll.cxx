@@ -134,6 +134,29 @@ int i;
 	}
 }
 
+int MainWindow::buildArrayViewNode(QTreeWidgetItem *parent, const DwarfData::DataNode &array_node, int dimension_index, const QByteArray &data, int data_pos, int numeric_base, const QString numeric_prefix)
+{
+int i;
+	if (dimension_index == array_node.array_dimensions.size() - 1)
+	{
+		/* last dimension - process array elements */
+		QTreeWidgetItem * n;
+		for (i = 0; i < (signed) array_node.array_dimensions.at(dimension_index); i ++)
+		{
+			parent->addChild(n = itemForNode(array_node.children.at(0), data, data_pos + i * array_node.children.at(0).bytesize, numeric_base, numeric_prefix));
+			n->setText(0, QString("[%1] ").arg(i) + n->text(0));
+		}
+		return i * array_node.children.at(0).bytesize;
+	}
+	else
+	{
+		int size;
+		for (i = 0; i < array_node.array_dimensions.at(dimension_index); i ++)
+			data_pos += (size = buildArrayViewNode(new QTreeWidgetItem(parent, QStringList() << QString("[%1]").arg(i)), array_node, dimension_index + 1, data, data_pos, numeric_base, numeric_prefix));
+		return size * i;
+	}
+}
+
 QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const QByteArray & data, int data_pos, int numeric_base, const QString & numeric_prefix)
 {
 auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << "???" << QString("%1").arg(node.data_member_location));
@@ -169,7 +192,7 @@ break;
 			*/
 	}
 	if (node.array_dimensions.size())
-		for (i = 0; i < (signed) node.array_dimensions.at(0); n->addChild(itemForNode(node.children.at(0), data, data_pos + i * node.children.at(0).bytesize, numeric_base, numeric_prefix)), i ++);
+		buildArrayViewNode(n, node, 0, data, data_pos, numeric_base, numeric_prefix);
 	else
 		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i), data, data_pos + node.children.at(i).data_member_location, numeric_base, numeric_prefix)), i ++);
 	return n;

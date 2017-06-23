@@ -124,6 +124,7 @@ public:
 	};
 private:
 	QFileSystemWatcher	elf_file_modification_watcher;
+	int /* array bytesize */ buildArrayViewNode(QTreeWidgetItem * parent, const struct DwarfData::DataNode & array_node, int dimension_index, const QByteArray & data, int data_pos, int numeric_base, const QString numeric_prefix );
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & data = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	QString last_source_filename, last_directory_name, last_compilation_directory;
 	QString current_source_code_file_displayed;
