@@ -281,11 +281,13 @@ struct DwarfTypeNode
 {
 	struct Die	die;
 	int		next;
-	/* flag to facilitate recursion when processing this data structure for various purposes */
+	/* flags to facilitate recursion when processing this data structure for various purposes */
 	bool		processed;
+	bool		pointer_processed;
+
 	std::vector<uint32_t>	children;
 	std::vector<uint32_t>	array_dimensions;
-        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; processed = false; }
+        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; pointer_processed = processed = false; }
 };
 
 struct Abbreviation
@@ -1760,12 +1762,8 @@ private:
 		return true;
 	}
 std::map<uint32_t, uint32_t> recursion_detector;
-public:
-int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
-bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
-bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
-bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
-	std::string typeChainString(const std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, bool short_type_print, int node_number)
+
+	std::string typeChainString(std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, bool short_type_print, int node_number)
 	{
 		std::string type_string;
 		if (node_number == -1)
@@ -1774,6 +1772,9 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 				type_string += "void ";
 			return type_string;
 		}
+		if (type.at(node_number).pointer_processed)
+			/* recursion detected - avoid infinite recursion */
+			return "<<< possible infinite recursion avoided >>> ";
 		const struct Die & die(type.at(node_number).die);
 
 		switch (die.tag)
@@ -1788,17 +1789,15 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 				if (is_prefix_printed) type_string += "??? class ???";
 if (is_prefix_printed)
 			{
-				int j;
 				type_string += " " + std::string(nameOfDie(die, true)) + " ";
-#if 0
 				if (!short_type_print)
 				{
+					auto i = type.at(node_number).children.begin();
 					type_string += "{\n";
-					for (j = type.at(node_number).childlist; j != -1; j = type.at(j).sibling)
-						type_string += typeString(type, short_type_print, j);
-					type_string += "\n};";
+					while (i != type.at(node_number).children.end())
+						type_string += typeString(type, short_type_print, * i) + ((die.tag == DW_TAG_enumeration_type) ? "," : ";") + "\n", i ++;
+					type_string += "}";
 				}
-#endif
 			}
 			break;
 			case DW_TAG_formal_parameter:
@@ -1817,8 +1816,6 @@ if (is_prefix_printed)
 				type_string += typeChainString(type, true, short_type_print, type.at(node_number).next);
 				type_string += nameOfDie(die, true);
 				type_string += typeChainString(type, false, short_type_print, type.at(node_number).next);
-				if (!short_type_print)
-					type_string += ";\n";
 			}
 			else
 			{
@@ -1851,6 +1848,7 @@ if (is_prefix_printed)
 			case DW_TAG_rvalue_reference_type:
 			case DW_TAG_ptr_to_member_type:
 			case DW_TAG_pointer_type:
+				type.at(node_number).pointer_processed = true;
 				if (is_prefix_printed)
 				{
 					type_string = typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
@@ -1864,6 +1862,7 @@ if (is_prefix_printed)
 						type_string += ")";
 					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				}
+				type.at(node_number).pointer_processed = false;
 				break;
 			case DW_TAG_base_type:
 			if (is_prefix_printed)
@@ -1961,7 +1960,7 @@ if (is_prefix_printed)
 				if (!is_prefix_printed)
 				{
 				int i;
-					type_string += nameOfDie(type.at(node_number).die, true);
+					type_string += nameOfDie(die, true);
 					type_string += "(";
 					if (!type.at(node_number).children.size())
 						type_string += "void";
@@ -1979,6 +1978,18 @@ if (is_prefix_printed)
 				}
 				type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
 				break;
+			case DW_TAG_enumerator:
+				if (is_prefix_printed)
+				{
+					type_string += nameOfDie(die, true);
+					type_string += " = ";
+					Abbreviation a(debug_abbrev + die.abbrev_offset);
+					auto x = a.dataForAttribute(DW_AT_const_value, debug_info + die.offset);
+					if (x.first)
+						type_string += QString(" %1").arg(DwarfUtil::formConstant(x)).toStdString();
+				}
+				
+				break;
 			default:
 				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag << "in" << __func__;
 				qDebug() << "die offset" << type.at(node_number).die.offset;
@@ -1986,7 +1997,12 @@ if (is_prefix_printed)
 		}
 		return type_string;
 	}
-	std::string typeString(const std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0);
+public:
+int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
+bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
+bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
+bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
+	std::string typeString(std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0);
 
 	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
 	{
