@@ -657,7 +657,7 @@ std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
 {
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(die_offset, type_cache);
-	return dwdata->typeString(type_cache, true, 1);
+	return dwdata->typeString(type_cache, 1);
 }
 
 void MainWindow::dumpData(uint32_t address, const QByteArray &data)
@@ -1021,9 +1021,11 @@ there:
 	ui->plainTextEdit->installEventFilter(this);
 	targetDisconnected();
 	highlighter = new Highlighter(ui->plainTextEdit->document());
+	verbose_data_type_highlighter = new Highlighter(ui->plainTextEditVerboseDataType->document());
 	
         connect(& polishing_timer, SIGNAL(timeout()), this, SLOT(polishSourceCodeViewOnTargetExecution()));
         ui->plainTextEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+        ui->plainTextEditVerboseDataType->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
 }
 
 MainWindow::~MainWindow()
@@ -1123,7 +1125,7 @@ uint32_t pc = -1;
 			}
 
 			struct DwarfData::DataNode node;
-			dwdata->dataForType(type_cache, node, true, 1);
+			dwdata->dataForType(type_cache, node, 1);
 			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
@@ -1481,11 +1483,16 @@ uint32_t address = ui->tableWidgetStaticDataObjects->item(row, 2)->text().replac
 QByteArray data;
 int numeric_base;
 QString numeric_prefix;
+
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(die_offset, type_cache);
+	struct DwarfData::TypePrintFlags flags;
+	flags.verbose_printing = true;
+	flags.discard_typedefs = true;
+	ui->plainTextEditVerboseDataType->setPlainText(QString::fromStdString(dwdata->typeString(type_cache, 1, flags)));
 	
 	struct DwarfData::DataNode node;
-	dwdata->dataForType(type_cache, node, true, 1);
+	dwdata->dataForType(type_cache, node, 1);
 	ui->treeWidgetDataObjects->clear();
 	switch (numeric_base = ui->comboBoxDataDisplayNumericBase->currentText().toUInt())
 	{
@@ -1788,7 +1795,7 @@ void MainWindow::on_treeWidgetDataObjects_itemActivated(QTreeWidgetItem *item, i
 		dwdata->readType(item->data(0, Qt::UserRole).value<struct TreeWidgetNodeData>().pointer_type_die_offset, type_cache);
 
 		struct DwarfData::DataNode node;
-		dwdata->dataForType(type_cache, node, true, 1);
+		dwdata->dataForType(type_cache, node, 1);
 		item->addChild(itemForNode(node, ok ? target->readBytes(address, node.bytesize, true) : QByteArray(), 0, 10, ""));
 		item->setExpanded(true);
 	}

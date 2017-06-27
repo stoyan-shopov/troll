@@ -100,6 +100,7 @@ class MainWindow : public QMainWindow
 	DwarfData * dwdata;
 	Disassembly 	* disassembly;
 	Highlighter	* highlighter;
+	Highlighter	* verbose_data_type_highlighter;
 	Sforth	* sforth;
 	Target	* target;
 	RegisterCache	register_cache;

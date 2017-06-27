@@ -1374,6 +1374,8 @@ public:
 		this->debug_line_len = debug_line_len;
 		this->debug_loc = (const uint8_t *) debug_loc;
 		this->debug_loc_len = debug_loc_len;
+		
+		verbose_type_printing_indentation_level = 0;
 
 		last_searched_compilation_unit.data = this->debug_info;
 		last_searched_arange = arange.data;
@@ -1724,6 +1726,14 @@ public:
 		return s;
 	}
 
+	struct TypePrintFlags
+	{
+		bool	verbose_printing		: 1;
+		bool	print_dereferenced_types	: 1;
+		bool	discard_typedefs		: 1;
+		TypePrintFlags(void)	{ verbose_printing = print_dereferenced_types = discard_typedefs = false; }
+	};
+
 private:
 	uint32_t readTypeOffset(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
 	{
@@ -1763,7 +1773,8 @@ private:
 	}
 std::map<uint32_t, uint32_t> recursion_detector;
 
-	std::string typeChainString(std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, bool short_type_print, int node_number)
+	int verbose_type_printing_indentation_level;
+	std::string typeChainString(std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, int node_number, struct TypePrintFlags flags)
 	{
 		std::string type_string;
 		if (node_number == -1)
@@ -1790,13 +1801,15 @@ std::map<uint32_t, uint32_t> recursion_detector;
 if (is_prefix_printed)
 			{
 				type_string += " " + std::string(nameOfDie(die, true)) + " ";
-				if (!short_type_print)
+				if (flags.verbose_printing)
 				{
 					auto i = type.at(node_number).children.begin();
 					type_string += "{\n";
+					verbose_type_printing_indentation_level ++;
 					while (i != type.at(node_number).children.end())
-						type_string += typeString(type, short_type_print, * i) + ((die.tag == DW_TAG_enumeration_type) ? "," : ";") + "\n", i ++;
-					type_string += "}";
+						type_string += std::string(verbose_type_printing_indentation_level, '\t') + typeString(type, * i, flags) + ((die.tag == DW_TAG_enumeration_type) ? "," : ";") + "\n", i ++;
+					verbose_type_printing_indentation_level --;
+					type_string += std::string(verbose_type_printing_indentation_level, '\t') + "}";
 				}
 			}
 			break;
@@ -1813,9 +1826,9 @@ if (is_prefix_printed)
 			case DW_TAG_member:
 			if (is_prefix_printed)
 			{
-				type_string += typeChainString(type, true, short_type_print, type.at(node_number).next);
+				type_string += typeChainString(type, true, type.at(node_number).next, flags);
 				type_string += nameOfDie(die, true);
-				type_string += typeChainString(type, false, short_type_print, type.at(node_number).next);
+				type_string += typeChainString(type, false, type.at(node_number).next, flags);
 			}
 			else
 			{
@@ -1828,20 +1841,23 @@ if (is_prefix_printed)
 			case DW_TAG_volatile_type:
 				if (is_prefix_printed)
 					type_string += "volatile ";
-				type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+				type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				break;
 			case DW_TAG_const_type:
 				if (is_prefix_printed)
 					type_string += "const ";
-				type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+				type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				break;
 			case DW_TAG_typedef:
 			if (is_prefix_printed)
 			{
-				if (!short_type_print) type_string += "typedef ";
-				type_string += std::string(nameOfDie(die)) + " ";
-				if (!short_type_print)
-					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+				if (!flags.discard_typedefs)
+				{
+					if (flags.verbose_printing) type_string += "typedef ";
+					type_string += std::string(nameOfDie(die)) + " ";
+				}
+				if (flags.verbose_printing)
+					type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 			}
 				break;
 			case DW_TAG_reference_type:
@@ -1851,7 +1867,7 @@ if (is_prefix_printed)
 				type.at(node_number).pointer_processed = true;
 				if (is_prefix_printed)
 				{
-					type_string = typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+					type_string = typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
 						type_string += "(";
 					type_string += ((die.tag == DW_TAG_pointer_type || die.tag == DW_TAG_ptr_to_member_type) ? "*" : "&");
@@ -1860,7 +1876,7 @@ if (is_prefix_printed)
 				{
 					if (isArrayType(type, type.at(node_number).next) || isSubroutineType(type, type.at(node_number).next))
 						type_string += ")";
-					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+					type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				}
 				type.at(node_number).pointer_processed = false;
 				break;
@@ -1936,7 +1952,7 @@ if (is_prefix_printed)
 			{
 				int i;
 				if (is_prefix_printed)
-					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+					type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				else
 				{
 					if (die.children.size())
@@ -1951,7 +1967,7 @@ if (is_prefix_printed)
 						}
 					else
 						type_string += "[]";
-					type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+					type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				}
 			}
 				break;
@@ -1970,13 +1986,13 @@ if (is_prefix_printed)
 						{
 							int j = type.at(node_number).children.at(i);
 							if (type.at(j).die.tag == DW_TAG_formal_parameter)
-								type_string += typeString(type, short_type_print, j) + ", ";
+								type_string += typeString(type, j, flags) + ", ";
 						}
 						type_string.pop_back(), type_string.pop_back();
 					}
 					type_string += ") ";
 				}
-				type_string += typeChainString(type, is_prefix_printed, short_type_print, type.at(node_number).next);
+				type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				break;
 			case DW_TAG_enumerator:
 				if (is_prefix_printed)
@@ -2002,7 +2018,8 @@ int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache
 bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
-	std::string typeString(std::vector<struct DwarfTypeNode> & type, bool short_type_print = true, int node_number = 0);
+
+	std::string typeString(std::vector<struct DwarfTypeNode> & type, int node_number = 0, struct TypePrintFlags flags = TypePrintFlags());
 
 	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
 	{
@@ -2053,7 +2070,7 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
-	void dataForType(std::vector<struct DwarfTypeNode> & type, struct DataNode & node, bool short_type_print = true, int type_node_number = 0)
+	void dataForType(std::vector<struct DwarfTypeNode> & type, struct DataNode & node, int type_node_number = 0, struct TypePrintFlags flags = TypePrintFlags())
 	{
 		struct Die die(type.at(type_node_number).die);
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
@@ -2071,7 +2088,7 @@ node.data.push_back("!!! recursion detected !!!");
 		}
 		type.at(type_node_number).processed = true;
 
-		node.data.push_back(typeString(type, short_type_print, type_node_number));
+		node.data.push_back(typeString(type, type_node_number, flags));
 
 		switch (die.tag)
 		{
@@ -2082,7 +2099,7 @@ node.data.push_back("!!! recursion detected !!!");
 				for (j = 0; j < type.at(type_node_number).children.size(); j ++)
 				{
 					DataNode n;
-					dataForType(type, n, short_type_print, type.at(type_node_number).children.at(j));
+					dataForType(type, n, type.at(type_node_number).children.at(j), flags);
 					node.children.push_back(n);
 				}
 				break;
@@ -2093,7 +2110,7 @@ node.data.push_back("!!! recursion detected !!!");
 				break;
 			case DW_TAG_member:
 			case DW_TAG_inheritance:
-				dataForType(type, node, short_type_print, type.at(type_node_number).next);
+				dataForType(type, node, type.at(type_node_number).next, flags);
 				{
 					auto x = a.dataForAttribute(DW_AT_data_member_location, debug_info + die.offset);
 					if (x.first) switch (x.first)
@@ -2123,7 +2140,7 @@ node.data.push_back("!!! recursion detected !!!");
 			case DW_TAG_volatile_type:
 			case DW_TAG_const_type:
 			case DW_TAG_typedef:
-				dataForType(type, node, short_type_print, type.at(type_node_number).next);
+				dataForType(type, node, type.at(type_node_number).next, flags);
 				break;
 			case DW_TAG_base_type:
 				break;
@@ -2134,7 +2151,7 @@ node.data.push_back("!!! recursion detected !!!");
 			case DW_TAG_array_type:
 				if (type.at(type_node_number).array_dimensions.size())
 					node.array_dimensions = type.at(type_node_number).array_dimensions;
-				node.children.push_back(DataNode()), dataForType(type, node.children.back(), short_type_print, type.at(type_node_number).next);
+				node.children.push_back(DataNode()), dataForType(type, node.children.back(), type.at(type_node_number).next, flags);
 				break;
 			case DW_TAG_template_type_parameter:
 			case DW_TAG_template_value_parameter:

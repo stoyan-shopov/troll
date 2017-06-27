@@ -141,11 +141,11 @@ bool DwarfData::isSubroutineType(const std::vector<DwarfTypeNode> &type, int nod
 	return false;
 }
 
-std::string DwarfData::typeString(std::vector<struct DwarfTypeNode> & type, bool short_type_print, int node_number)
+std::string DwarfData::typeString(std::vector<struct DwarfTypeNode> & type, int node_number, TypePrintFlags flags)
 {
 	std::string type_string;
-	type_string = typeChainString(type, true, short_type_print, node_number);
+	type_string = typeChainString(type, true, node_number, flags);
 	//type_string += nameOfDie(type.at(node_number).die);
-	type_string += typeChainString(type, false, short_type_print, node_number);
+	type_string += typeChainString(type, false, node_number, flags);
 	return type_string;
 }
