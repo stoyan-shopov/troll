@@ -148,6 +148,7 @@ private:
 	void showDisassembly(void);
 	void attachBlackmagicProbe(Target * blackmagic);
 	void detachBlackmagicProbe(void);
+	void displayVerboseDataTypeForDieOffset(uint32_t die_offset);
 
 	enum
 	{
@@ -242,6 +243,8 @@ private slots:
 	void on_treeWidgetBreakpoints_itemChanged(QTreeWidgetItem *item, int column);
 	
 	void on_checkBoxShowOnlyFilesWithMachineCode_stateChanged(int is_checked);
+	
+	void on_checkBoxDiscardTypedefSpecifiers_stateChanged(int arg1);
 	
 protected:
 	void closeEvent(QCloseEvent * e);

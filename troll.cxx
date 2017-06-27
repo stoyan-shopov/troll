@@ -358,6 +358,26 @@ void MainWindow::detachBlackmagicProbe()
 	execution_state = INVALID_EXECUTION_STATE;
 }
 
+void MainWindow::displayVerboseDataTypeForDieOffset(uint32_t die_offset)
+{
+	ui->lineEditDieOffsetForVerboseTypeDisplay->setText(QString("$%1").arg(die_offset, 0, 16));
+	std::vector<struct DwarfTypeNode> type_cache;
+	dwdata->readType(die_offset, type_cache);
+	struct DwarfData::TypePrintFlags flags;
+	flags.verbose_printing = true;
+	flags.discard_typedefs = ui->checkBoxDiscardTypedefSpecifiers->isChecked();
+	int start_node = 0;
+	ui->plainTextEditVerboseDataType->clear();
+	if (type_cache[0].die.isDataObject())
+	{
+		ui->plainTextEditVerboseDataType->appendPlainText(QString("data object: %1\n------------------------------\n").arg(dwdata->nameOfDie(type_cache[0].die)));
+		start_node = 1;
+	}
+	ui->plainTextEditVerboseDataType->appendPlainText(QString("%1\n------------------------------\nverbose data type:\n")
+		       .arg(QString::fromStdString(dwdata->typeString(type_cache, start_node))));
+	ui->plainTextEditVerboseDataType->appendPlainText(QString::fromStdString(dwdata->typeString(type_cache, start_node, flags)));
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
         source_filename.replace(QChar('\\'), QChar('/'));
@@ -1484,12 +1504,9 @@ QByteArray data;
 int numeric_base;
 QString numeric_prefix;
 
+	displayVerboseDataTypeForDieOffset(die_offset);
 	std::vector<struct DwarfTypeNode> type_cache;
 	dwdata->readType(die_offset, type_cache);
-	struct DwarfData::TypePrintFlags flags;
-	flags.verbose_printing = true;
-	flags.discard_typedefs = true;
-	ui->plainTextEditVerboseDataType->setPlainText(QString::fromStdString(dwdata->typeString(type_cache, 1, flags)));
 	
 	struct DwarfData::DataNode node;
 	dwdata->dataForType(type_cache, node, 1);
@@ -1974,4 +1991,11 @@ int i;
 void MainWindow::on_checkBoxShowOnlyFilesWithMachineCode_stateChanged(int is_checked)
 {
 	populateSourceFilesView(is_checked);
+}
+
+void MainWindow::on_checkBoxDiscardTypedefSpecifiers_stateChanged(int arg1)
+{
+int die_offset = ui->lineEditDieOffsetForVerboseTypeDisplay->text().replace("$", "").toInt(0, 16);
+	if (die_offset != -1)
+		displayVerboseDataTypeForDieOffset(die_offset);
 }
