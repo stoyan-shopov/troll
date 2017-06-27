@@ -1849,16 +1849,13 @@ if (is_prefix_printed)
 				type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				break;
 			case DW_TAG_typedef:
-			if (is_prefix_printed)
-			{
-				if (!flags.discard_typedefs)
+				if (is_prefix_printed && !flags.discard_typedefs)
 				{
 					if (flags.verbose_printing) type_string += "typedef ";
 					type_string += std::string(nameOfDie(die)) + " ";
 				}
 				if (flags.verbose_printing)
 					type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
-			}
 				break;
 			case DW_TAG_reference_type:
 			case DW_TAG_rvalue_reference_type:
