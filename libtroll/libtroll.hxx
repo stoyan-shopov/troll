@@ -1057,8 +1057,7 @@ public:
 						DwarfUtil::panic();
 					case DW_LNE_set_discriminator:
 						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
-						if (len != x + 1) DwarfUtil::panic();
-						p += x;
+						p += len;
 						break;
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
