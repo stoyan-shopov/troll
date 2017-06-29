@@ -283,11 +283,11 @@ struct DwarfTypeNode
 	int		next;
 	/* flags to facilitate recursion when processing this data structure for various purposes */
 	bool		processed;
-	bool		pointer_processed;
+	bool		type_print_recursion_flag;
 
 	std::vector<uint32_t>	children;
 	std::vector<uint32_t>	array_dimensions;
-        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; pointer_processed = processed = false; }
+        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; type_print_recursion_flag = processed = false; }
 };
 
 struct Abbreviation
@@ -1783,9 +1783,11 @@ std::map<uint32_t, uint32_t> recursion_detector;
 				type_string += "void ";
 			return type_string;
 		}
-		if (type.at(node_number).pointer_processed)
-			/* recursion detected - avoid infinite recursion */
-			return "<<< possible infinite recursion avoided >>> ";
+		if (type.at(node_number).type_print_recursion_flag)
+		{
+			/* recursion detected - avoid infinite recursion by forcing non-verbose type printing */
+			flags.verbose_printing = false;
+		}
 		const struct Die & die(type.at(node_number).die);
 
 		switch (die.tag)
@@ -1797,17 +1799,21 @@ std::map<uint32_t, uint32_t> recursion_detector;
 			case DW_TAG_structure_type:
 				if (is_prefix_printed) type_string += "struct"; if (0)
 			case DW_TAG_class_type:
-				if (is_prefix_printed) type_string += "??? class ???";
-if (is_prefix_printed)
+				if (is_prefix_printed) type_string += "class";
+			if (is_prefix_printed)
 			{
-				type_string += " " + std::string(nameOfDie(die, true)) + " ";
+				std::string name = nameOfDie(die, true);
+				if (!name.empty())
+					/* prevent type printing recursion only for non-anonymous constructs */
+					type.at(node_number).type_print_recursion_flag = true;
+				type_string += " " + name + " ";
 				if (flags.verbose_printing)
 				{
 					auto i = type.at(node_number).children.begin();
 					type_string += "{\n";
 					verbose_type_printing_indentation_level ++;
 					while (i != type.at(node_number).children.end())
-						type_string += std::string(verbose_type_printing_indentation_level, '\t') + typeString(type, * i, flags) + ((die.tag == DW_TAG_enumeration_type) ? "," : ";") + "\n", i ++;
+						type_string += std::string(verbose_type_printing_indentation_level, '\t') + typeString(type, * i, flags, false) + ((die.tag == DW_TAG_enumeration_type) ? "," : ";") + "\n", i ++;
 					verbose_type_printing_indentation_level --;
 					type_string += std::string(verbose_type_printing_indentation_level, '\t') + "}";
 				}
@@ -1849,7 +1855,7 @@ if (is_prefix_printed)
 				type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				break;
 			case DW_TAG_typedef:
-				if (is_prefix_printed && !flags.discard_typedefs)
+				if (is_prefix_printed && (!flags.discard_typedefs || !flags.verbose_printing))
 				{
 					if (flags.verbose_printing) type_string += "typedef ";
 					type_string += std::string(nameOfDie(die)) + " ";
@@ -1861,7 +1867,6 @@ if (is_prefix_printed)
 			case DW_TAG_rvalue_reference_type:
 			case DW_TAG_ptr_to_member_type:
 			case DW_TAG_pointer_type:
-				type.at(node_number).pointer_processed = true;
 				if (is_prefix_printed)
 				{
 					type_string = typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
@@ -1875,7 +1880,6 @@ if (is_prefix_printed)
 						type_string += ")";
 					type_string += typeChainString(type, is_prefix_printed, type.at(node_number).next, flags);
 				}
-				type.at(node_number).pointer_processed = false;
 				break;
 			case DW_TAG_base_type:
 			if (is_prefix_printed)
@@ -1970,6 +1974,8 @@ if (is_prefix_printed)
 				break;
 			case DW_TAG_subprogram:
 			case DW_TAG_subroutine_type:
+				/*! \todo	it is sometimes better to force non-verbose printing of subroutine types - maybe provide this as an option as well */
+				//flags.verbose_printing = false;
 				if (!is_prefix_printed)
 				{
 				int i;
@@ -1983,7 +1989,11 @@ if (is_prefix_printed)
 						{
 							int j = type.at(node_number).children.at(i);
 							if (type.at(j).die.tag == DW_TAG_formal_parameter)
-								type_string += typeString(type, j, flags) + ", ";
+								type_string += typeString(type, j, flags, false) + ", ";
+							else if (type.at(j).die.tag == DW_TAG_unspecified_parameters)
+								type_string += "...xx";
+							else
+								type_string += "<<< unknown subprogram type die child >>>";
 						}
 						type_string.pop_back(), type_string.pop_back();
 					}
@@ -2008,6 +2018,7 @@ if (is_prefix_printed)
 				qDebug() << "die offset" << type.at(node_number).die.offset;
 				DwarfUtil::panic();
 		}
+		if (die.tag != DW_TAG_structure_type && die.tag != DW_TAG_class_type)
 		return type_string;
 	}
 public:
@@ -2016,7 +2027,7 @@ bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_numb
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 
-	std::string typeString(std::vector<struct DwarfTypeNode> & type, int node_number = 0, struct TypePrintFlags flags = TypePrintFlags());
+	std::string typeString(std::vector<struct DwarfTypeNode> & type, int node_number = 0, struct TypePrintFlags flags = TypePrintFlags(), bool reset_type_recursion_detection_flags = true);
 
 	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
 	{
@@ -2085,7 +2096,7 @@ node.data.push_back("!!! recursion detected !!!");
 		}
 		type.at(type_node_number).processed = true;
 
-		node.data.push_back(typeString(type, type_node_number, flags));
+		node.data.push_back(typeString(type, type_node_number, flags, false));
 
 		switch (die.tag)
 		{

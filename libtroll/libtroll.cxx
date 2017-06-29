@@ -141,8 +141,10 @@ bool DwarfData::isSubroutineType(const std::vector<DwarfTypeNode> &type, int nod
 	return false;
 }
 
-std::string DwarfData::typeString(std::vector<struct DwarfTypeNode> & type, int node_number, TypePrintFlags flags)
+std::string DwarfData::typeString(std::vector<struct DwarfTypeNode> & type, int node_number, TypePrintFlags flags, bool reset_type_recursion_detection_flags)
 {
+	if (reset_type_recursion_detection_flags)
+		for (auto x = type.begin(); x != type.end(); x->type_print_recursion_flag = false, x ++);
 	std::string type_string;
 	type_string = typeChainString(type, true, node_number, flags);
 	//type_string += nameOfDie(type.at(node_number).die);
