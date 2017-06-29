@@ -160,10 +160,14 @@ private:
 	}
 	execution_state;
 	uint32_t address_of_step_over_breakpoint;
+	
+	bool isTargetAccessible(void) { return execution_state == INVALID_EXECUTION_STATE || execution_state == HALTED; }
 
 	void switchActionOn(QAction * action) { action->setEnabled(true); action->setVisible(true); }
 	void switchActionOff(QAction * action) { action->setEnabled(false); action->setVisible(false); }
 	QTableWidgetItem	* currently_evaluated_local_data_object;
+	QString	last_search_pattern;
+	void searchSourceView(const QString & search_pattern);
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
@@ -245,6 +249,8 @@ private slots:
 	void on_checkBoxShowOnlyFilesWithMachineCode_stateChanged(int is_checked);
 	
 	void on_checkBoxDiscardTypedefSpecifiers_stateChanged(int arg1);
+	
+	void on_lineEditSearchForText_returnPressed();
 	
 protected:
 	void closeEvent(QCloseEvent * e);

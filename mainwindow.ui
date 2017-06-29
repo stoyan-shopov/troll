@@ -14,7 +14,7 @@
    <string>troll debugger</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout_13">
     <property name="spacing">
      <number>0</number>
     </property>
@@ -53,11 +53,37 @@
        <enum>Qt::Vertical</enum>
       </property>
       <widget class="QPlainTextEdit" name="plainTextEditSforthConsole"/>
-      <widget class="QPlainTextEdit" name="plainTextEdit">
-       <property name="styleSheet">
-        <string notr="true">color: rgb(255, 255, 255);
+      <widget class="QWidget" name="layoutWidget">
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QPlainTextEdit" name="plainTextEdit">
+          <property name="styleSheet">
+           <string notr="true">color: rgb(255, 255, 255);
 background-color: rgb(0, 0, 0);</string>
-       </property>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>search for text:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEditSearchForText"/>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
@@ -80,6 +106,7 @@ background-color: rgb(0, 0, 0);</string>
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionTarget_status"/>
    <addaction name="actionBlackstrikeConnect"/>
    <addaction name="actionReset_target"/>
    <addaction name="actionHalt"/>
@@ -879,7 +906,7 @@ background-color: rgb(0, 0, 0);</string>
     <number>1</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_12">
-    <layout class="QVBoxLayout" name="verticalLayout_13">
+    <layout class="QVBoxLayout" name="verticalLayout_14">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -896,7 +923,7 @@ background-color: rgb(0, 0, 0);</string>
       <number>0</number>
      </property>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_7">
+      <layout class="QHBoxLayout" name="horizontalLayout_8">
        <property name="spacing">
         <number>0</number>
        </property>
@@ -1040,6 +1067,11 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionRun_dwarf_tests">
    <property name="text">
     <string>run dwarf tests</string>
+   </property>
+  </action>
+  <action name="actionTarget_status">
+   <property name="text">
+    <string>target status</string>
    </property>
   </action>
  </widget>

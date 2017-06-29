@@ -378,6 +378,29 @@ void MainWindow::displayVerboseDataTypeForDieOffset(uint32_t die_offset)
 	ui->plainTextEditVerboseDataType->appendPlainText(QString::fromStdString(dwdata->typeString(type_cache, start_node, flags)));
 }
 
+void MainWindow::searchSourceView(const QString & search_pattern)
+{
+	if (search_pattern.isEmpty())
+		return;
+	auto c = ui->plainTextEdit->textCursor();
+	int x = c.position();
+
+	/* avoid matches starting at the current cursor position */
+	c.movePosition(QTextCursor::Right);
+	c = ui->plainTextEdit->document()->find(search_pattern, c, QTextDocument::FindWholeWords);
+	if (!c.isNull())
+		/*c.setPosition(c.anchor()), */ui->plainTextEdit->setTextCursor(c);
+	else
+	{
+		c.movePosition(QTextCursor::Start);
+		c = ui->plainTextEdit->document()->find(search_pattern, c);
+		if (!c.isNull() && c.anchor() != x)
+			/*c.setPosition(c.anchor()), */ui->plainTextEdit->setTextCursor(c);
+	}
+	ui->plainTextEdit->setFocus();
+	last_search_pattern = search_pattern;
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
         source_filename.replace(QChar('\\'), QChar('/'));
@@ -1045,6 +1068,8 @@ there:
 	
         connect(& polishing_timer, SIGNAL(timeout()), this, SLOT(polishSourceCodeViewOnTargetExecution()));
         ui->plainTextEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+        ui->mainToolBar->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+        ui->actionTarget_status->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
         ui->plainTextEditVerboseDataType->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
 }
 
@@ -1260,26 +1285,40 @@ static unsigned accumulator;
 			accumulator *= 10, accumulator += keyEvent->key() - Qt::Key_0;
 		switch (keyEvent->key())
 		{
+			case Qt::Key_Z:
+				ui->plainTextEdit->centerCursor();
+				break;
 			case Qt::Key_Asterisk:
 			{
 				auto c = ui->plainTextEdit->textCursor();
-				int x = c.position();
-
 				c.select(QTextCursor::WordUnderCursor);
-				auto w = c.selectedText();
-				if (!w.isEmpty())
-				{
-					c = ui->plainTextEdit->document()->find(w, c, QTextDocument::FindWholeWords);
-					if (!c.isNull())
-						c.setPosition(c.anchor()), c.clearSelection(), ui->plainTextEdit->setTextCursor(c);
-					else
-					{
-						c.movePosition(QTextCursor::Start);
-						c = ui->plainTextEdit->document()->find(w, c);
-						if (!c.isNull() && c.anchor() != x)
-							c.setPosition(c.anchor()), c.clearSelection(), ui->plainTextEdit->setTextCursor(c);
-					}
-				}
+				searchSourceView(c.selectedText());
+			}
+				break;
+			case Qt::Key_F:
+				if (!keyEvent->modifiers() & Qt::ControlModifier)
+					break;
+			case Qt::Key_Slash:
+				ui->lineEditSearchForText->clear();
+				ui->lineEditSearchForText->setFocus();
+				break;
+			case Qt::Key_N:
+				searchSourceView(last_search_pattern);
+				break;
+			case Qt::Key_W:
+			{
+				auto c = ui->plainTextEdit->textCursor();
+				c.movePosition(QTextCursor::NextWord, QTextCursor::MoveAnchor, accumulator ? accumulator : 1);
+				ui->plainTextEdit->setTextCursor(c);
+				accumulator = 0;
+			}
+				break;
+			case Qt::Key_B:
+			{
+				auto c = ui->plainTextEdit->textCursor();
+				c.movePosition(QTextCursor::PreviousWord, QTextCursor::MoveAnchor, accumulator ? accumulator : 1);
+				ui->plainTextEdit->setTextCursor(c);
+				accumulator = 0;
 			}
 				break;
 			case Qt::Key_F4:
@@ -1391,7 +1430,7 @@ static unsigned accumulator;
 			{
 			auto c = ui->plainTextEdit->textCursor();
 				c.movePosition(QTextCursor::Start);
-				c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, -- accumulator);
+				c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, accumulator - 1);
 				ui->plainTextEdit->setTextCursor(c);
 				ui->plainTextEdit->centerCursor();
 				accumulator = 0;
@@ -1518,10 +1557,13 @@ QString numeric_prefix;
 		case 10: break;
 		default: Util::panic();
 	}
-	ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize, true), 0, numeric_base, numeric_prefix));
-	ui->treeWidgetDataObjects->expandAll();
-	ui->treeWidgetDataObjects->resizeColumnToContents(0);
-	dumpData(address, data);
+	if (isTargetAccessible())
+	{
+		ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize, true), 0, numeric_base, numeric_prefix));
+		ui->treeWidgetDataObjects->expandAll();
+		ui->treeWidgetDataObjects->resizeColumnToContents(0);
+		dumpData(address, data);
+	}
 
 	auto source_coordinates = dwdata->sourceCodeCoordinatesForDieOffset(ui->tableWidgetStaticDataObjects->item(row, 5)->text().remove(0, 1).toUInt(0, 16));
 	if (source_coordinates.line != -1)
@@ -1772,11 +1814,12 @@ void MainWindow::targetConnected()
 void MainWindow::polishSourceCodeViewOnTargetExecution()
 {
 static int i;
-
-	if (i ++ == 10)
-		i = 0;
-	polishing_timer.setInterval(200);
-	ui->plainTextEdit->setPlainText(QString("target running...") + QString(i, QChar('.')));;
+static const char c[] = { '-', '\\', '|', '/', };
+static const char * x[8] = { ">   ", " >  ", "  > ", "   >", "   <", "  < ", " <  ", "<   ", };
+	polishing_timer.setInterval(150);
+	//ui->actionTarget_status->setText(QString("target running [%1]").arg(c[i ++]));
+	ui->actionTarget_status->setText(QString("target running [%1]").arg(x[i ++]));
+	i &= 7;
 	/*! \todo	WARNING - it seems that I am doing something wrong with the 'readyRead()' signal;
 	 *		without the call to 'waitForReadyRead()' below, on one machine that I am testing on,
 	 *		incoming data from the blackmagic probe sometimes does not cause the 'readyRead()'
@@ -1998,4 +2041,10 @@ void MainWindow::on_checkBoxDiscardTypedefSpecifiers_stateChanged(int arg1)
 int die_offset = ui->lineEditDieOffsetForVerboseTypeDisplay->text().replace("$", "").toInt(0, 16);
 	if (die_offset != -1)
 		displayVerboseDataTypeForDieOffset(die_offset);
+}
+
+void MainWindow::on_lineEditSearchForText_returnPressed()
+{
+	searchSourceView(ui->lineEditSearchForText->text());
+	ui->lineEditSearchForText->clear();
 }
