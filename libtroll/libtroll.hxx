@@ -31,7 +31,6 @@ THE SOFTWARE.
 
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
-#define DEBUG_ENABLED			0
 #define DEBUG_LINE_PROGRAMS_ENABLED	0
 #define DEBUG_DIE_READ_ENABLED		0
 #define DEBUG_ADDRESS_RANGE_ENABLED	0
@@ -923,10 +922,13 @@ public:
 					default:
 						DwarfUtil::panic();
 					case DW_LNE_set_discriminator:
-						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
+				{
+						auto d = DwarfUtil::uleb128(p, & x);
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << d << "!!! IGNORED !!!";
 						if (len != x + 1) DwarfUtil::panic();
 						p += x;
 						break;
+				}
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
 						if (prev->address <= target_address && target_address < current->address)
@@ -1056,9 +1058,13 @@ public:
 					default:
 						DwarfUtil::panic();
 					case DW_LNE_set_discriminator:
-						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << DwarfUtil::uleb128(p, & x) << "!!! IGNORED !!!";
-						p += len;
+				{
+						auto d = DwarfUtil::uleb128(p, & x);
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set discriminator to" << d << "!!! IGNORED !!!";
+						if (len != x + 1) DwarfUtil::panic();
+						p += x;
 						break;
+				}
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
 						if (current->file == file_number)
