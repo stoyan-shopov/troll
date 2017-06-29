@@ -31,6 +31,10 @@ class Blackmagic : public Target
 {
 Q_OBJECT
 private:
+	enum
+	{
+		MAX_GETCHAR_RETRIES	=	200,
+	};
 	QVector<uint32_t>	registers;
 	QSerialPort	* port;
 	void readAllRegisters(void);
@@ -40,6 +44,12 @@ private:
 private slots:
 	void portReadyRead(void);
 public:
+	enum BLACKMAGIC_COMMUNICATION_ERROR
+	{
+		INVALID			=	0,
+		COMMUNICATION_TIMEOUT,
+	};
+
 	Blackmagic(QSerialPort * port) { this->port = port; }
 	uint32_t readWord(uint32_t address) { auto x = readBytes(address, sizeof(uint32_t)); if (x.size() != sizeof(uint32_t)) Util::panic(); return * (uint32_t *) x.constData(); }
 	bool reset(void);

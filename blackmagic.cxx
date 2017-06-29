@@ -69,8 +69,14 @@ QByteArray packet("$");
 char Blackmagic::getChar()
 {
 char c;
-	while (!port->bytesAvailable())
+int retries = MAX_GETCHAR_RETRIES;
+	while (!port->bytesAvailable() && -- retries)
 		port->waitForReadyRead(10);
+	if (!retries)
+	{
+		QMessageBox::critical(0, "error communicating with the blackmagic", "error reading data from the blackmagic,\nmaximum data read retry count exceeded!");
+		throw COMMUNICATION_TIMEOUT;
+	}
 	if (port->read(& c, 1) != 1)
 		Util::panic();
 	return c;
@@ -200,6 +206,7 @@ bool Blackmagic::connect(void)
 	QByteArray packet = GdbRemote::monitorRequest("swdp_scan");
 	int i;
 	QVector<QByteArray> r, s;
+	QString scan_reply;
 
 	if (!port->setDataTerminalReady(true))
 		Util::panic();
@@ -211,18 +218,30 @@ bool Blackmagic::connect(void)
 		port->waitForReadyRead(1000);
 	while (port->readAll() > 0);
 	
-	putPacket(packet);
+	try
+	{
+		putPacket(packet);
+	}
+	catch (...)
+	{
+		return false;
+	}
+
 	do
 		r.push_back(getPacket());
-	while (!GdbRemote::isOkResponse(r.back()));
+	while (!GdbRemote::isOkResponse(r.back()) && !GdbRemote::isErrorResponse(r.back()));
 
 	for (i = 0; i < r.size() - 1; i ++)
 	{
 		auto s = GdbRemote::packetData(r[i]);
 		if (s[0] == 'O')
-		{
-			qDebug() << QByteArray::fromHex(s.mid(1));
-		}
+			scan_reply += QByteArray::fromHex(s.mid(1));
+	}
+	qDebug() << scan_reply;
+	if (GdbRemote::isErrorResponse(r.back()))
+	{
+		QMessageBox::critical(0, "blackmagic target scan failed", QString("blackmagic target scan failed, response:\n\n") + scan_reply);
+		return false;
 	}
 	putPacket(GdbRemote::attachRequest());
 	if (GdbRemote::packetData(getPacket()) != "T05")

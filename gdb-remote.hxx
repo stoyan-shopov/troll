@@ -56,7 +56,10 @@ public:
 			|| c != checksum(packet.mid(1, l - 4))) ? false : true;
 	}
 	static int errorCode(const QByteArray & reply) { if (!isValidPacket(reply) || reply.length() != 7 || reply[1] != 'E') return -1; return (reply.mid(2, 2).toInt(0, 16)); }
-	static bool isErrorResponse(const QByteArray & reply) { return errorCode(reply) != -1; }
+	static bool isErrorResponse(const QByteArray & reply) { return errorCode(reply) != -1
+		||	/* failed monitor commands as of now (29072017) return a single 'E' character packet, without an error code...
+			 * maybe this should be fixed in the blackmagic probe? special-case this case here... */
+				packetData(reply) == "E"; }
 	static bool isOkResponse(const QByteArray & data) { return data.toLower().operator ==(makePacket("OK").toLower()); }
 	static bool isEmptyResponse(const QByteArray & data) { return data.toLower().operator ==(makePacket("").toLower()); }
 	static QByteArray packetData(const QByteArray & packet) { if (isValidPacket(packet)) return strip(packet); return QByteArray(); }
