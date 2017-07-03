@@ -1741,6 +1741,13 @@ int row(ui->tableWidgetFunctions->currentRow());
 
 void MainWindow::targetHalted(TARGET_HALT_REASON reason)
 {
+	if (reason == TARGET_LOST)
+	{
+		polishing_timer.stop();
+		QMessageBox::critical(0, "connection to target lost", "connection to target lost - disconnecting blackmagic probe");
+		detachBlackmagicProbe();
+		return;
+	}
 	switch (execution_state)
 	{
 		case SOURCE_LEVEL_SINGLE_STEPPING:

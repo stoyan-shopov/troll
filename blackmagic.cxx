@@ -91,6 +91,8 @@ auto halt_reason = getPacket();
 	if (GdbRemote::packetData(halt_reason) == "T05"
 		|| GdbRemote::packetData(halt_reason) == "T02")
 		emit targetHalted(GENERIC_HALT_CONDITION);
+	else if (GdbRemote::packetData(halt_reason) == "X1D")
+		emit targetHalted(TARGET_LOST);
 	else
 		Util::panic();
 }
