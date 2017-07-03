@@ -12,6 +12,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = troll
 TEMPLATE = app
 QMAKE_CXXFLAGS += -Wno-sign-compare
+DEFINES += BLACKSTRIKE_SUPPORT_ENABLED=0
 
 
 SOURCES +=\

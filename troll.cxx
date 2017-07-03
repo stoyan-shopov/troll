@@ -1495,6 +1495,7 @@ class Target * t;
 				if (!t->connect())
 				{
 					delete t;
+#if BLACKSTRIKE_SUPPORT_ENABLED
 					t = new Blackstrike(& blackstrike_port);
 					if (!t->connect())
 					{
@@ -1502,6 +1503,10 @@ class Target * t;
 						delete t;
 						continue;
 					}
+#else
+					blackstrike_port.close();
+					continue;
+#endif /* BLACKSTRIKE_SUPPORT_ENABLED */
 				}
 				auto s = t->memoryMap();
 				t->parseMemoryAreas(s);
