@@ -389,13 +389,13 @@ void MainWindow::searchSourceView(const QString & search_pattern)
 	c.movePosition(QTextCursor::Right);
 	c = ui->plainTextEdit->document()->find(search_pattern, c, QTextDocument::FindWholeWords);
 	if (!c.isNull())
-		/*c.setPosition(c.anchor()), */ui->plainTextEdit->setTextCursor(c);
+		/*c.setPosition(c.anchor()), */ui->plainTextEdit->setTextCursor(c), ui->plainTextEdit->centerCursor();
 	else
 	{
 		c.movePosition(QTextCursor::Start);
 		c = ui->plainTextEdit->document()->find(search_pattern, c);
 		if (!c.isNull() && c.anchor() != x)
-			/*c.setPosition(c.anchor()), */ui->plainTextEdit->setTextCursor(c);
+			/*c.setPosition(c.anchor()), */ui->plainTextEdit->setTextCursor(c), ui->plainTextEdit->centerCursor();
 	}
 	ui->plainTextEdit->setFocus();
 	last_search_pattern = search_pattern;
