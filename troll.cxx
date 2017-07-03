@@ -941,7 +941,7 @@ there:
 		auto source_breakpoints = s.value("source-level-breakpoints", QStringList()).toStringList();
 		ui->treeWidgetBreakpoints->blockSignals(true);
 		//QRegExp rx("(.+):(.*):(.*):(\\d+)$");
-		QRegExp rx("([^>]+)>([^>]*)>([^>]*)>(\\d+)$");
+		QRegExp rx("([^>]+)>([^>]*)>([^>]*)>(\\d+)>([^>]+)$");
 		for (i = 0; i < source_breakpoints.size(); i ++)
 			if (rx.indexIn(source_breakpoints[i]) != -1)
 			{
@@ -951,24 +951,26 @@ there:
 				b.compilation_directory = rx.cap(3);
 				b.line_number = rx.cap(4).toUInt();
 				b.addresses = QVector<uint32_t>::fromStdVector(dwdata->filteredAddressesForFileAndLineNumber(b.source_filename.toLocal8Bit().constData(), b.line_number));
-				b.enabled = true;
+				b.enabled = (rx.cap(5) == "enabled");
 				breakpoints.addSourceCodeBreakpoint(b);
 			}
 		QStringList saved_breakpoints = s.value("machine-level-breakpoints", QStringList()).toStringList();
+		rx.setPattern("([^>]+)>([^>]*)");
 		for (i = 0; i < saved_breakpoints.length(); i ++)
-		{
-			uint32_t address = saved_breakpoints[i].toUInt();
-
-			auto x = dwdata->sourceCodeCoordinatesForAddress(address);
-			BreakpointCache::SourceCodeBreakpoint b;
-			b.source_filename = QString::fromStdString(x.file_name);
-			b.directory_name = QString::fromStdString(x.directory_name);
-			b.compilation_directory = QString::fromStdString(x.compilation_directory_name);
-			b.line_number = x.line;
-			b.addresses.push_back(address);
-			b.enabled = true;
-			breakpoints.addMachineAddressBreakpoint((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, .inferred_breakpoint = b, .enabled = true, });
-		}
+			if (rx.indexIn(saved_breakpoints[i]) != -1)
+			{
+				uint32_t address = rx.cap(1).toUInt();
+	
+				auto x = dwdata->sourceCodeCoordinatesForAddress(address);
+				BreakpointCache::SourceCodeBreakpoint b;
+				b.source_filename = QString::fromStdString(x.file_name);
+				b.directory_name = QString::fromStdString(x.directory_name);
+				b.compilation_directory = QString::fromStdString(x.compilation_directory_name);
+				b.line_number = x.line;
+				b.addresses.push_back(address);
+				b.enabled = (rx.cap(2) == "enabled");
+				breakpoints.addMachineAddressBreakpoint((struct BreakpointCache::MachineAddressBreakpoint){ .address = address, .inferred_breakpoint = b, .enabled = b.enabled, });
+			}
 		updateBreakpointsView();
 		ui->treeWidgetBreakpoints->blockSignals(false);
 	}
@@ -1233,14 +1235,18 @@ int i;
 	s.setValue("scratchpad-contents", ui->plainTextEditScratchpad->toPlainText());
 	QStringList source_breakpoints;
 	for (i = 0; i < breakpoints.sourceCodeBreakpoints.size(); i ++)
-		source_breakpoints << QString("%1>%2>%3>%4")
+		source_breakpoints << QString("%1>%2>%3>%4>%5")
 		                      .arg(breakpoints.sourceCodeBreakpoints[i].source_filename)
 		                      .arg(breakpoints.sourceCodeBreakpoints[i].directory_name)
 		                      .arg(breakpoints.sourceCodeBreakpoints[i].compilation_directory)
-		                      .arg(breakpoints.sourceCodeBreakpoints[i].line_number);
+		                      .arg(breakpoints.sourceCodeBreakpoints[i].line_number)
+		                      .arg(breakpoints.sourceCodeBreakpoints[i].enabled ? "enabled" : "disabled");
 	s.setValue("source-level-breakpoints", source_breakpoints);
 	QStringList machine_brekpoints;
-	for (i = 0; i < breakpoints.machineAddressBreakpoints.size(); machine_brekpoints << QString("%1").arg(breakpoints.machineAddressBreakpoints[i ++].address));
+	for (i = 0; i < breakpoints.machineAddressBreakpoints.size(); i ++)
+		machine_brekpoints << QString("%1>%2")
+		                      .arg(breakpoints.machineAddressBreakpoints[i].address)
+		                      .arg(breakpoints.machineAddressBreakpoints[i].enabled ? "enabled" : "disabled");
 	s.setValue("machine-level-breakpoints", machine_brekpoints);
 	QStringList bookmarks;
 	for (i = 0; i < ui->tableWidgetBookmarks->rowCount(); i ++)
