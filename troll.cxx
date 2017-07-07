@@ -706,7 +706,7 @@ std::string MainWindow::typeStringForDieOffset(uint32_t die_offset)
 void MainWindow::dumpData(uint32_t address, const QByteArray &data)
 {
 	ui->plainTextEditDataDump->clear();
-	ui->plainTextEditDataDump->appendPlainText(data.toPercentEncoding());
+	ui->plainTextEditDataDump->appendPlainText(data.toHex());
 }
 
 void MainWindow::updateBreakpointsView(void)
