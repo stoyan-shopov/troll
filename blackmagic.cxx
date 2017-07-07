@@ -27,6 +27,8 @@ THE SOFTWARE.
 #include "memory.hxx"
 #include "gdb-remote.hxx"
 
+#define BLACKMAGIC_DEBUG 0
+
 void Blackmagic::readAllRegisters(void)
 {
 	putPacket(GdbRemote::readRegistersRequest());
@@ -62,7 +64,7 @@ QByteArray packet("$");
 	port->write("+");
 	if (!port->waitForBytesWritten(1000))
 		Util::panic();
-	qDebug() << "received gdb packet:" << packet;
+	if (BLACKMAGIC_DEBUG) qDebug() << "received gdb packet:" << packet;
 	return packet;
 }
 
@@ -91,8 +93,11 @@ auto halt_reason = getPacket();
 	if (GdbRemote::packetData(halt_reason) == "T05"
 		|| GdbRemote::packetData(halt_reason) == "T02")
 		emit targetHalted(GENERIC_HALT_CONDITION);
-	else if (GdbRemote::packetData(halt_reason) == "X1D")
+	else if (GdbRemote::packetData(halt_reason) == "X1D" || GdbRemote::packetData(halt_reason) == "EFF")
+	{
+		port = 0;
 		emit targetHalted(TARGET_LOST);
+	}
 	else
 		Util::panic();
 }
