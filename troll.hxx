@@ -26,6 +26,7 @@ THE SOFTWARE.
 #include <QTreeWidget>
 #include <QTableWidget>
 #include <QFileSystemWatcher>
+#include <QPlainTextEdit>
 #include "libtroll.hxx"
 #include "sforth.hxx"
 #include "target-corefile.hxx"
@@ -149,6 +150,8 @@ private:
 	void attachBlackmagicProbe(Target * blackmagic);
 	void detachBlackmagicProbe(void);
 	void displayVerboseDataTypeForDieOffset(uint32_t die_offset);
+	static QPlainTextEdit * sforth_console;
+	static void sforth_console_output_function(const QString & console_output) { sforth_console->appendPlainText(console_output); }
 
 	enum
 	{

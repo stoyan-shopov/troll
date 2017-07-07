@@ -36,6 +36,8 @@ THE SOFTWARE.
 
 #define DEBUG_BACKTRACE		0
 
+QPlainTextEdit * MainWindow::sforth_console;
+
 /* syntax highlighter copied from the Qt documentation example on syntax highlighting */
 Highlighter::Highlighter(QTextDocument *parent)
         : QSyntaxHighlighter(parent)
@@ -989,7 +991,8 @@ there:
 	else
 		target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	
-	sforth = new Sforth(ui->plainTextEditSforthConsole);
+	sforth_console = ui->plainTextEditSforthConsole;
+	sforth = new Sforth(sforth_console_output_function);
 	/*! \todo	WARNING!!! as of writing this note (30042017), the order of creating
 	 *		the objects of classes 'CortexM0' and 'DwarfEvaluator' is important,
 	 *		because they both define a value with the name 'cfa-value' - a

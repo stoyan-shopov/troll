@@ -22,7 +22,7 @@ THE SOFTWARE.
 #ifndef SFORTH_H
 #define SFORTH_H
 
-#include <QPlainTextEdit>
+#include <QString>
 
 extern "C"
 {
@@ -33,7 +33,7 @@ class Sforth
 {
 private:
 public:
-	Sforth(QPlainTextEdit * console);
+	Sforth(void (* console_output_function)(const QString & console_output));
 	void evaluate(const QString & sforth_commands);
 	void push(cell x) { sf_push(x); }
 	std::vector<cell> getResults(int result_count);

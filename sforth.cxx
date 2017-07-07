@@ -31,27 +31,27 @@ extern "C"
 #include "sf-cfg.h"
 #include "sf-arch.h"
 
-static QPlainTextEdit	* sforth_console;
+static void (* sforth_console_output_function)(const QString & console_output);
 static QString sfbuf;
 
 int sfgetc(void) { return EOF; }
 int sffgetc(cell file_id) { return EOF; }
-int sfsync(void) { sforth_console->appendPlainText(sfbuf); sfbuf.clear(); return 0; }
+int sfsync(void) { sforth_console_output_function(sfbuf); sfbuf.clear(); return 0; }
 int sfputc(int c) { sfbuf += c; if (c == '\n') sfsync(); return c; }
 cell sfopen(const char * pathname, int flags) { return -1; }
 int sfclose(cell file_id) { return EOF; }
 int sffseek(cell stream, long offset) { return -1; }
 }
 
-Sforth::Sforth(QPlainTextEdit * console)
+Sforth::Sforth(void (* console_output_function)(const QString & output_data))
 {
-	sforth_console = console;
+	sforth_console_output_function = console_output_function;
 	sf_reset();
 }
 
 void Sforth::evaluate(const QString &sforth_commands)
 {
-	sforth_console->appendPlainText(QString(">>> ") + sforth_commands);
+	sforth_console_output_function(QString(">>> ") + sforth_commands);
 	sf_eval(sforth_commands.toLocal8Bit().data());
 }
 
