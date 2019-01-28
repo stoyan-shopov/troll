@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <QSerialPort>
 #include <QSyntaxHighlighter>
 #include <QTimer>
+#include <QAction>
 #include "s-record.hxx"
 #include "disassembly.hxx"
 #include "breakpoint-cache.hxx"

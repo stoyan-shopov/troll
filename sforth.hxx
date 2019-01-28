@@ -23,6 +23,7 @@ THE SOFTWARE.
 #define SFORTH_H
 
 #include <QString>
+#include <vector>
 
 extern "C"
 {

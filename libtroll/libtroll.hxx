@@ -363,12 +363,75 @@ struct debug_arange
 struct compilation_unit_header
 {
 	const uint8_t		* data;
-	uint32_t	unit_length() const{return*(uint32_t*)(data+0);}
-	uint16_t	version(){return*(uint16_t*)(data+4);}
-	uint32_t	debug_abbrev_offset(){return*(uint32_t*)(data+6);}
-	uint8_t		address_size(){return*(uint8_t*)(data+10);}
-	compilation_unit_header(const uint8_t * data) { this->data = data; }
+	uint32_t	unit_length() const
+	{
+		uint32_t x = *(uint32_t*)(data+0);
+		if (x >= 0xfffffff0) /* probably 64 bit elf, not supported at this time */
+			DwarfUtil::panic();
+		return x;
+	}
+	uint16_t	version() const {return*(uint16_t*)(data+4);}
+	uint32_t	debug_abbrev_offset() const
+	{
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: case 4:
+			return*(uint32_t*)(data+6);
+		case 5:
+			return*(uint32_t*)(data+8);
+		}
+	}
+	uint8_t		address_size() const
+	{
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: case 4:
+			return*(uint8_t*)(data+10);
+		case 5:
+			return*(uint8_t*)(data+7);
+		}
+	}
+	uint8_t		unit_type() const { /* introduced in dwarf 5 */ if (version() != 5) DwarfUtil::panic(); return*(uint8_t*)(data+6);}
+	uint32_t	header_length() const
+	{
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: case 4:
+			return 11;
+		case 5:
+			if (unit_type() == DW_UT_compile || unit_type() == DW_UT_partial)
+			return 12;
+		}
+	}
+
+	compilation_unit_header(const uint8_t * data) { this->data = data; validate(); }
 	struct compilation_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
+private:
+	void validate(void) const
+	{
+		if (!data)
+			/* allow the creation of null compilation unit headers */
+			return;
+		if (unit_length() >= 0xfffffff0)
+			/* probably 64 bit elf, not supported at this time */
+			DwarfUtil::panic();
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3:
+		case 4:
+			/* dwarf 3 and 4 supported */
+			break;
+		case 5:
+			/* dwarf 5 partially supported */
+			if (unit_type() != DW_UT_compile)
+				DwarfUtil::panic();
+			break;
+		}
+	}
 };
 
 struct StaticObject
@@ -761,7 +824,7 @@ public:
 	/*! \todo	refactor here, the same code is duplicated several times with minor differences */
 	void dump(void)
 	{
-		if (version() != 2) DwarfUtil::panic();
+		if (version() != 3) DwarfUtil::panic();
 		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
 		int lbase(line_base());
 		uint32_t min_insn_length(minimum_instruction_length());
@@ -1390,7 +1453,7 @@ public:
 		uint32_t cu;
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
 		{
-			auto die_offset = cu + /* skip compilation unit header */ 11;
+			auto die_offset = cu + /* skip compilation unit header */ compilation_unit_header(this->debug_info + cu).header_length();
 			stats.total_compilation_units ++;
 			getAbbreviationsOfCompilationUnit(cu, abbreviations);
 			reapDieFingerprints(die_offset, abbreviations);
@@ -1422,7 +1485,7 @@ private:
 		while (h.data - debug_info < debug_info_len)
 			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
 			{
-				last_searched_compilation_unit.data = (const uint8_t *) & h;
+				last_searched_compilation_unit.data = h.data;
 				return h.data - debug_info;
 			}
 			else h.next();
@@ -1514,8 +1577,8 @@ private:
 		std::vector<struct Die> dies;
 		const uint8_t * p = debug_info + die_offset;
 		int len;
+		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(die_offset, 0, 16);
 		uint32_t code = DwarfUtil::uleb128(p, & len);
-		if (DEBUG_DIE_READ_ENABLED) qDebug() << "at offset " << QString("$%1").arg(p - debug_info, 0, 16);
 		p += len;
 		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
 		 * children, while it actually does not - such a die actually considers a single null die child,
@@ -1586,7 +1649,7 @@ public:
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address);
 		if (cu_die_offset == -1)
 			return context;
-		cu_die_offset += /* discard the compilation unit header */ 11;
+		cu_die_offset += /* discard the compilation unit header */ compilation_unit_header(debug_info + cu_die_offset).header_length();
 		auto compilation_unit_die = debug_tree_of_die(cu_die_offset, 0, 1);
 		int i(0);
 		std::vector<struct Die> * die_list(& compilation_unit_die);
@@ -1681,7 +1744,10 @@ public:
 			if (hasAbstractOrigin(die, referred_die))
 				s = sourceCodeCoordinatesForDieOffset(referred_die.offset);
 		}
-		auto compilation_unit_die = read_die(compilationUnitOffsetForOffsetInDebugInfo(die.offset) + /* skip compilation unit header */ 11);
+		auto cu_offset = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
+		cu_offset += /* skip compilation unit header */ compilation_unit_header(debug_info + cu_offset).header_length();
+
+		auto compilation_unit_die = read_die(cu_offset);
 		Abbreviation b(debug_abbrev + compilation_unit_die.abbrev_offset);
 		auto statement_list = b.dataForAttribute(DW_AT_stmt_list, debug_info + compilation_unit_die.offset);
 		auto compilation_directory = b.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
@@ -1711,7 +1777,7 @@ public:
 		auto cu_die_offset = get_compilation_unit_debug_info_offset_for_address(address);
 		if (cu_die_offset == -1)
 			return s;
-		cu_die_offset += /* skip compilation unit header */ 11;
+		cu_die_offset += /* skip compilation unit header */ compilation_unit_header(debug_info + cu_die_offset).header_length();
 
 		auto compilation_unit_die = read_die(cu_die_offset);
 		uint32_t file_number;
@@ -2285,7 +2351,7 @@ node.data.push_back("!!! recursion detected !!!");
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
 		{
 			const char * filename = 0, * compilation_directory = 0;
-			auto cu_die_offset = cu + /* skip compilation unit header */ 11;
+			auto cu_die_offset = cu + /* skip compilation unit header */ compilation_unit_header(debug_info + cu).header_length();
 			auto a = Abbreviation(debug_abbrev + abbreviationOffsetForDieOffset(cu_die_offset));
 			auto x = a.dataForAttribute(DW_AT_stmt_list, debug_info + cu_die_offset);
 			if (!x.first)
@@ -2377,7 +2443,7 @@ public:
 		uint32_t cu;
 		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
 		{
-			auto die_offset = cu + /* skip compilation unit header */ 11;
+			auto die_offset = cu + /* skip compilation unit header */ compilation_unit_header(debug_info + cu).header_length();
 			auto dies = debug_tree_of_die(die_offset);
 			reapStaticObjects(data_objects, subprograms, dies.at(0));
 		}
