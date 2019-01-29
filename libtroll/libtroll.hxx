@@ -376,7 +376,7 @@ struct compilation_unit_header
 		switch (version())
 		{
 		default: DwarfUtil::panic();
-		case 3: case 4:
+		case 2: case 3: case 4:
 			return*(uint32_t*)(data+6);
 		case 5:
 			return*(uint32_t*)(data+8);
@@ -387,7 +387,7 @@ struct compilation_unit_header
 		switch (version())
 		{
 		default: DwarfUtil::panic();
-		case 3: case 4:
+		case 2: case 3: case 4:
 			return*(uint8_t*)(data+10);
 		case 5:
 			return*(uint8_t*)(data+7);
@@ -399,7 +399,7 @@ struct compilation_unit_header
 		switch (version())
 		{
 		default: DwarfUtil::panic();
-		case 3: case 4:
+		case 2: case 3: case 4:
 			return 11;
 		case 5:
 			if (unit_type() == DW_UT_compile || unit_type() == DW_UT_partial)
@@ -421,8 +421,7 @@ private:
 		switch (version())
 		{
 		default: DwarfUtil::panic();
-		case 3:
-		case 4:
+		case 2: case 3: case 4:
 			/* dwarf 3 and 4 supported */
 			break;
 		case 5:
@@ -1722,11 +1721,20 @@ public:
 						locals.push_back(context.at(i).children.at(j));
 		return locals;
 	}
-	std::string sforthCodeFrameBaseForContext(const std::vector<struct Die> & context)
+	/* Note: for dwarf 3 and above, gcc usually sets the value of the 'DW_AT_frame_base' attribute
+	 * for subprograms to 'DW_OP_call_frame_cfa'. In such a case, the value of the program counter
+	 * is irrelevant.
+	 *
+	 * This is not the case, however, for dwarf 2. In the case of dwarf 2, gcc can emit location lists
+	 * for the 'DW_AT_frame_base' attribute, and obviously, in such a case, the value of the program
+	 * counter is absolutely necessary in order to locate the appropriate location list entry that
+	 * contains the value for the 'DW_AT_frame_base' attribute. This is why an extra parameter for
+	 * the program counter has been introduced for this function. */
+	std::string sforthCodeFrameBaseForContext(const std::vector<struct Die> & context, uint32_t program_counter)
 	{
 		int i;
 		std::string frame_base;
-		for (i = context.size() - 1; i >= 0 && frame_base.empty(); frame_base = locationSforthCode(context.at(i --), context.at(0), -1, DW_AT_frame_base));
+		for (i = context.size() - 1; i >= 0 && frame_base.empty(); frame_base = locationSforthCode(context.at(i --), context.at(0), program_counter, DW_AT_frame_base));
 		qDebug() << QString::fromStdString(frame_base);
 		return frame_base;
 	}

@@ -560,7 +560,7 @@ void MainWindow::backtrace()
 		ui->tableWidgetBacktrace->setItem(row, 4, new QTableWidgetItem(x.directory_name));
 		ui->tableWidgetBacktrace->setItem(row, 5, new QTableWidgetItem(x.compilation_directory_name));
 		ui->tableWidgetBacktrace->setItem(row, 6, new QTableWidgetItem(QString("$%1").arg(subprogram.offset, 0, 16)));
-		ui->tableWidgetBacktrace->setItem(row, 7, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context))));
+		ui->tableWidgetBacktrace->setItem(row, 7, new QTableWidgetItem(QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context, last_pc))));
 		
 		int i;
 		auto inlining_chain = dwdata->inliningChainOfContext(context);
