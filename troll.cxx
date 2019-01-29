@@ -1486,15 +1486,21 @@ void MainWindow::on_actionBlackstrikeConnect_triggered()
 auto ports = QSerialPortInfo::availablePorts();
 int i;
 class Target * t;
-	for (i = 0; i < ports.size(); i ++)
+	/* Note: prefer reverse iterating of the serial ports, because, at least on the machine I am testing on,
+	 * it seems that Windows enumerates the serial ports in such a manner, that the blackmagic
+	 * serial wire output/debug serial port gets a number that is lower
+	 * than the blackmagic gdbserver port. Iterating in reverse saves some nuisance during autoprobing
+	 * for the blackmagic gdbserver port, because it will be queried before querying the blackmagic
+	 * debug port (at which there will be no answer). */
+	for (i = ports.size() - 1; i > 0; i --)
 	{
-		qDebug() << ports[i].manufacturer();
+		qDebug() << ports[i].manufacturer() << ports.at(i).description() << ports.at(i).serialNumber();
 		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == BLACKMAGIC_USB_VENDOR_ID)
 		{
 			blackstrike_port.setPortName(ports.at(i).portName());
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
-				t = new Blackmagic(& blackstrike_port);
+				t = new Blackmagic(& blackstrike_port, ui->plainTextEditBlackmagicCommunicationDebug);
 				if (!t->connect())
 				{
 					delete t;
