@@ -820,7 +820,8 @@ public:
 	struct lineAddress { uint32_t line, address, address_span; struct lineAddress * next; lineAddress(void) { line = address = address_span = -1; next = 0; } 
 	                   bool operator < (const struct lineAddress & rhs) const { return address < rhs.address; } };
 	struct sourceFileNames { const char * file, * directory, * compilation_directory; };
-	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len) { header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; }
+	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len)
+	{ header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; if (version() != 3) DwarfUtil::panic(); }
 	/*! \todo	refactor here, the same code is duplicated several times with minor differences */
 	void dump(void)
 	{
@@ -946,7 +947,7 @@ public:
 	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset, uint32_t & file_number, bool & is_address_on_exact_line_number_boundary)
 	{
 		header = debug_line + statememnt_list_offset;
-		if (version() != 2) DwarfUtil::panic();
+		if (version() != 3) DwarfUtil::panic();
 		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
 		int lbase(line_base());
 		uint32_t min_insn_length(minimum_instruction_length());
@@ -1082,7 +1083,7 @@ public:
 
 	void addressesForFile(uint32_t file_number, std::vector<struct lineAddress> & line_addresses)
 	{
-		if (version() != 2) DwarfUtil::panic();
+		if (version() != 3) DwarfUtil::panic();
 		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
 		int lbase(line_base());
 		uint32_t min_insn_length(minimum_instruction_length());
