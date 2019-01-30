@@ -42,6 +42,17 @@ THE SOFTWARE.
 class DwarfUtil
 {
 public:
+	struct attribute_data
+	{
+		uint32_t	form;
+		const uint8_t	* debug_info_bytes;
+		/* Note: this is a pointer that points to the bytes immediately after the form bytes for this abbreviation.
+		 * This is needed, because in dwarf 5 there is the new attribute form 'DW_FORM_implicit_const', which
+		 * stores the constant value in the '.debug_abbrev' section itself, and not in the '.debug_info' section.
+		 * The data bytes for attributes of form 'DW_FORM_implicit_const' are located immediately after the
+		 * abbreviation form bytes in the '.debug_abbrev' section. */
+		const uint8_t	* debug_abbrev_bytes;
+	};
 	static void panic(...) {*(int*)0=0;}
 	static uint32_t uleb128(const uint8_t * data, int * decoded_len)
 	{
@@ -111,6 +122,22 @@ public:
 			result |= - 1 << (shift - 1);
 		return result;
 	}
+	static int32_t sleb128x(const uint8_t * & data)
+	{
+		uint64_t result = 0;
+		uint8_t x;
+		int shift = 0;
+		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
+		/*
+		if (result > 0xffffffff)
+			panic();
+			*/
+		/* handle sign */
+		if (x & 0x40)
+			/* propagate sign bit */
+			result |= - 1 << (shift - 1);
+		return result;
+	}
 	static int skip_form_bytes(int form, const uint8_t * debug_info_bytes)
 	{
 		int bytes_to_skip;
@@ -118,6 +145,8 @@ public:
 		{
 		default:
 			panic();
+		case DW_FORM_implicit_const:
+			return 0;
 		case DW_FORM_addr:
 			return 4;
 		case DW_FORM_block2:
@@ -173,29 +202,27 @@ public:
 			return 8;
 		}
 	}
-	static uint32_t formConstant(uint32_t attribute_form, const uint8_t * debug_info_bytes)
+	static uint32_t formConstant(const attribute_data & a)
 	{
-		switch (attribute_form)
+		switch (a.form)
 		{
+		case DW_FORM_implicit_const:
+			return sleb128(a.debug_abbrev_bytes);
 		case DW_FORM_udata:
-			return uleb128(debug_info_bytes);
+			return uleb128(a.debug_info_bytes);
 		case DW_FORM_sdata:
-			return sleb128(debug_info_bytes);
+			return sleb128(a.debug_info_bytes);
 		case DW_FORM_addr:
 		case DW_FORM_data4:
 		case DW_FORM_sec_offset:
-			return * (uint32_t *) debug_info_bytes;
+			return * (uint32_t *) a.debug_info_bytes;
 		case DW_FORM_data1:
-			return * (uint8_t *) debug_info_bytes;
+			return * (uint8_t *) a.debug_info_bytes;
 		case DW_FORM_data2:
-			return * (uint16_t *) debug_info_bytes;
+			return * (uint16_t *) a.debug_info_bytes;
 		default:
 			panic();
 		}
-	}
-	static uint32_t formConstant(const std::pair<uint32_t, const uint8_t *> & formdata)
-	{
-		return formConstant(formdata.first, formdata.second);
 	}
 	static uint32_t formReference(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
 	{
@@ -292,51 +319,82 @@ struct DwarfTypeNode
 struct Abbreviation
 {
 private:
+	/*! \todo These need not be in a structure, remove the structure. */
 	struct
 	{
-		const uint8_t	* attributes, * init_attributes;
+		const uint8_t	* attributes, * init_attributes, * abbreviation_start;
 		uint32_t code, tag;
 		bool has_children;
+		int byteSize = -1;
 	} s;
 public:
 	uint32_t tag(void){ return s.tag; }
 	bool has_children(void){ return s.has_children; }
-	/* first number is the attribute name, the second is the attribute form */
-	std::pair<uint32_t, uint32_t> next_attribute(void)
+
+	struct abbreviation_name_and_form
+	{
+		uint32_t	name;
+		uint32_t	form;
+		/* This points to the first byte after the bytes of the attribute form.
+		 * This information is needed for properly handling some attribute forms,
+		 * such as 'DW_FORM_implicit_const' (introduced in dwarf 5). */
+		const uint8_t	* afterform_data;
+	};
+
+	abbreviation_name_and_form next_attribute(void)
 	{
 		const uint8_t * p = s.attributes;
-		std::pair<uint32_t, uint32_t> a;
-		a.first = DwarfUtil::uleb128x(p);
-		a.second = DwarfUtil::uleb128x(p);
-		if (a.first || a.second)
+		abbreviation_name_and_form a;
+		a.name = DwarfUtil::uleb128x(p);
+		a.form = DwarfUtil::uleb128x(p);
+		/* !!! insidious special cases !!! */
+		if (a.form == DW_FORM_indirect)
+			DwarfUtil::panic();
+		a.afterform_data = p;
+		if (a.form == DW_FORM_implicit_const)
+			/* skip the special third part present in the attribute specification */
+			DwarfUtil::sleb128x(p);
+		if (a.form || a.name)
 			/* not the last attribute - skip to the next one */
 			s.attributes = p;
+		else
+			/* Last attribute reached - at this point the size of this abbreviation is known,
+			 * so update the size field. */
+			s.byteSize = p - s.abbreviation_start;
+
 		return a;
 	}
+	uint32_t code(void) { return s.code; }
+	int byteSize(void) { return s.byteSize; }
 
 	Abbreviation(const uint8_t * abbreviation_data)
 	{
+		s.abbreviation_start = abbreviation_data;
 		s.code = DwarfUtil::uleb128x(abbreviation_data);
 		s.tag = DwarfUtil::uleb128x(abbreviation_data);
-		s.has_children = (DwarfUtil::uleb128x(abbreviation_data) == DW_CHILDREN_yes);
-		s.init_attributes = s.attributes = abbreviation_data;
+		if (s.code)
+		{
+			s.has_children = (DwarfUtil::uleb128x(abbreviation_data) == DW_CHILDREN_yes);
+			s.init_attributes = s.attributes = abbreviation_data;
+		}
+		else
+			s.init_attributes = s.attributes = 0;
 	}
-	/* the first number is the attribute form, the pointer is to the data in .debug_info for the attribute searched
-	 * returns <0, 0> if the attribute with the searched name is not found */
-	std::pair<uint32_t, const uint8_t *> dataForAttribute(uint32_t attribute_name, const uint8_t * debug_info_data_for_die)
+
+	struct DwarfUtil::attribute_data dataForAttribute(uint32_t attribute_name, const uint8_t * debug_info_data_for_die)
 	{
 		s.attributes = s.init_attributes;
-		std::pair<uint32_t, uint32_t> a;
+		abbreviation_name_and_form a;
 		/* skip the die abbreviation code */
 		DwarfUtil::uleb128x(debug_info_data_for_die);
 		while (1)
 		{
 			a = next_attribute();
-			if (!a.first)
-				return std::pair<uint32_t, const uint8_t *> (0, 0);
-			if (a.first == attribute_name)
-				return std::pair<uint32_t, const uint8_t *> (a.second, debug_info_data_for_die);
-			debug_info_data_for_die += DwarfUtil::skip_form_bytes(a.second, debug_info_data_for_die);
+			if (!a.name)
+				return (DwarfUtil::attribute_data) { 0, 0, 0, };
+			if (a.name == attribute_name)
+				return (DwarfUtil::attribute_data) { .form = a.form, .debug_info_bytes = debug_info_data_for_die, .debug_abbrev_bytes = a.afterform_data, };
+			debug_info_data_for_die += DwarfUtil::skip_form_bytes(a.form, debug_info_data_for_die);
 		}
 	}
 };
@@ -1359,24 +1417,19 @@ private:
 	{
 		if (STATS_ENABLED) stats.abbreviation_misses ++;
 		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
-		uint32_t code, name, form;
-		int len;
 		abbreviations.clear();
-		while ((code = DwarfUtil::uleb128(debug_abbrev, & len)))
+		Abbreviation a(debug_abbrev);
+
+		while (a.code())
 		{
-			auto x = abbreviations.find(code);
+			auto x = abbreviations.find(a.code());
 			if (x != abbreviations.end())
 				DwarfUtil::panic("duplicate abbreviation code");
-			abbreviations.operator [](code) = debug_abbrev - this->debug_abbrev;
-			debug_abbrev += len;
-			/* skip die tag and children flag */
-			DwarfUtil::uleb128x(debug_abbrev), DwarfUtil::uleb128x(debug_abbrev);
-			do
-			{
-				name = DwarfUtil::uleb128x(debug_abbrev);
-				form = DwarfUtil::uleb128x(debug_abbrev);
-			}
-			while (name || form);
+			abbreviations.operator [](a.code()) = debug_abbrev - this->debug_abbrev;
+			/* Skip to next abbreviation. */
+			while (a.next_attribute().name)
+				;
+			a = Abbreviation(debug_abbrev += a.byteSize());
 		}
 	}
 
@@ -1401,9 +1454,9 @@ private:
 			die_fingerprints.push_back((struct DieFingerprint) { .offset = die_offset, .abbrev_offset = x->second});
 			
 			auto attr = a.next_attribute();
-			while (attr.first)
+			while (attr.name)
 			{
-				p += DwarfUtil::skip_form_bytes(attr.second, p);
+				p += DwarfUtil::skip_form_bytes(attr.form, p);
 				attr = a.next_attribute();
 			}
 			die_offset = p - debug_info;
@@ -1534,15 +1587,15 @@ private:
 	{
 		struct Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
 		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + compilation_unit_die.offset);
-		if (!low_pc.first)
+		if (!low_pc.form)
 			DwarfUtil::panic();
-		return DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second);
+		return DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes);
 	}
 	bool isAddressInRange(const struct Die & die, uint32_t address, const struct Die & compilation_unit_die)
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto range = a.dataForAttribute(DW_AT_ranges, debug_info + die.offset);
-		if (range.first)
+		if (range.form)
 		{
 			auto base_address = compilation_unit_base_address(compilation_unit_die);
 			const uint32_t * range_list = (const uint32_t *) (debug_ranges + DwarfUtil::formConstant(range));
@@ -1556,16 +1609,16 @@ private:
 			}
 		}
 		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
-		if (low_pc.first)
+		if (low_pc.form)
 		{
 			uint32_t x;
 			auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
-			if (!hi_pc.first)
+			if (!hi_pc.form)
 				return false;
-			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second));
-			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
-			x = DwarfUtil::fetchHighLowPC(low_pc.first, low_pc.second);
-			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.first, hi_pc.second, x);
+			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes));
+			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << DwarfUtil::fetchHighLowPC(hi_pc.form, hi_pc.debug_info_bytes, x);
+			x = DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes);
+			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.form, hi_pc.debug_info_bytes, x);
 		}
 		return false;
 	}
@@ -1589,10 +1642,10 @@ private:
 			struct Abbreviation a(debug_abbrev + x);
 			struct Die die(a.tag(), die_offset, x);
 			
-			std::pair<uint32_t, uint32_t> attr = a.next_attribute();
-			while (attr.first)
+			auto attr = a.next_attribute();
+			while (attr.name)
 			{
-				p += DwarfUtil::skip_form_bytes(attr.second, p);
+				p += DwarfUtil::skip_form_bytes(attr.form, p);
 				attr = a.next_attribute();
 			}
 			die_offset = p - debug_info;
@@ -1603,9 +1656,9 @@ private:
 					if (/* special case for reading a single die */ depth == 0)
 						goto there;
 					auto x = a.dataForAttribute(DW_AT_sibling, debug_info + die.offset);
-					if (x.first)
+					if (x.form)
 					{
-						die_offset = DwarfUtil::formReference(x.first, x.second, compilationUnitOffsetForOffsetInDebugInfo(die.offset));
+						die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, compilationUnitOffsetForOffsetInDebugInfo(die.offset));
 						goto there;
 					}
 				}
@@ -1678,7 +1731,7 @@ public:
 			{
 				Abbreviation a(debug_abbrev + d->abbrev_offset);
 				auto l = a.dataForAttribute(DW_AT_low_pc, debug_info + d->offset);
-				if (l.first && DwarfUtil::fetchHighLowPC(l.first, l.second) == address)
+				if (l.form && DwarfUtil::fetchHighLowPC(l.form, l.debug_info_bytes) == address)
 				{
 					call_site = * d;
 					/* make sure that the call site's children have been read */
@@ -1747,7 +1800,7 @@ public:
 		auto line = a.dataForAttribute(DW_AT_decl_line, debug_info + die.offset);
 		auto call_file = a.dataForAttribute(DW_AT_call_file, debug_info + die.offset);
 		auto call_line = a.dataForAttribute(DW_AT_call_line, debug_info + die.offset);
-		if (!file.first || !line.first)
+		if (!file.form || !line.form)
 		{
 			struct Die referred_die(die);
 			if (hasAbstractOrigin(die, referred_die))
@@ -1760,20 +1813,20 @@ public:
 		Abbreviation b(debug_abbrev + compilation_unit_die.abbrev_offset);
 		auto statement_list = b.dataForAttribute(DW_AT_stmt_list, debug_info + compilation_unit_die.offset);
 		auto compilation_directory = b.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
-		if (!statement_list.first)
+		if (!statement_list.form)
 			return s;
 		DebugLine l(debug_line, debug_line_len);
 		const char * compilation_directory_string = 0;
-		if (compilation_directory.first)
-			compilation_directory_string = DwarfUtil::formString(compilation_directory.first, compilation_directory.second, debug_str);
+		if (compilation_directory.form)
+			compilation_directory_string = DwarfUtil::formString(compilation_directory.form, compilation_directory.debug_info_bytes, debug_str);
 		l.skipToOffset(DwarfUtil::formConstant(statement_list));
-		if (file.first)
+		if (file.form)
 			l.stringsForFileNumber(DwarfUtil::formConstant(file), s.file_name, s.directory_name, compilation_directory_string);
-		if (call_file.first)
+		if (call_file.form)
 			l.stringsForFileNumber(DwarfUtil::formConstant(call_file), s.call_file_name, s.call_directory_name, compilation_directory_string);
-		if (line.first)
+		if (line.form)
 			s.line = DwarfUtil::formConstant(line);
-		if (call_line.first)
+		if (call_line.form)
 			s.call_line = DwarfUtil::formConstant(call_line);
 		s.compilation_directory_name = compilation_directory_string;
 		return s;
@@ -1794,14 +1847,14 @@ public:
 			DwarfUtil::panic();
 		Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_stmt_list, debug_info + compilation_unit_die.offset);
-		if (!x.first)
+		if (!x.form)
 			return s;
 		class DebugLine l(debug_line, debug_line_len);
 		bool dummy;
 		s.line = l.lineNumberForAddress(address, DwarfUtil::formConstant(x), file_number, is_address_on_exact_line_number_boundary ? * is_address_on_exact_line_number_boundary : dummy);
 		x = a.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
-		if (x.first)
-			s.compilation_directory_name = DwarfUtil::formString(x.first, x.second, debug_str);
+		if (x.form)
+			s.compilation_directory_name = DwarfUtil::formString(x.form, x.debug_info_bytes, debug_str);
 		l.stringsForFileNumber(file_number, s.file_name, s.directory_name, s.compilation_directory_name);
 		return s;
 	}
@@ -1837,14 +1890,14 @@ private:
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_abstract_origin, debug_info + die.offset);
-		if (!x.first)
+		if (!x.form)
 		{
 			x = a.dataForAttribute(DW_AT_specification, debug_info + die.offset);
-			if (!x.first)
+			if (!x.form)
 				return false;
 		}
 		auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
-		auto referred_die_offset = DwarfUtil::formReference(x.first, x.second, i);
+		auto referred_die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, i);
 		{
 			compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
 			referred_die = read_die(referred_die_offset);
@@ -1920,7 +1973,7 @@ std::map<uint32_t, uint32_t> recursion_detector;
 			{
 				Abbreviation a(debug_abbrev + die.abbrev_offset);
 				auto x = a.dataForAttribute(DW_AT_bit_size, debug_info + die.offset);
-				if (x.first)
+				if (x.form)
 					type_string += QString(" : %1").arg(DwarfUtil::formConstant(x)).toStdString();
 			}
 				break;
@@ -1967,7 +2020,7 @@ std::map<uint32_t, uint32_t> recursion_detector;
 				Abbreviation a(debug_abbrev + die.abbrev_offset);
 				auto x = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
 				auto size = a.dataForAttribute(DW_AT_byte_size, debug_info + die.offset);
-				if (x.first == 0 || size.first == 0)
+				if (x.form == 0 || size.form == 0)
 					DwarfUtil::panic();
 				switch (DwarfUtil::formConstant(x))
 				{
@@ -2041,7 +2094,7 @@ std::map<uint32_t, uint32_t> recursion_detector;
 						{
 							Abbreviation a(debug_abbrev + die.children.at(i).abbrev_offset);
 							auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + die.children.at(i).offset);
-							if (subrange.first == 0)
+							if (subrange.form == 0)
 								type_string += "[]";
 							else
 								type_string += "[!" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
@@ -2088,7 +2141,7 @@ std::map<uint32_t, uint32_t> recursion_detector;
 					type_string += " = ";
 					Abbreviation a(debug_abbrev + die.abbrev_offset);
 					auto x = a.dataForAttribute(DW_AT_const_value, debug_info + die.offset);
-					if (x.first)
+					if (x.form)
 						type_string += QString(" %1").arg(DwarfUtil::formConstant(x)).toStdString();
 				}
 				
@@ -2120,7 +2173,7 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 		}
 		Abbreviation a(debug_abbrev + type.at(node_number).die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_byte_size, debug_info + type.at(node_number).die.offset);
-		if (x.first)
+		if (x.form)
 			return DwarfUtil::formConstant(x);
 		if (type.at(node_number).array_dimensions.size())
 		{
@@ -2201,16 +2254,16 @@ node.data.push_back("!!! recursion detected !!!");
 				dataForType(type, node, type.at(type_node_number).next, flags);
 				{
 					auto x = a.dataForAttribute(DW_AT_data_member_location, debug_info + die.offset);
-					if (x.first) switch (x.first)
+					if (x.form) switch (x.form)
 					{
 					/* special cases for members */
 					case DW_FORM_block:
-						DwarfUtil::uleb128x(x.second);
+						DwarfUtil::uleb128x(x.debug_info_bytes);
 						if (0)
 					case DW_FORM_block1:
-						x.second ++;
-						if (* x.second ++ == DW_OP_plus_uconst)
-							node.data_member_location = DwarfUtil::uleb128x(x.second);
+						x.debug_info_bytes ++;
+						if (* x.debug_info_bytes ++ == DW_OP_plus_uconst)
+							node.data_member_location = DwarfUtil::uleb128x(x.debug_info_bytes);
 						else
 							DwarfUtil::panic();
 						break;
@@ -2218,10 +2271,10 @@ node.data.push_back("!!! recursion detected !!!");
 						node.data_member_location = DwarfUtil::formConstant(x);
 					}
 					x = a.dataForAttribute(DW_AT_bit_size, debug_info + die.offset);
-					if (x.first)
+					if (x.form)
 						node.bitsize = DwarfUtil::formConstant(x);
 					x = a.dataForAttribute(DW_AT_bit_offset, debug_info + die.offset);
-					if (x.first)
+					if (x.form)
 						node.bitposition = node.bytesize * 8 - DwarfUtil::formConstant(x) - node.bitsize;
 				}
 				break;
@@ -2267,7 +2320,7 @@ node.data.push_back("!!! recursion detected !!!");
 			if (DwarfUtil::formConstant(x) == value)
 			{
 				auto x = a.dataForAttribute(DW_AT_name, debug_info + die.children.at(i).offset);
-				return DwarfUtil::formString(x.first, x.second, debug_str);
+				return DwarfUtil::formString(x.form, x.debug_info_bytes, debug_str);
 			}
 		}
 		return "<<< unknown enumerator value >>>";
@@ -2277,14 +2330,14 @@ node.data.push_back("!!! recursion detected !!!");
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto x = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
-		if (!x.first)
+		if (!x.form)
 		{
 			struct Die referred_die(die);
 			if (hasAbstractOrigin(die, referred_die))
 				return nameOfDie(referred_die);
 			else return is_empty_name_allowed ? "" : "<<< no name >>>";
 		}
-		return DwarfUtil::formString(x.first, x.second, debug_str);
+		return DwarfUtil::formString(x.form, x.debug_info_bytes, debug_str);
 	}
 	void dumpLines(void)
 	{
@@ -2363,15 +2416,15 @@ node.data.push_back("!!! recursion detected !!!");
 			auto cu_die_offset = cu + /* skip compilation unit header */ compilation_unit_header(debug_info + cu).header_length();
 			auto a = Abbreviation(debug_abbrev + abbreviationOffsetForDieOffset(cu_die_offset));
 			auto x = a.dataForAttribute(DW_AT_stmt_list, debug_info + cu_die_offset);
-			if (!x.first)
+			if (!x.form)
 				DwarfUtil::panic();
 			l.skipToOffset(DwarfUtil::formConstant(x));
 			x = a.dataForAttribute(DW_AT_name, debug_info + cu_die_offset);
-			if (x.first)
-				filename = DwarfUtil::formString(x.first, x.second, debug_str);
+			if (x.form)
+				filename = DwarfUtil::formString(x.form, x.debug_info_bytes, debug_str);
 			x = a.dataForAttribute(DW_AT_comp_dir, debug_info + cu_die_offset);
-			if (x.first)
-				compilation_directory = DwarfUtil::formString(x.first, x.second, debug_str);
+			if (x.form)
+				compilation_directory = DwarfUtil::formString(x.form, x.debug_info_bytes, debug_str);
 			/*! \todo	is this line below necessary??? */
 			//sources.push_back((struct DebugLine::sourceFileNames) { .file = filename, .directory = compilation_directory, .compilation_directory = compilation_directory, });
 			l.getFileAndDirectoryNamesPointers(sources, compilation_directory);
@@ -2390,19 +2443,19 @@ private:
 		}
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto t = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
-		x.file = ((t.first) ? DwarfUtil::formConstant(t) : -1);
+		x.file = ((t.form) ? DwarfUtil::formConstant(t) : -1);
 		t = a.dataForAttribute(DW_AT_decl_line, debug_info + die.offset);
-		x.line = ((t.first) ? DwarfUtil::formConstant(t) : -1);
+		x.line = ((t.form) ? DwarfUtil::formConstant(t) : -1);
 		t = a.dataForAttribute(DW_AT_name, debug_info + die.offset);
-		if (t.first)
+		if (t.form)
 		{
-			switch (t.first)
+			switch (t.form)
 			{
 			case DW_FORM_string:
-				x.name = (const char *) t.second;
+				x.name = (const char *) t.debug_info_bytes;
 				break;
 			case DW_FORM_strp:
-				x.name = (const char *) (debug_str + * (uint32_t *) t.second);
+				x.name = (const char *) (debug_str + * (uint32_t *) t.debug_info_bytes);
 				break;
 			default:
 				DwarfUtil::panic();
@@ -2423,7 +2476,7 @@ private:
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			uint32_t address;
 			auto x = a.dataForAttribute(DW_AT_location, debug_info + die.offset);
-			if (x.first && DwarfUtil::isLocationConstant(x.first, x.second, address))
+			if (x.form && DwarfUtil::isLocationConstant(x.form, x.debug_info_bytes, address))
 			{
 				StaticObject x;
 				fillStaticObjectDetails(die, x);
@@ -2435,7 +2488,7 @@ private:
 		{
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			auto x = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
-			if (x.first || a.dataForAttribute(DW_AT_ranges, debug_info + die.offset).first)
+			if (x.form || a.dataForAttribute(DW_AT_ranges, debug_info + die.offset).form)
 			{
 				StaticObject x;
 				fillStaticObjectDetails(die, x);
@@ -2461,7 +2514,7 @@ public:
 	{
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto x(a.dataForAttribute(location_attribute, debug_info + die.offset));
-		if (!x.first)
+		if (!x.form)
 			return "";
 		qDebug() << "processing die offset" << die.offset;
 		if (location_attribute == DW_AT_const_value)
@@ -2470,25 +2523,25 @@ public:
 			result << DwarfUtil::formConstant(x) << " " << "DW_AT_const_value";
 			return result.str();
 		}
-		switch (x.first)
+		switch (x.form)
 		{
 			{
 				int len;
 			case DW_FORM_block1:
-				len = * x.second, x.second ++; if (0)
+				len = * x.debug_info_bytes, x.debug_info_bytes ++; if (0)
 			case DW_FORM_block2:
-				len = * (uint16_t *) x.second, x.second += 2; if (0)
+				len = * (uint16_t *) x.debug_info_bytes, x.debug_info_bytes += 2; if (0)
 			case DW_FORM_block4:
-				len = * (uint32_t *) x.second, x.second += 4; if (0)
+				len = * (uint32_t *) x.debug_info_bytes, x.debug_info_bytes += 4; if (0)
 			case DW_FORM_block:
 			case DW_FORM_exprloc:
-				len = DwarfUtil::uleb128x(x.second);
-				return DwarfExpression::sforthCode(x.second, len);
+				len = DwarfUtil::uleb128x(x.debug_info_bytes);
+				return DwarfExpression::sforthCode(x.debug_info_bytes, len);
 			}
 			case DW_FORM_data4:
 			case DW_FORM_sec_offset:
-			qDebug() << "location list offset:" << * (uint32_t *) x.second;
-				auto l = LocationList::locationExpressionForAddress(debug_loc, * (uint32_t *) x.second,
+			qDebug() << "location list offset:" << * (uint32_t *) x.debug_info_bytes;
+				auto l = LocationList::locationExpressionForAddress(debug_loc, * (uint32_t *) x.debug_info_bytes,
 					compilation_unit_base_address(compilation_unit_die), address_for_location);
 				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l) : "";
 				
@@ -2510,22 +2563,22 @@ public:
 			}
 			Abbreviation a(debug_abbrev + i->abbrev_offset);
 			auto l = a.dataForAttribute(DW_AT_location, debug_info + i->offset);
-			switch (l.first)
+			switch (l.form)
 			{
 				default: DwarfUtil::panic();
 				case DW_FORM_block:
 				case DW_FORM_exprloc:
-					if (DwarfUtil::uleb128x(l.second) == 1 && * l.second == DW_OP_reg0 + register_number)
+					if (DwarfUtil::uleb128x(l.debug_info_bytes) == 1 && * l.debug_info_bytes == DW_OP_reg0 + register_number)
 					{
 						auto l = a.dataForAttribute(DW_AT_GNU_call_site_value, debug_info + i->offset);
-						if (!l.first)
+						if (!l.form)
 							continue;
-						switch (l.first)
+						switch (l.form)
 						{
 							default: DwarfUtil::panic();
 							case DW_FORM_block:
 							case DW_FORM_exprloc:
-								x.first = DwarfUtil::uleb128x(l.second), x.second = l.second;
+								x.first = DwarfUtil::uleb128x(l.debug_info_bytes), x.second = l.debug_info_bytes;
 								return x;
 						}
 					}
@@ -2542,28 +2595,28 @@ public:
 		{
 			Abbreviation a(debug_abbrev + die_fingerprints[i].abbrev_offset);
 			auto x = a.dataForAttribute(DW_AT_location, debug_info + die_fingerprints[i].offset);
-			switch (x.first)
+			switch (x.form)
 			{
 				{
 					int len;
 				case DW_FORM_block1:
-					len = * x.second, x.second ++; if (0)
+					len = * x.debug_info_bytes, x.debug_info_bytes ++; if (0)
 				case DW_FORM_block2:
-					len = * (uint16_t *) x.second, x.second += 2; if (0)
+					len = * (uint16_t *) x.debug_info_bytes, x.debug_info_bytes += 2; if (0)
 				case DW_FORM_block4:
-					len = * (uint32_t *) x.second, x.second += 4; if (0)
+					len = * (uint32_t *) x.debug_info_bytes, x.debug_info_bytes += 4; if (0)
 				case DW_FORM_block:
 				case DW_FORM_exprloc:
-					len = DwarfUtil::uleb128x(x.second);
-					DwarfExpression::sforthCode(x.second, len);
+					len = DwarfUtil::uleb128x(x.debug_info_bytes);
+					DwarfExpression::sforthCode(x.debug_info_bytes, len);
 					test_count ++;
 					break;
 				}
 				case DW_FORM_data4:
 				case DW_FORM_sec_offset:
 				{
-if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" << QString("$%1").arg(* (uint32_t *) x.second, 0, 16);
-					const uint32_t * p((const uint32_t *)(debug_loc + * (uint32_t *) x.second));
+if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" << QString("$%1").arg(* (uint32_t *) x.debug_info_bytes, 0, 16);
+					const uint32_t * p((const uint32_t *)(debug_loc + * (uint32_t *) x.debug_info_bytes));
 					while (* p || p[1])
 					{
 						p += 2;
