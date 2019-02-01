@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include "util.hxx"
 
 #include <platform.h>
-#include <capstone.h>
+#include <capstone/capstone.h>
 
 enum
 {
