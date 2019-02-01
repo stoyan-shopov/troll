@@ -1500,7 +1500,7 @@ class Target * t;
 			blackstrike_port.setPortName(ports.at(i).portName());
 			if (blackstrike_port.open(QSerialPort::ReadWrite))
 			{
-				t = new Blackmagic(& blackstrike_port, ui->plainTextEditBlackmagicCommunicationDebug);
+				t = new Blackmagic(& blackstrike_port);
 				if (!t->connect())
 				{
 					delete t;
