@@ -233,6 +233,11 @@ bool Blackmagic::connect(void)
 	{
 		return false;
 	}
+	/*! \todo	Properly issue a 'qSupported' gdb remote protocol request, process
+	 * 		blackmagic response, and properly determine the maximum packet size -
+	 * 		this is important for determining the most appropriate packet size
+	 * 		for accessing target memory, and for reading target description xml
+	 * 		documents from the blackmagic */
 
 	do
 		r.push_back(getPacket());
