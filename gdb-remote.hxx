@@ -98,7 +98,7 @@ public:
 		}
 		return registers;
 	}
-	static QVector<QByteArray> readMemoryRequest(uint32_t address, uint32_t length, int chunk_size = 1000)
+	static QVector<QByteArray> readMemoryRequest(uint32_t address, uint32_t length, int chunk_size = 500)
 	{
 		QVector<QByteArray> packets;
 		while (length)
