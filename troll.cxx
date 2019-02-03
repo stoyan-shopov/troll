@@ -1492,9 +1492,9 @@ class Target * t;
 	 * than the blackmagic gdbserver port. Iterating in reverse saves some nuisance during autoprobing
 	 * for the blackmagic gdbserver port, because it will be queried before querying the blackmagic
 	 * debug port (at which there will be no answer). */
-	for (i = ports.size() - 1; i > 0; i --)
+	for (i = ports.size() - 1; i >= 0; i --)
 	{
-		qDebug() << ports[i].manufacturer() << ports.at(i).description() << ports.at(i).serialNumber();
+		qDebug() << ports[i].manufacturer() << ports.at(i).description() << ports.at(i).serialNumber() << ports.at(i).portName();
 		if (ports.at(i).hasProductIdentifier() && ports.at(i).vendorIdentifier() == BLACKMAGIC_USB_VENDOR_ID)
 		{
 			blackstrike_port.setPortName(ports.at(i).portName());
