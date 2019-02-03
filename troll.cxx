@@ -182,6 +182,69 @@ int i;
 				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : numeric_prefix + QString("%1").arg(x, 0, numeric_base));
 				if (node.is_enumeration)
 					n->setText(2, n->text(2) + " (" + QString::fromStdString(dwdata->enumeratorNameForValue(x, node.die_offset) + ")"));
+				switch (node.base_type_encoding)
+				{
+				case DW_ATE_float:
+					switch (node.bytesize)
+					{
+					case 4:
+						n->setText(2, QString("%1").arg(* (float *) & x));
+						break;
+					case 8:
+						n->setText(2, QString("%1").arg(* (double*) & x));
+						break;
+					default:
+						n->setText(2, "UNKNOWN FLOATING POINT REPRESENTATION");
+						break;
+					}
+					break;
+				case DW_ATE_unsigned_char:
+					n->setText(2, QString("'%1' (%2)").arg(* (char *) & x).arg((unsigned) * (unsigned char *) & x));
+					break;
+				case DW_ATE_signed_char:
+					n->setText(2, QString("'%1' (%2)").arg(* (char *) & x).arg((signed) * (char *) & x));
+					break;
+				case DW_ATE_unsigned:
+					switch (node.bytesize)
+					{
+					case 1:
+						n->setText(2, QString("%1").arg((unsigned)* (uint8_t *) & x));
+						break;
+					case 2:
+						n->setText(2, QString("%1").arg(* (uint16_t *) & x));
+						break;
+					case 4:
+						n->setText(2, QString("%1").arg(* (uint32_t *) & x));
+						break;
+					case 8:
+						n->setText(2, QString("%1").arg(* (uint64_t *) & x));
+						break;
+					default:
+						n->setText(2, "UNKNOWN UNSIGNED INTEGER REPRESENTATION");
+						break;
+					}
+					break;
+				case DW_ATE_signed:
+					switch (node.bytesize)
+					{
+					case 1:
+						n->setText(2, QString("%1").arg((signed)* (int8_t *) & x));
+						break;
+					case 2:
+						n->setText(2, QString("%1").arg(* (int16_t *) & x));
+						break;
+					case 4:
+						n->setText(2, QString("%1").arg(* (int32_t *) & x));
+						break;
+					case 8:
+						n->setText(2, QString("%1").arg(* (int64_t *) & x));
+						break;
+					default:
+						n->setText(2, "UNKNOWN SIGNED INTEGER REPRESENTATION");
+						break;
+					}
+					break;
+				}
 				break;
 			default:
 n->setText(2, "<<< UNKNOWN SIZE >>>");

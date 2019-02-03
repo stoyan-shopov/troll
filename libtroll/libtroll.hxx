@@ -2208,6 +2208,8 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 			uint32_t bitsize	: 6;
 			uint32_t bitposition	: 6;
 		};
+		/* This is the base type encoding value from the dwarf standard. Set to -1 if this node is not a base type node. */
+		uint32_t base_type_encoding;
 		std::vector<uint32_t> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
@@ -2219,6 +2221,7 @@ bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_n
 		node.data_member_location = 0;
 		node.is_pointer = node.is_enumeration = node.bitsize = node.bitposition = 0;
 		node.die_offset = die.offset;
+		node.base_type_encoding = -1;
 		
 		if (1 && type.at(type_node_number).processed)
 		{
@@ -2284,6 +2287,11 @@ node.data.push_back("!!! recursion detected !!!");
 				dataForType(type, node, type.at(type_node_number).next, flags);
 				break;
 			case DW_TAG_base_type:
+			{
+				auto x = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
+				if (x.form)
+					node.base_type_encoding = DwarfUtil::formConstant(x);
+			}
 				break;
 			case DW_TAG_enumeration_type:
 				node.enumeration_die = die;
