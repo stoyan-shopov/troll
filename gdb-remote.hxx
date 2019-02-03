@@ -131,6 +131,7 @@ public:
 			packets.push_back(makePacket(QString("vFlashWrite:%1:").arg(address, 0, 16).toLocal8Bit() + data.mid(i, x)));
 			length -= x, address += x, i += x;
 		}
+		packets.push_back(makePacket(QByteArray("vFlashDone")));
 		return packets;
 	}
 	static QByteArray eraseFlashMemoryRequest(uint32_t address, uint32_t length) { return makePacket(QString("vFlashErase:%1,%2").arg(address, 0, 16).arg(length, 0, 16).toLocal8Bit()); }
