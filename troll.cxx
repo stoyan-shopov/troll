@@ -1741,21 +1741,22 @@ void MainWindow::on_comboBoxDataDisplayNumericBase_currentIndexChanged(int index
 void MainWindow::on_actionResume_triggered()
 {
 auto b = breakpoints.enabledMachineAddressBreakpoints + run_to_cursor_breakpoints.enabledMachineAddressBreakpoints;
-	execution_state = FREE_RUNNING;
+enum TARGET_STATE_ENUM new_target_state = FREE_RUNNING;
 	auto x = b.find(address_of_step_over_breakpoint = target->readRawUncachedRegister(15));
 	if (x != b.end())
-		b.erase(x), execution_state = STEPPING_OVER_BREAKPOINT_AND_THEN_RESUMING;
+		b.erase(x), new_target_state = STEPPING_OVER_BREAKPOINT_AND_THEN_RESUMING;
 auto breakpointed_addresses = b.constBegin();
 
 	while (breakpointed_addresses != b.constEnd())
 	{
 		if (!target->breakpointSet(* breakpointed_addresses, 2))
 		{
-			QMessageBox::critical(0, "failed to set breakpoint", "failed to set breakpoint!\ntoo many breakpoints requested?");
-			Util::panic();
+			QMessageBox::critical(0, "Failed to set breakpoint", "Failed to set breakpoint!\nToo many breakpoints requested?\nTarget execution aborted");
+			return;
 		}
 		breakpointed_addresses ++;
 	}
+	execution_state = new_target_state;
 	if (execution_state == STEPPING_OVER_BREAKPOINT_AND_THEN_RESUMING)
 		target->requestSingleStep();
 	else
