@@ -847,15 +847,43 @@ private:
 	uint16_t version(void) { return * (uint16_t *) (header + 4); }
 	uint32_t header_length(void) { return * (uint32_t *) (header + 6); }
 	uint8_t minimum_instruction_length(void) { return * (uint8_t *) (header + 10); }
-	//uint8_t maximum_operations_per_instruction(void) { return * (uint8_t *) (header + 11); }
-	uint8_t default_is_stmt(void) { return * (uint8_t *) (header + 11); }
-	int8_t line_base(void) { return * (int8_t *) (header + 12); }
-	uint8_t line_range(void) { return * (uint8_t *) (header + 13); }
-	uint8_t opcode_base(void) { return * (uint8_t *) (header + 14); }
+	/* Introduced in DWARF 4 */
+	uint8_t maximum_operations_per_instruction(void) { if (version() < 4) DwarfUtil::panic(); return * (uint8_t *) (header + 11); }
+	uint8_t default_is_stmt(void)
+	{
+		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 11);
+		else if (version() == 4) return * (uint8_t *) (header + 12);
+		else DwarfUtil::panic();
+	}
+	int8_t line_base(void)
+	{
+		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 12);
+		else if (version() == 4) return * (uint8_t *) (header + 13);
+		else DwarfUtil::panic();
+	}
+	uint8_t line_range(void)
+	{
+		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 13);
+		else if (version() == 4) return * (uint8_t *) (header + 14);
+		else DwarfUtil::panic();
+	}
+	uint8_t opcode_base(void)
+	{
+		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 14);
+		else if (version() == 4) return * (uint8_t *) (header + 15);
+		else DwarfUtil::panic();
+	}
+	/*! \todo	Field 'standard_opcode_lengths' is not handled at all! Add support for this! */
+	int standard_opcode_lengths_field_offset(void)
+	{
+		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 15);
+		else if (version() == 4) return * (uint8_t *) (header + 16);
+		else DwarfUtil::panic();
+	}
 	const char * include_directories(void)
 	{
 		int i(opcode_base());
-		const uint8_t * p(header + 15);
+		const uint8_t * p(header + standard_opcode_lengths_field_offset());
 		while (-- i) DwarfUtil::uleb128x(p);
 		return (const char *) p;
 	}
@@ -873,16 +901,21 @@ private:
 				registers[1] = (struct line_state) { .file = 1, .address = 0xffffffff, .is_stmt = 0, .line = -1, .column = -1, };
 				current = registers, prev = registers + 1; }
 	void swap(void) { struct line_state * x(current); current = prev; prev = x; }
+	void validateHeader(void)
+	{
+		if (version() != 2 && version() != 3 && version() != 4) DwarfUtil::panic();
+		if (version() == 4 && maximum_operations_per_instruction() != 1) DwarfUtil::panic();
+	}
 public:
 	struct lineAddress { uint32_t line, address, address_span; struct lineAddress * next; lineAddress(void) { line = address = address_span = -1; next = 0; } 
 	                   bool operator < (const struct lineAddress & rhs) const { return address < rhs.address; } };
 	struct sourceFileNames { const char * file, * directory, * compilation_directory; };
 	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len)
-	{ header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; if (version() != 2 && version() != 3) DwarfUtil::panic(); }
+	{ header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; validateHeader(); }
 	/*! \todo	refactor here, the same code is duplicated several times with minor differences */
 	void dump(void)
 	{
-		if (version() != 2 && version() != 3) DwarfUtil::panic();
+		validateHeader();
 		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
 		int lbase(line_base());
 		uint32_t min_insn_length(minimum_instruction_length());
@@ -1001,10 +1034,10 @@ public:
 		}
 	}
 	/* returns -1 if no line number was found */
-	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statememnt_list_offset, uint32_t & file_number, bool & is_address_on_exact_line_number_boundary)
+	uint32_t lineNumberForAddress(uint32_t target_address, uint32_t statement_list_offset, uint32_t & file_number, bool & is_address_on_exact_line_number_boundary)
 	{
-		header = debug_line + statememnt_list_offset;
-		if (version() != 2 && version() != 3) DwarfUtil::panic();
+		header = debug_line + statement_list_offset;
+		validateHeader();
 		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
 		int lbase(line_base());
 		uint32_t min_insn_length(minimum_instruction_length());
@@ -1140,7 +1173,7 @@ public:
 
 	void addressesForFile(uint32_t file_number, std::vector<struct lineAddress> & line_addresses)
 	{
-		if (version() != 2 && version() != 3) DwarfUtil::panic();
+		validateHeader();
 		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
 		int lbase(line_base());
 		uint32_t min_insn_length(minimum_instruction_length());
@@ -1345,7 +1378,7 @@ public:
 	}
 
 	void rewind(void) { header = debug_line; }
-	void skipToOffset(uint32_t offset) { header = debug_line + offset; }
+	void skipToOffset(uint32_t offset) { header = debug_line + offset; validateHeader(); }
 	bool next(void) { return (header += ((header != debug_line + debug_line_len) ? sizeof unit_length() + unit_length() : 0)) != debug_line + debug_line_len; }
 };
 
