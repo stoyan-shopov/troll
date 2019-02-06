@@ -876,8 +876,8 @@ private:
 	/*! \todo	Field 'standard_opcode_lengths' is not handled at all! Add support for this! */
 	int standard_opcode_lengths_field_offset(void)
 	{
-		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 15);
-		else if (version() == 4) return * (uint8_t *) (header + 16);
+		if (version() == 2 || version() == 3) return 15;
+		else if (version() == 4) return 16;
 		else DwarfUtil::panic();
 	}
 	const char * include_directories(void)
