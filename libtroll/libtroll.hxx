@@ -2679,73 +2679,71 @@ private:
 	uint32_t	debug_frame_len;
 	struct CIEFDE
 	{
-	private:
 		const uint8_t * data, * debug_frame;
 		uint32_t debug_frame_len;
-	public:
+
 		bool isFDE(void) { return * (uint32_t *) (data + 4) != 0xffffffff; }
 		bool isCIE(void) { return * (uint32_t *) (data + 4) == 0xffffffff; }
+		/* The length field is common for CIEs and FDEs */
 		uint32_t length(void) { return * (uint32_t *) data; }
+
+		/*
+		 * FDE fields
+		 */
 		uint32_t CIE_pointer(void) { return * (uint32_t *) (data + 4); }
 		uint32_t initial_location(void) { return * (uint32_t *) (data + 8); }
 		uint32_t address_range(void) { return * (uint32_t *) (data + 12); }
-		uint8_t version(void) { return data[8]; }
-		
 		/* pointer to the initial instructions, and bytecount in instruction block */
 		std::pair<const uint8_t *, int> fde_instructions(void) { return std::pair<const uint8_t *, int>(data + 16, length() - 12); }
 		
-		const char * augmentation(void) { return (const char *) data + 9; }
+		/*
+		 * CIE fields. Note that it is assumed that the augmentation string is empty
+		 * (checked in the constructor), otherwise these need to take in account augmentation
+		 */
+		/* IMPORTANT: Note that for dwarf 2, the version number is 1, for dwarf 3, it is 3 - there
+		 * is no documented version number 2 that I am aware of */
+		uint8_t version(void) { if (!isCIE()) DwarfUtil::panic(); return data[8]; }
+		const char * augmentation = 0;
+		uint32_t code_alignment_factor = -1;
+		int32_t data_alignment_factor = -1;
+		/* In dwarf 2, this field is an unsigned byte */
+		uint32_t return_address_register = -1;
+		/* pointer to the initial instructions, and bytecount in instruction block */
+		std::pair<const uint8_t *, int> cie_initial_instructions;
+		std::pair<const uint8_t *, int> instructions(void) { return isCIE() ? cie_initial_instructions : fde_instructions(); }
+
 		CIEFDE(const uint8_t * debug_frame, uint32_t debug_frame_len, uint32_t debug_frame_offset)
 		{
 			this->debug_frame = debug_frame;
 			this->debug_frame_len = debug_frame_len;
 			data = debug_frame + debug_frame_offset;
-			if (isCIE() && version() > 3)
+			augmentation = (const char *) data + 9;
+
+			if (isCIE())
+				if (version() > 4 || version() == /* No version 2 documented, that I am aware of */ 2 || version() == 0)
 				DwarfUtil::panic("unsupported .debug_frame version");
-			if (isCIE() && strlen(augmentation()))
+			if (isCIE() && strlen(augmentation))
 				DwarfUtil::panic("unsupported .debug_frame CIE augmentation");
-		}
-		uint32_t code_alignment_factor(void)
-		{
-			if (!isCIE())
-				DwarfUtil::panic("");
-			return DwarfUtil::uleb128(data + 9 + strlen(augmentation()) + 1);
-		}
-		int32_t data_alignment_factor(void)
-		{
-			int len, offset;
-			if (!isCIE())
-				DwarfUtil::panic("");
-			return DwarfUtil::uleb128(data + (offset = 9 + strlen(augmentation()) + 1), & len), DwarfUtil::sleb128(data + offset + len);
-		}
-		uint8_t return_address_register(void)
-		{
-			int len, offset;
-			if (!isCIE())
-				DwarfUtil::panic("");
-			return DwarfUtil::uleb128(data + (offset = 9 + strlen(augmentation()) + 1), & len)
-					, DwarfUtil::sleb128(data + (offset += len), & len)
-					, data[offset + len];
+			if (isCIE())
+			{
+				int offset = /* Skip initial CIE fields */ 4 + 4 + 1 + 1;
+				int len;
+				if (version() == 4)
+					/* Account for the 'address_size' and 'segment_size' fields
+						 * introduced in dwarf 4 */
+					offset += 2;
+				code_alignment_factor = DwarfUtil::uleb128(data + offset, & len);
+				offset += len;
+				data_alignment_factor = DwarfUtil::sleb128(data + offset, & len);
+				offset += len;
+				if (version() == 1)
+					return_address_register = data[offset ++];
+				else
+					return_address_register = DwarfUtil::uleb128(data + offset, & len), offset += len;
+				cie_initial_instructions = std::pair<const uint8_t *, int>(data + offset, length() + sizeof length() - offset);
+			}
 		}
 		/* pointer to the initial instructions, and bytecount in instruction block */
-		std::pair<const uint8_t *, int> initial_instructions(void)
-		{
-			std::pair<const uint8_t *, int> x;
-			int len, offset;
-			if (!isCIE())
-				DwarfUtil::panic("");
-			x = std::pair<const uint8_t *, int> (
-			data + (offset = (DwarfUtil::uleb128(data + (offset = 9 + strlen(augmentation()) + 1), & len)
-					, DwarfUtil::sleb128(data + (offset += len), & len)
-					, offset + len)
-					+ 1),
-				0
-				);
-			x.second = length() + sizeof(uint32_t) - offset;
-			return x;
-		}
-		/* pointer to the initial instructions, and bytecount in instruction block */
-		std::pair<const uint8_t *, int> instructions(void) { return isCIE() ? initial_instructions() : fde_instructions(); }
 		std::string ciefde_sforth_code(void)
 		{
 			const uint8_t * insn = instructions().first;
@@ -2825,10 +2823,10 @@ private:
 			if (isCIE())
 			{
 				if (UNWIND_DEBUG_ENABLED) qDebug() << "version " << version();
-				if (UNWIND_DEBUG_ENABLED) qDebug() << "code alignment factor " << code_alignment_factor();
-				if (UNWIND_DEBUG_ENABLED) qDebug() << "data alignment factor " << data_alignment_factor();
-				if (UNWIND_DEBUG_ENABLED) qDebug() << "return address register " << return_address_register();
-				auto insn = initial_instructions();
+				if (UNWIND_DEBUG_ENABLED) qDebug() << "code alignment factor " << code_alignment_factor;
+				if (UNWIND_DEBUG_ENABLED) qDebug() << "data alignment factor " << data_alignment_factor;
+				if (UNWIND_DEBUG_ENABLED) qDebug() << "return address register " << return_address_register;
+				auto insn = cie_initial_instructions;
 				//qDebug() << "initial instructions " << QByteArray((const char *) insn.first, insn.second).toHex() << "count" << insn.second;
 				if (UNWIND_DEBUG_ENABLED) qDebug() << "initial instructions " << QString().fromStdString(ciefde_sforth_code());
 			}
@@ -2873,8 +2871,8 @@ public:
 
 		std::stringstream sfcode;
 		sfcode
-				<< cie.code_alignment_factor() << " to code-alignment-factor "
-				<< cie.data_alignment_factor() << " to data-alignment-factor "
+				<< cie.code_alignment_factor << " to code-alignment-factor "
+				<< cie.data_alignment_factor << " to data-alignment-factor "
 				<< (cie.ciefde_sforth_code() + " initial-cie-instructions-defined " + fde.ciefde_sforth_code()) << " unwinding-rules-defined ";
 		return std::pair<std::string, uint32_t>(sfcode.str(), fde.initial_location());
 	}
