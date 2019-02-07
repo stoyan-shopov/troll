@@ -202,6 +202,46 @@ public:
 			return 8;
 		}
 	}
+	/* This function is first introduced for the needs of obtaining constant data for attributes
+	 * 'DW_AT_const_value'. It returns a raw array of bytes that hold the constant value data
+	 * for this attribute */
+	static QByteArray data_block_for_constant_value(const attribute_data & a)
+	{
+		uint32_t t;
+		switch (a.form)
+		{
+		case DW_FORM_implicit_const:
+			t = sleb128(a.debug_abbrev_bytes); if (0)
+		case DW_FORM_udata:
+			t = uleb128(a.debug_info_bytes); if (0)
+		case DW_FORM_sdata:
+			t = sleb128(a.debug_info_bytes);
+			return QByteArray((const char *) & t, sizeof t);
+		case DW_FORM_addr:
+		case DW_FORM_data4:
+		case DW_FORM_sec_offset:
+			return QByteArray((const char *) a.debug_info_bytes, sizeof(uint32_t));
+		case DW_FORM_data1:
+			return QByteArray((const char *) a.debug_info_bytes, sizeof(uint8_t));
+		case DW_FORM_data2:
+			return QByteArray((const char *) a.debug_info_bytes, sizeof(uint16_t));
+		case DW_FORM_block:
+		{
+			int bytes_to_skip;
+			int x = uleb128(a.debug_info_bytes, & bytes_to_skip);
+			return QByteArray((const char *) a.debug_info_bytes + bytes_to_skip, x);
+		}
+		case DW_FORM_block1:
+			return QByteArray((const char *) a.debug_info_bytes + 1, * a.debug_info_bytes);
+		case DW_FORM_block2:
+			return QByteArray((const char *) a.debug_info_bytes + 2, * (uint16_t *) a.debug_info_bytes);
+		case DW_FORM_block4:
+			return QByteArray((const char *) a.debug_info_bytes + 4, * (uint32_t *) a.debug_info_bytes);
+		default:
+			panic();
+		}
+
+	}
 	static uint32_t formConstant(const attribute_data & a)
 	{
 		switch (a.form)
@@ -530,6 +570,7 @@ struct LocationList
 		return 0;
 	}
 };
+/*! \todo	!!! Test all of the unsupported codes. Explicitly document them as tested/not tested !!! This is extremely important !!! */
 struct DwarfExpression
 {
 	static std::string sforthCode(const uint8_t * dwarf_expression, uint32_t expression_len)
@@ -539,6 +580,9 @@ struct DwarfExpression
 		while (expression_len --)
 		{
 			bytes_to_skip = 0;
+			/* IMPORTANT: Never modify the 'dwarf_expression' pointer in the 'switch' statement below!
+			 * Only make sure to set properly the 'bytes_to_skip' count. The 'dwarf_expression'
+			 * pointer will then be properly updated after the 'switch' statement */
 			switch (* dwarf_expression ++)
 			{
 				case DW_OP_addr:
@@ -774,6 +818,7 @@ struct DwarfExpression
 				 * DW_OP_GNU_parameter_ref takes as operand a 4 byte CU relative reference
 				 * to the abstract optimized away DW_TAG_formal_parameter.
 				 */
+				/*!	\todo	Test this! */
 					x << "GNU-PARAMETER-REF-UNSUPPORTED!!! ";
 					bytes_to_skip = sizeof(uint32_t);
 					break;
@@ -795,14 +840,24 @@ struct DwarfExpression
 					bytes_to_skip += sizeof(uint32_t);
 					break;
 				case DW_OP_GNU_regval_type:
-					x << "GNU-REGVAL-TYPE-UNSUPPORTED!!! ";
-					DwarfUtil::uleb128(dwarf_expression, & i);
-					DwarfUtil::uleb128(dwarf_expression + i, & bytes_to_skip);
+				case DW_OP_regval_type:
+				{
+					uint32_t base_type_die_offset;
+					x << DwarfUtil::uleb128(dwarf_expression, & i) << " ";
+					/* Make sure that the referenced die is indeed a base type die */
+					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression + i, & bytes_to_skip);
+					/* The die offset just read is an offset from the compilation unit that the die resides in.
+					 * Turn it into an absolute die offset, i.e. an offset from the start of the '.debug_info' section */
+					/*! \todo	Relocate the die here. It is much easier to handle it later when evaluating
+					 *		the dwarf expression */
+					x << base_type_die_offset << " ";
+					x << "DW_OP_regval_type ";
 					bytes_to_skip += i;
 					break;
+				}
 				case DW_OP_piece:
-					x << "PIECE-UNSUPPORTED!!! ";
-					DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip);
+					x << DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip) << " ";
+					x << "DW_OP_piece ";
 					break;
 				case DW_OP_implicit_value:
 					x << "IMPLICIT-VALUE-UNSUPPORTED!!! ";
@@ -820,11 +875,52 @@ struct DwarfExpression
 						/* compensate for the subtractions below */ bytes_to_skip
 						+ /* compensate for the subtraction for the current dwarf opcode below */ 1;
 					break;
+				case DW_OP_GNU_const_type:
+				case DW_OP_const_type:
+				{
+					uint32_t base_type_die_offset, size;
+					/* Make sure that the referenced die is indeed a base type die */
+					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					/* The die offset just read is an offset from the compilation unit that the die resides in.
+					 * Turn it into an absolute die offset, i.e. an offset from the start of the '.debug_info' section */
+					/*! \todo	Relocate the die here. It is much easier to handle it later when evaluating
+					 *		the dwarf expression */
+					size = dwarf_expression[bytes_to_skip];
+					++ bytes_to_skip;
+					QByteArray data_bytes((const char *) dwarf_expression + bytes_to_skip, size);
+					bytes_to_skip += size;
+					for (i = size - 1; i >= 0; -- i)
+						x << (unsigned) (uint8_t) data_bytes.at(i) << " ";
+					x << size << " ";
+					x << base_type_die_offset << " ";
+					x << "DW_OP_const_type ";
+					break;
+				}
+				case DW_OP_GNU_deref_type:
+				case DW_OP_deref_type:
+				{
+					uint32_t base_type_die_offset, size;
+					size = * dwarf_expression;
+					bytes_to_skip = 1;
+					/* Make sure that the referenced die is indeed a base type die */
+					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression, & i);
+					bytes_to_skip += i;
+					/* The die offset just read is an offset from the compilation unit that the die resides in.
+					 * Turn it into an absolute die offset, i.e. an offset from the start of the '.debug_info' section */
+					/*! \todo	Relocate the die here. It is much easier to handle it later when evaluating
+					 *		the dwarf expression */
+					x << size << " ";
+					x << base_type_die_offset << " ";
+					x << "DW_OP_deref_type ";
+					break;
+				}
 				default:
 					DwarfUtil::panic();
 			}
 			dwarf_expression += bytes_to_skip;
 			expression_len -= bytes_to_skip;
+			if (expression_len < 0)
+				DwarfUtil::panic();
 			branch_counter -= bytes_to_skip + /* one more byte for the dwarf opcode just processed */ 1;
 			if (branch_counter < 0)
 				DwarfUtil::panic();
@@ -1382,6 +1478,9 @@ public:
 	bool next(void) { return (header += ((header != debug_line + debug_line_len) ? sizeof unit_length() + unit_length() : 0)) != debug_line + debug_line_len; }
 };
 
+/*! \todo	Check for functions duplicating functionality. This is quite possible, because I have
+ * 		not done any development for almost 3 years as of february 2019, and I am now resuming
+ * 		development on the troll, and I am adding new code */
 class DwarfData
 {
 private:
@@ -1932,6 +2031,7 @@ private:
 		auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
 		auto referred_die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, i);
 		{
+			/*! \todo	!!!!!!!!!!! FIX THIS BOGUS CALL !!!!!!!!!!!!!!!!! */
 			compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
 			referred_die = read_die(referred_die_offset);
 		}
@@ -2551,19 +2651,21 @@ public:
 			reapStaticObjects(data_objects, subprograms, dies.at(0));
 		}
 	}
+	QByteArray constantValueSforthCode(const struct Die & die)
+	{
+		Abbreviation a(debug_abbrev + die.abbrev_offset);
+		auto x(a.dataForAttribute(DW_AT_const_value, debug_info + die.offset));
+		if (!x.form)
+			return "";
+		qDebug() << "processing die offset" << die.offset;
+		return DwarfUtil::data_block_for_constant_value(x);
+	}
 	std::string locationSforthCode(const struct Die & die, const struct Die & compilation_unit_die, uint32_t address_for_location = -1, uint32_t location_attribute = DW_AT_location)
 	{
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto x(a.dataForAttribute(location_attribute, debug_info + die.offset));
 		if (!x.form)
 			return "";
-		qDebug() << "processing die offset" << die.offset;
-		if (location_attribute == DW_AT_const_value)
-		{
-			std::stringstream result;
-			result << DwarfUtil::formConstant(x) << " " << "DW_AT_const_value";
-			return result.str();
-		}
 		switch (x.form)
 		{
 			{

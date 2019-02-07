@@ -1254,9 +1254,9 @@ uint32_t pc = -1;
 			}
 		}
 		ui->tableWidgetLocalVariables->setItem(row, 4, new QTableWidgetItem(locationSforthCode));
-		if (ui->tableWidgetLocalVariables->item(row, 4)->text().isEmpty())
+		if (locationSforthCode.isEmpty())
 			/* the data object may have been evaluated as a compile-time constant - try that */
-			ui->tableWidgetLocalVariables->item(row, 4)->setText(QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc, DW_AT_const_value)));
+			ui->tableWidgetLocalVariables->item(row, 4)->setText(dwdata->constantValueSforthCode(locals.at(i)).toHex());
 		ui->tableWidgetLocalVariables->setItem(row, 5, new QTableWidgetItem(QString("$%1").arg(locals.at(i).offset, 0, 16)));
 	}
 	ui->tableWidgetLocalVariables->resizeColumnsToContents();
