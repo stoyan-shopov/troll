@@ -1,5 +1,5 @@
 false [if]
-Copyright (c) 2016-2017 stoyan shopov
+Copyright (c) 2016-2017, 2019 Stoyan Shopov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -95,6 +95,7 @@ create expression-stack expression-stack-depth expression-stack-frame-size * all
 
 : DW_OP_deref ( address -- value-at-target-address)
 	t@ ;
+
 : DW_OP_plus_uconst ( x y -- x + y)
 	+ ;
 	
@@ -121,7 +122,19 @@ create expression-stack expression-stack-depth expression-stack-frame-size * all
 	
 : DW_OP_shl ( x y -- z)
 	lshift ;
-	
+
+: DW_OP_or ( x y -- z)
+        or ;
+
+: DW_OP_xor ( x y -- z)
+        xor ;
+
+: DW_OP_plus ( x y -- z)
+        + ;
+
+: DW_OP_minus ( x y -- z)
+        - ;
+
 : DW_OP_ne ( x y -- z)
 	<> ( normalize result)if 1 else 0 then ;
 	
