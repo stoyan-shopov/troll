@@ -41,6 +41,7 @@ void Blackmagic::readAllRegisters(void)
 void Blackmagic::putPacket(const QByteArray &request)
 {
 char c;
+	if (BLACKMAGIC_DEBUG) qDebug() << "--> " << request;
 	port->write(request);
 	if (!port->waitForBytesWritten(1000))
 		Util::panic();
@@ -210,7 +211,6 @@ bool Blackmagic::requestHalt()
 
 bool Blackmagic::connect(void)
 {
-	QByteArray packet = GdbRemote::monitorRequest("swdp_scan");
 	int i;
 	QVector<QByteArray> r, s;
 	QString scan_reply;
@@ -218,27 +218,48 @@ bool Blackmagic::connect(void)
 	if (!port->setDataTerminalReady(true))
 		Util::panic();
 	port->write("+++");
-	port->waitForBytesWritten(1000);
+	port->waitForBytesWritten(500);
 	port->readAll();
 	qDebug() << "--------------> +++";
+
+	QByteArray reply;
 	do
-		port->waitForReadyRead(1000);
+	{
+		port->waitForReadyRead(500);
+		reply = port->readAll();
+		qDebug() << reply;
+	}
 	while (port->readAll() > 0);
 	
 	try
 	{
-		putPacket(packet);
+		putPacket(GdbRemote::monitorRequest("tpwr enable"));
 	}
 	catch (...)
 	{
 		return false;
 	}
+
+	do
+		r.push_back(getPacket());
+	while (!GdbRemote::isOkResponse(r.back()) && !GdbRemote::isErrorResponse(r.back()));
+
 	/*! \todo	Properly issue a 'qSupported' gdb remote protocol request, process
 	 * 		blackmagic response, and properly determine the maximum packet size -
 	 * 		this is important for determining the most appropriate packet size
 	 * 		for accessing target memory, and for reading target description xml
 	 * 		documents from the blackmagic */
 
+	try
+	{
+		putPacket(GdbRemote::monitorRequest("swdp_scan"));
+	}
+	catch (...)
+	{
+		return false;
+	}
+
+	r.clear();
 	do
 		r.push_back(getPacket());
 	while (!GdbRemote::isOkResponse(r.back()) && !GdbRemote::isErrorResponse(r.back()));
