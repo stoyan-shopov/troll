@@ -153,7 +153,7 @@ private:
 	static QPlainTextEdit * sforth_console;
 	static void sforth_console_output_function(const QString & console_output) { sforth_console->appendPlainText(console_output); }
 
-	enum
+	enum TARGET_STATE_ENUM
 	{
 		INVALID_EXECUTION_STATE = 0,
 		FREE_RUNNING,
