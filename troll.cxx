@@ -587,6 +587,9 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 
 void MainWindow::backtrace()
 {
+	/*! \todo	Test the case of missing debug information, and only dwarf unwinding information
+	 * 		(i.e., only '.debug_frame' section) present. You may strip all but the '.debug_frame'
+	 * 		ELF section from an executable ELF file for testing. */
 	QTime t;
 	struct Die call_site;
 	t.start();
