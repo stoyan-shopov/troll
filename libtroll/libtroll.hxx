@@ -838,8 +838,14 @@ struct DwarfExpression
 					break;
 				}
 				case DW_OP_piece:
-					x << DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip) << " ";
+					x << DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip) << " ";
 					x << "DW_OP_piece ";
+					break;
+				case DW_OP_bit_piece:
+					x << DwarfUtil::uleb128(dwarf_expression, & i) << " ";
+					x << DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip) << " ";
+					bytes_to_skip += i;
+					x << "DW_OP_bit_piece ";
 					break;
 				case DW_OP_implicit_value:
 					x << "IMPLICIT-VALUE-UNSUPPORTED!!! ";

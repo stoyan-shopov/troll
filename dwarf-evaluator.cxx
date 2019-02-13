@@ -26,10 +26,13 @@ THE SOFTWARE.
 static DwarfData * libtroll;
 static RegisterCache * register_cache;
 static DwarfEvaluator * dwarf_evaluator;
+static QByteArray composite_value;
 
 extern "C"
 {
 	/* only DW_OP_regX dwarf opcodes are accepted in DW_OP_entry_value expression blocks */
+	/*! \todo	Test this - provide test samples. Test recursive, multiple nested entry value expression evaluation that
+	 *		utilizes the 'expression-stack' stack */
 	void do_entry_value_expression_block(void)
 	{
 		struct Die call_site;
@@ -70,6 +73,36 @@ extern "C"
 		sf_push(result.value);
 		dwarf_evaluator->entryValueReady(result);
 	}
+
+	void do_DW_OP_piece(void)
+	{
+#if 0
+		auto piece_size = sf_pop();
+		DwarfEvaluator::DwarfExpressionValue result;
+		auto x = sforth->getResults(2);
+		if (x.size() != 2)
+			result.type = DwarfEvaluator::DwarfExpressionValue::INVALID;
+		else
+			result.type = (enum DwarfEvaluator::DwarfExpressionValue::DwarfExpressionType) x.at(1), result.value = x.at(0);
+		do_abort();
+		switch (result.type)
+		{
+		case DwarfEvaluator::DwarfExpressionValue::INVALID:
+			/* Data unavailable */
+			composite_value.append(QString(2 * piece_size, QChar('?')));
+			break;
+		case DwarfEvaluator::DwarfExpressionValue::CONSTANT:
+			composite_value.append(QString("%1").arg(result.value, 2 * piece_size, 16, QChar('0')));
+			break;
+		case DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS: break;
+			composite_value.append(
+		case DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER: break;
+		default: DwarfUtil::panic();
+		}
+		DwarfUtil::panic();
+#endif
+		do_abort();
+	}
 }
 
 DwarfEvaluator::DwarfEvaluator(class Sforth * sforth,
@@ -93,6 +126,7 @@ DwarfEvaluator::DwarfExpressionValue DwarfEvaluator::evaluateLocation(uint32_t c
 		sforth->evaluate("expression-stack-reset");
 	}
 	DwarfExpressionValue result;
+	composite_value.clear();
 	sforth->evaluate(QString("init-dwarf-evaluator $%1 to cfa-value").arg(cfa_value, 0, 16));
 	if (!frameBaseSforthCode.isEmpty())
 		sforth->evaluate(frameBaseSforthCode + " to frame-base-value ' frame-base-defined >vector frame-base-rule");
@@ -100,9 +134,9 @@ DwarfEvaluator::DwarfExpressionValue DwarfEvaluator::evaluateLocation(uint32_t c
 	
 	auto x = sforth->getResults(2);
 	if (x.size() != 2)
-		result.type = INVALID;
+		result.type = DwarfExpressionValue::INVALID;
 	else
-		result.type = (enum DwarfExpressionType) x.at(1), result.value = x.at(0);
+		result.type = (enum DwarfExpressionValue::DwarfExpressionType) x.at(1), result.value = x.at(0);
 	if (reset_expression_evaluator)
 		register_cache->setActiveFrame(saved_active_register_frame_number);
 	return result;

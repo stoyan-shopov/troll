@@ -24,10 +24,12 @@ THE SOFTWARE.
 #include "sf-word-wizard.h"
 
 extern void do_entry_value_expression_block(void);
+void do_DW_OP_piece(void);
 
 static struct word dict_base_dummy_word[1] = { MKWORD(0, 0, "", 0), };
 static const struct word custom_dict[] = {
 	MKWORD(dict_base_dummy_word,	0,		"entry-value-expression-block",		do_entry_value_expression_block),
+	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_piece",				do_DW_OP_piece),
 
 }, * custom_dict_start = custom_dict + __COUNTER__;
 
