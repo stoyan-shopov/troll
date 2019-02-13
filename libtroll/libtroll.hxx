@@ -29,11 +29,11 @@ THE SOFTWARE.
 #include <sstream>
 #include <QDebug>
 
+/*! \todo	Make this a function */
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
 #define DEBUG_LINE_PROGRAMS_ENABLED	0
 #define DEBUG_DIE_READ_ENABLED		0
-#define DEBUG_ADDRESS_RANGE_ENABLED	0
 #define UNWIND_DEBUG_ENABLED		0
 #define DWARF_EXPRESSION_TESTS_DEBUG_ENABLED		0
 
@@ -54,6 +54,7 @@ public:
 		const uint8_t	* debug_abbrev_bytes;
 	};
 	static void panic(...) {*(int*)0=0;}
+	/*! \todo	refactor - switch the 'decoded_len' argument to a reference */
 	static uint32_t uleb128(const uint8_t * data, int * decoded_len)
 	{
 		uint64_t result = 0;
@@ -437,25 +438,6 @@ public:
 			debug_info_data_for_die += DwarfUtil::skip_form_bytes(a.form, debug_info_data_for_die);
 		}
 	}
-};
-
-struct debug_arange
-{
-	const uint8_t	* data, * init_data;
-	uint32_t	unit_length(){return*(uint32_t*)(data+0);}
-	uint16_t	version(){return*(uint16_t*)(data+4);}
-	uint32_t	compilation_unit_debug_info_offset(){return*(uint32_t*)(data+6);}
-	uint8_t		address_size(){return*(uint8_t*)(data+10);}
-	uint8_t		segment_size(){return*(uint8_t*)(data+11);}
-	struct compilation_unit_range
-	{
-		uint32_t	start_address;
-		uint32_t	length;
-	};
-	struct compilation_unit_range * ranges(void) const {return (struct compilation_unit_range *) (data+16);}
-	debug_arange(const uint8_t * data) { this->data = init_data = data; }
-	struct debug_arange & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
-	void rewind(void) { this->data = init_data; }
 };
 
 struct compilation_unit_header
@@ -1489,9 +1471,6 @@ private:
 	const uint8_t	* debug_abbrev;
 	uint32_t	debug_abbrev_len;
 
-	const uint8_t * debug_aranges;
-	uint32_t	debug_aranges_len;
-
 	const uint8_t * debug_ranges;
 	uint32_t	debug_ranges_len;
 	
@@ -1504,18 +1483,91 @@ private:
 	const uint8_t * debug_loc;
 	uint32_t	debug_loc_len;
 
-	struct debug_arange arange;
 	/* cached for performance reasons */
-	const uint8_t	* last_searched_arange;
 	struct compilation_unit_header last_searched_compilation_unit;
+
+	struct AddressRange
+	{
+	private:
+		/* The end address is NOT included in the address range, i.e. this is the first address location after this address range */
+		struct address_range { uint32_t start_address = -1, end_address = -1; };
+		std::list<struct address_range> ranges;
+	public:
+		AddressRange(uint32_t start_address, uint32_t end_address) { ranges.push_back((struct address_range){ .start_address = start_address, .end_address = end_address, });}
+		AddressRange(const uint8_t * debug_ranges_section, uint32_t debug_ranges_section_offset, uint32_t base_address)
+		{
+			auto range_list = (const uint32_t *) (debug_ranges_section + debug_ranges_section_offset);
+			while (range_list[0] && range_list[1])
+			{
+				if (range_list[0] == -1)
+					/* A base address selection entry */
+					base_address = range_list[1];
+				else
+					ranges.push_back((address_range) { .start_address = range_list[0] + base_address, .end_address = range_list[1] + base_address});
+				range_list += 2;
+			}
+		}
+		AddressRange(void){}
+		bool isAddressInRange(uint32_t address) const { for (const auto& range : ranges) if (range.start_address <= address && address < range.end_address) return true; return false; }
+		void dump(void) const { qDebug() << "Address range count:" << ranges.size(); for (const auto& r: ranges) qDebug() << HEX(r.start_address) << "-" << HEX(r.end_address); }
+	};
+	struct CompilationUnitAddressRange
+	{
+		uint32_t	compilation_unit_header_debug_info_offset = -1;
+		AddressRange	range;
+		void dump(void) const { qDebug() << "Compilation unit at offset:" << HEX(compilation_unit_header_debug_info_offset); range.dump(); }
+	};
+	std::vector<CompilationUnitAddressRange> compilation_unit_address_ranges;
+	void dump_compilation_unit_ranges(void) const
+	{
+		qDebug() << "Total compilation units:" << compilation_unit_address_ranges.size();
+		for (const auto& r : compilation_unit_address_ranges)
+			r.dump();
+		qDebug() << "---------------------------------------";
+	}
+	std::vector<CompilationUnitAddressRange>::const_iterator last_searched_compilation_unit_range;
+
+	void buildCompilationUnitRangeTable(void)
+	{
+		uint32_t cu;
+		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
+		{
+			auto cu_die_offset = cu + /* skip compilation unit header */ compilation_unit_header(this->debug_info + cu).header_length();
+			if (compilation_unit_header(this->debug_info + cu).version() > 4)
+				DwarfUtil::panic("Dwarf 5 introduces a new representation of address ranges that is not yet handled");
+			auto compilation_unit_die = debug_tree_of_die(cu_die_offset, 0, 1).at(0);
+			struct AddressRange r;
+
+			struct Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
+			auto range = a.dataForAttribute(DW_AT_ranges, debug_info + compilation_unit_die.offset);
+			if (range.form)
+				r = AddressRange(debug_ranges, DwarfUtil::formConstant(range), compilation_unit_base_address(compilation_unit_die));
+			else
+			{
+				auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + compilation_unit_die.offset);
+				if (low_pc.form)
+				{
+					uint32_t start_address;
+					auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + compilation_unit_die.offset);
+					if (!hi_pc.form)
+						DwarfUtil::panic("Missing dwarf 'hi_pc' attribute for compilation unit; cannot compute compilation unit address ranges");
+					start_address = DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes);
+					r = AddressRange(start_address, DwarfUtil::fetchHighLowPC(hi_pc.form, hi_pc.debug_info_bytes, start_address));
+				}
+			}
+			compilation_unit_address_ranges.push_back((CompilationUnitAddressRange) {.compilation_unit_header_debug_info_offset = cu, .range = r, });
+		}
+		last_searched_compilation_unit_range = compilation_unit_address_ranges.cend();
+	}
+
 	
 	struct
 	{
 		unsigned total_dies;
 		unsigned total_compilation_units;
 		unsigned dies_read;
-		unsigned compilation_unit_arange_hits;
-		unsigned compilation_unit_arange_misses;
+		unsigned compilation_unit_address_ranges_hits;
+		unsigned compilation_unit_address_ranges_misses;
 		unsigned compilation_unit_header_hits;
 		unsigned compilation_unit_header_misses;
 		unsigned abbreviation_hits;
@@ -1607,14 +1659,12 @@ private:
 		die_offset = p - debug_info;
 	}
 public:
-	DwarfData(const void * debug_aranges, uint32_t debug_aranges_len, const void * debug_info, uint32_t debug_info_len,
+	DwarfData(const void * debug_info, uint32_t debug_info_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
 		  const void * debug_str, uint32_t debug_str_len,
 		  const void * debug_line, uint32_t debug_line_len,
-		  const void * debug_loc, uint32_t debug_loc_len) : arange((const uint8_t *) debug_aranges), last_searched_compilation_unit((const uint8_t *) 0)
+		  const void * debug_loc, uint32_t debug_loc_len) : last_searched_compilation_unit((const uint8_t *) 0)
 	{
-		this->debug_aranges = (const uint8_t *) debug_aranges;
-		this->debug_aranges_len = debug_aranges_len;
 		this->debug_info = (const uint8_t *) debug_info;
 		this->debug_info_len = debug_info_len;
 		this->debug_abbrev = (const uint8_t *) debug_abbrev;
@@ -1631,7 +1681,6 @@ public:
 		verbose_type_printing_indentation_level = 0;
 
 		last_searched_compilation_unit.data = this->debug_info;
-		last_searched_arange = arange.data;
 		memset(& stats, 0, sizeof stats);
 		
 		std::map<uint32_t, uint32_t> abbreviations;
@@ -1643,14 +1692,16 @@ public:
 			getAbbreviationsOfCompilationUnit(cu, abbreviations);
 			reapDieFingerprints(die_offset, abbreviations);
 		}
+
+		buildCompilationUnitRangeTable();
 	}
 	void dumpStats(void)
 	{
 		qDebug() << "total dies in .debug_info:" << stats.total_dies;
 		qDebug() << "total compilation units in .debug_info:" << stats.total_compilation_units;
 		qDebug() << "total dies read:" << stats.dies_read;
-		qDebug() << "compilation unit address range search hits:" << stats.compilation_unit_arange_hits;
-		qDebug() << "compilation unit address range search misses:" << stats.compilation_unit_arange_misses;
+		qDebug() << "compilation unit address range search hits:" << stats.compilation_unit_address_ranges_hits;
+		qDebug() << "compilation unit address range search misses:" << stats.compilation_unit_address_ranges_misses;
 		qDebug() << "compilation unit die search hits:" << stats.compilation_unit_header_hits;
 		qDebug() << "compilation unit die search misses:" << stats.compilation_unit_header_misses;
 		qDebug() << "abbreviation fetch hits:" << stats.abbreviation_hits;
@@ -1677,42 +1728,20 @@ private:
 		return -1;
 	}
 
-	bool isAddressInCompilationUnitRange(uint32_t address, const struct debug_arange & arange)
-	{
-		int i = 0;
-		const struct debug_arange::compilation_unit_range * r;
-		do
-		{
-			r = arange.ranges() + i;
-			if (r->start_address <= address && address < r->start_address + r->length)
-				return true;
-			i ++;
-		}
-		while (r->length || r->start_address);
-		return false;
-	}
 	/* returns -1 if the compilation unit is not found */
 	uint32_t	get_compilation_unit_debug_info_offset_for_address(uint32_t address)
 	{
-		struct debug_arange last(last_searched_arange);
-		if (isAddressInCompilationUnitRange(address, last))
+		if (last_searched_compilation_unit_range != compilation_unit_address_ranges.cend())
 		{
-			if (STATS_ENABLED) stats.compilation_unit_arange_hits ++;
-			return last.compilation_unit_debug_info_offset();
+			/* First search the last searched compilation unit, in hope of finding the address there,
+			 * and before performing a full search over all compilation units */
+			if (last_searched_compilation_unit_range->range.isAddressInRange(address))
+				return last_searched_compilation_unit_range->compilation_unit_header_debug_info_offset;
+
 		}
-		if (STATS_ENABLED) stats.compilation_unit_arange_misses ++;
-		arange.rewind();
-		while (arange.data < debug_aranges + debug_aranges_len)
-		{
-			if (arange.address_size() != 4)
-				DwarfUtil::panic();
-			if (isAddressInCompilationUnitRange(address, arange))
-			{
-				last_searched_arange = arange.data;
-				return arange.compilation_unit_debug_info_offset();
-			}
-			arange.next();
-		}
+		for (last_searched_compilation_unit_range = compilation_unit_address_ranges.cbegin(); last_searched_compilation_unit_range != compilation_unit_address_ranges.cend(); ++ last_searched_compilation_unit_range)
+			if (last_searched_compilation_unit_range->range.isAddressInRange(address))
+				return last_searched_compilation_unit_range->compilation_unit_header_debug_info_offset;
 		return -1;
 	}
 	uint32_t compilation_unit_base_address(const struct Die & compilation_unit_die)
@@ -1728,29 +1757,15 @@ private:
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto range = a.dataForAttribute(DW_AT_ranges, debug_info + die.offset);
 		if (range.form)
-		{
-			auto base_address = compilation_unit_base_address(compilation_unit_die);
-			const uint32_t * range_list = (const uint32_t *) (debug_ranges + DwarfUtil::formConstant(range));
-			while (range_list[0] && range_list[1])
-			{
-				if (range_list[0] == -1)
-					base_address = range_list[1];
-				else if (range_list[0] + base_address <= address && address < range_list[1] + base_address)
-					return true;
-				range_list += 2;
-			}
-		}
+			return AddressRange(debug_ranges, DwarfUtil::formConstant(range), compilation_unit_base_address(compilation_unit_die)).isAddressInRange(address);
 		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
 		if (low_pc.form)
 		{
-			uint32_t x;
 			auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
 			if (!hi_pc.form)
 				return false;
-			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << (x = DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes));
-			if (DEBUG_ADDRESS_RANGE_ENABLED) qDebug() << DwarfUtil::fetchHighLowPC(hi_pc.form, hi_pc.debug_info_bytes, x);
-			x = DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes);
-			return x <= address && address < DwarfUtil::fetchHighLowPC(hi_pc.form, hi_pc.debug_info_bytes, x);
+			auto low_pc_value = DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes);
+			return AddressRange(low_pc_value, DwarfUtil::fetchHighLowPC(hi_pc.form, hi_pc.debug_info_bytes, low_pc_value)).isAddressInRange(address);
 		}
 		return false;
 	}
@@ -1819,15 +1834,7 @@ public:
 			x = -1;
 		return x;
 	}
-	int compilation_unit_count(void)
-	{
-		int i;
-		arange.rewind();
-		for (i = 0; arange.data < debug_aranges + debug_aranges_len; arange.next(), i++)
-			if (arange.address_size() != 4)
-				DwarfUtil::panic();
-		return i;
-	}
+	int compilation_unit_count(void) const { return compilation_unit_address_ranges.size(); }
 	std::vector<struct Die> executionContextForAddress(uint32_t address)
 	{
 		std::vector<struct Die> context;
