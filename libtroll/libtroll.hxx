@@ -760,10 +760,10 @@ struct DwarfExpression
 					x << "DW_OP_drop ";
 					break;
 				case DW_OP_or:
-					x << "OR-UNSUPPORTED!!! ";
+					x << "DW_OP_or ";
 					break;
 				case DW_OP_xor:
-					x << "XOR-UNSUPPORTED!!! ";
+					x << "DW_OP_xor ";
 					break;
 				case DW_OP_lt:
 					x << "DW_OP_lt ";
