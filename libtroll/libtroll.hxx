@@ -1582,6 +1582,8 @@ private:
 	stats;
 	struct DieFingerprint
 	{
+		/*! \todo	Maybe also add here a sibling pointer field, and maybe also stash the DIE tag value.
+		 * 		This may eventually simpllify the dwarf DIE scanning code. */
 		uint32_t	offset;
 		uint32_t	abbrev_offset;
 	};
