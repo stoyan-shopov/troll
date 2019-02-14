@@ -136,7 +136,7 @@ int i;
 	}
 }
 
-int MainWindow::buildArrayViewNode(QTreeWidgetItem *parent, const DwarfData::DataNode &array_node, int dimension_index, const QByteArray &data, int data_pos, int numeric_base, const QString numeric_prefix)
+int MainWindow::buildArrayViewNode(QTreeWidgetItem *parent, const DwarfData::DataNode &array_node, int dimension_index, const QByteArray& hexAsciiData, int data_pos, int numeric_base, const QString numeric_prefix)
 {
 int i;
 	if (dimension_index == array_node.array_dimensions.size() - 1)
@@ -145,7 +145,7 @@ int i;
 		QTreeWidgetItem * n;
 		for (i = 0; i < (signed) array_node.array_dimensions.at(dimension_index); i ++)
 		{
-			parent->addChild(n = itemForNode(array_node.children.at(0), data, data_pos + i * array_node.children.at(0).bytesize, numeric_base, numeric_prefix));
+			parent->addChild(n = itemForNode(array_node.children.at(0),  hexAsciiData, data_pos + i * array_node.children.at(0).bytesize, numeric_base, numeric_prefix));
 			n->setText(0, QString("[%1] ").arg(i) + n->text(0));
 		}
 		return i * array_node.children.at(0).bytesize;
@@ -154,26 +154,27 @@ int i;
 	{
 		int size;
 		for (i = 0; i < array_node.array_dimensions.at(dimension_index); i ++)
-			data_pos += (size = buildArrayViewNode(new QTreeWidgetItem(parent, QStringList() << QString("[%1]").arg(i)), array_node, dimension_index + 1, data, data_pos, numeric_base, numeric_prefix));
+			data_pos += (size = buildArrayViewNode(new QTreeWidgetItem(parent, QStringList() << QString("[%1]").arg(i)), array_node, dimension_index + 1,  hexAsciiData, data_pos, numeric_base, numeric_prefix));
 		return size * i;
 	}
 }
 
-QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const QByteArray & data, int data_pos, int numeric_base, const QString & numeric_prefix)
+QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const QByteArray& hexAsciiData, int data_pos, int numeric_base, const QString & numeric_prefix)
 {
 auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << "???" << QString("%1").arg(node.data_member_location));
 int i;
+
 	if (node.is_pointer)
 		n->setData(0, Qt::UserRole, QVariant::fromValue((TreeWidgetNodeData) { .pointer_type_die_offset = node.die_offset, }));
 	if (!node.children.size())
 	{
-		if (data_pos + node.bytesize <= data.size()) switch (node.bytesize)
+		if (data_pos + node.bytesize <= hexAsciiData.size() / /* Two bytes of hex ascii data */ 2) switch (node.bytesize)
 		{
 		uint64_t x;
-			case 1: x = * (uint8_t *) (data.data() + data_pos); if (0)
-			case 2: x = * (uint16_t *) (data.data() + data_pos); if (0)
-			case 4: x = * (uint32_t *) (data.data() + data_pos); if (0)
-			case 8: x = * (uint64_t *) (data.data() + data_pos);
+			case 1: x = * (uint8_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 1 * 2)).data(); if (0)
+			case 2: x = * (uint16_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 2 * 2)).data(); if (0)
+			case 4: x = * (uint32_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 4 * 2)).data(); if (0)
+			case 8: x = * (uint64_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 8 * 2)).data(); if (0)
 				if (node.bitsize)
 				{
 					x >>= node.bitposition, x &= (1 << node.bitsize) - 1;
@@ -251,15 +252,13 @@ n->setText(2, "<<< UNKNOWN SIZE >>>");
 break;
 				Util::panic();
 		}
-		/*
 		else
-			Util::panic();
-			*/
+			n->setText(2, "DATA UNAVAILABLE");
 	}
 	if (node.array_dimensions.size())
-		buildArrayViewNode(n, node, 0, data, data_pos, numeric_base, numeric_prefix);
+		buildArrayViewNode(n, node, 0, hexAsciiData, data_pos, numeric_base, numeric_prefix);
 	else
-		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i), data, data_pos + node.children.at(i).data_member_location, numeric_base, numeric_prefix)), i ++);
+		for (i = 0; i < node.children.size(); n->addChild(itemForNode(node.children.at(i), hexAsciiData, data_pos + node.children.at(i).data_member_location, numeric_base, numeric_prefix)), i ++);
 	return n;
 }
 
@@ -1215,15 +1214,15 @@ uint32_t pc = -1;
 		locationSforthCode = QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc));
 		ui->tableWidgetLocalVariables->setItem(row, 3, currently_evaluated_local_data_object = new QTableWidgetItem("n/a"));
 		auto x = dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
-		if (x.type == DwarfEvaluator::INVALID)
+		if (x.type == DwarfEvaluator::DwarfExpressionValue::INVALID)
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem("cannot evaluate"));
 		else
 		{
 			QString prefix;
 			int base = 16, width = 0;
-			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
+			if (x.type == DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS)
 				prefix = "@$", width = 8;
-			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
+			else if (x.type == DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER)
 				prefix = "#r";
 			else
 				base = 10;
@@ -1239,17 +1238,17 @@ uint32_t pc = -1;
 
 			struct DwarfData::DataNode node;
 			dwdata->dataForType(type_cache, node, 1);
-			if (x.type == DwarfEvaluator::MEMORY_ADDRESS)
+			if (x.type == DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
-                                n->addChild(itemForNode(node, target->readBytes(x.value, node.bytesize, true), 0, base, ""));
+				n->addChild(itemForNode(node, target->readBytes(x.value, node.bytesize, true).toHex(), 0, base, ""));
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
-			else if (x.type == DwarfEvaluator::REGISTER_NUMBER)
+			else if (x.type == DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
 				uint32_t register_contents = register_cache.readCachedRegister(x.value);
-				n->addChild(itemForNode(node, QByteArray((const char *) & register_contents, sizeof register_contents), 0, base, ""));
+				n->addChild(itemForNode(node, QByteArray((const char *) & register_contents, sizeof register_contents).toHex(), 0, base, ""));
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
 		}
@@ -1642,7 +1641,7 @@ QString numeric_prefix;
 	}
 	if (isTargetAccessible())
 	{
-		ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, data = target->readBytes(address, node.bytesize, true), 0, numeric_base, numeric_prefix));
+		ui->treeWidgetDataObjects->addTopLevelItem(itemForNode(node, (data = target->readBytes(address, node.bytesize, true)).toHex(), 0, numeric_base, numeric_prefix));
 		ui->treeWidgetDataObjects->expandAll();
 		ui->treeWidgetDataObjects->resizeColumnToContents(0);
 		dumpData(address, data);
@@ -1947,7 +1946,7 @@ void MainWindow::on_treeWidgetDataObjects_itemActivated(QTreeWidgetItem *item, i
 
 		struct DwarfData::DataNode node;
 		dwdata->dataForType(type_cache, node, 1);
-		item->addChild(itemForNode(node, ok ? target->readBytes(address, node.bytesize, true) : QByteArray(), 0, 10, ""));
+		item->addChild(itemForNode(node, ok ? target->readBytes(address, node.bytesize, true).toHex() : QByteArray(), 0, 10, ""));
 		item->setExpanded(true);
 	}
 }
