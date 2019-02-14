@@ -36,6 +36,13 @@ private:
 	Sforth	* sforth;
 	int saved_active_register_frame_number;
 public:
+	struct DwarfExpressionValue;
+	struct DwarfCompositeLocation
+	{
+		struct DwarfExpressionValue;
+		int	byte_size;
+	};
+
 	/*! \warning	these constants must match the dwarf expression type constants in file 'dwarf-evaluator.fs' */
 	/*! \todo	On startup initialization, load the constants in 'dwarf-evaluator.fs' with these values, to
 	 *		maintain consistency and to avoid duplication */
@@ -49,35 +56,24 @@ public:
 			REGISTER_NUMBER	= 3,
 			/* The dwarf location description that has been evaluated is a composite location description, i.e.
 			 * a location description that contains dwarf opcodes 'DW_OP_piece' and/or 'DW_OP_bit_piece'.
-			 * At the time of writing this (07022019) the locations of the different pieces of the location
-			 * description are not recorded - instead, the value of the object described by the composite
-			 * location description is fetched and stored in the 'composite_value' field of data structure
-			 * 'DwarfExpressionValue'. Read the comments about this field to see the format of data
-			 *
-			 * If, at some time in the future, it is desired for objects, whose location is described by a
-			 * composite location description, to be modified - obviously the locations of the different
-			 * pieces of the object will have to be recorded, so that it becomes known how to modify
-			 * the composite object */
+			 * Information about the different pieces are stored in the 'compositeLocation' field */
 			COMPOSITE_VALUE	= 4,
 		}
 		type;
-		uint32_t			value;
-		/* This is the value computed by composite dwarf location descriptions, i.e. ones that contain
-		 * dwarf opcodes 'DW_OP_piece' and/or 'DW_OP_bit_piece'. Also, read comments about enumerator
-		 * 'COMPOSITE_VALUE' of enumeration 'DwarfExpressionType'
-		 *
-		 * The format of the data is this - for each successfully retrieved byte of data, two ascii
-		 * bytes are present, which contain the hexadecimal representation of that byte. For each
-		 * byte that is unavailable (i.e., it has been optimized away), the bytes "??" are
-		 * stored */
-		QByteArray			composite_value;
+		uint32_t				value;
+		std::list<DwarfCompositeLocation>	compositeLocation;
 	};
 	DwarfEvaluator(class Sforth * sforth,
-	               class DwarfData * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ libtroll_class,
+		       class DwarfData * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ libtroll_class,
 	               class RegisterCache * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ register_cache_class
 	               );
 	struct DwarfExpressionValue evaluateLocation(uint32_t cfa_value, const QString & frameBaseSforthCode, const QString & locationSforthCode, bool reset_expression_evaluator = true);
 	void entryValueReady(struct DwarfExpressionValue entry_value) { emit entryValueComputed(entry_value); }
+	/* The format of the returned data is this - for each successfully retrieved byte of data, two ascii
+	 * bytes are present, which contain the hexadecimal representation of that byte. For each
+	 * byte that is unavailable (e.g., it has been optimized away, or can not be retrieved from the target),
+	 * the bytes "??" are * stored */
+	QByteArray fetchValueFromTarget(const struct DwarfExpressionValue& location);
 signals:
 	void entryValueComputed(struct DwarfEvaluator::DwarfExpressionValue entry_value);
 };

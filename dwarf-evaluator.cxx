@@ -26,7 +26,6 @@ THE SOFTWARE.
 static DwarfData * libtroll;
 static RegisterCache * register_cache;
 static DwarfEvaluator * dwarf_evaluator;
-static QByteArray composite_value;
 
 extern "C"
 {
@@ -126,7 +125,6 @@ DwarfEvaluator::DwarfExpressionValue DwarfEvaluator::evaluateLocation(uint32_t c
 		sforth->evaluate("expression-stack-reset");
 	}
 	DwarfExpressionValue result;
-	composite_value.clear();
 	sforth->evaluate(QString("init-dwarf-evaluator $%1 to cfa-value").arg(cfa_value, 0, 16));
 	if (!frameBaseSforthCode.isEmpty())
 		sforth->evaluate(frameBaseSforthCode + " to frame-base-value ' frame-base-defined >vector frame-base-rule");
@@ -140,4 +138,9 @@ DwarfEvaluator::DwarfExpressionValue DwarfEvaluator::evaluateLocation(uint32_t c
 	if (reset_expression_evaluator)
 		register_cache->setActiveFrame(saved_active_register_frame_number);
 	return result;
+}
+
+QByteArray DwarfEvaluator::fetchValueFromTarget(const DwarfEvaluator::DwarfExpressionValue &location)
+{
+	return QByteArray();
 }
