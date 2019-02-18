@@ -76,7 +76,7 @@ DEFINES += CORE_CELLS_COUNT="128*1024" STACK_DEPTH=32 CAPSTONE_USE_SYS_DYN_MEM C
 
 DISTFILES += \
     unwinder.fs \
-    dwarf-expression.fs
+    dwarf-evaluator.fs
 
 RESOURCES += \
     resources.qrc
