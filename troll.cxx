@@ -163,6 +163,7 @@ QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const
 {
 auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << "???" << QString("%1").arg(node.data_member_location));
 int i;
+QByteArray data;
 
 	if (node.is_pointer)
 		n->setData(0, Qt::UserRole, QVariant::fromValue((TreeWidgetNodeData) { .pointer_type_die_offset = node.die_offset, }));
@@ -171,10 +172,16 @@ int i;
 		if (data_pos + node.bytesize <= hexAsciiData.size() / /* Two bytes of hex ascii data */ 2) switch (node.bytesize)
 		{
 		uint64_t x;
-			case 1: x = * (uint8_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 1 * 2)).data(); if (0)
-			case 2: x = * (uint16_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 2 * 2)).data(); if (0)
-			case 4: x = * (uint32_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 4 * 2)).data(); if (0)
-			case 8: x = * (uint64_t *) QByteArray::fromHex(hexAsciiData.mid(data_pos * 2, 8 * 2)).data(); if (0)
+			case 1: x = * (uint8_t *) QByteArray::fromHex(data = hexAsciiData.mid(data_pos * 2, 1 * 2)).data(); if (0)
+			case 2: x = * (uint16_t *) QByteArray::fromHex(data = hexAsciiData.mid(data_pos * 2, 2 * 2)).data(); if (0)
+			case 4: x = * (uint32_t *) QByteArray::fromHex(data = hexAsciiData.mid(data_pos * 2, 4 * 2)).data(); if (0)
+			case 8: x = * (uint64_t *) QByteArray::fromHex(data = hexAsciiData.mid(data_pos * 2, 8 * 2)).data();
+				/* Check if the data is valid/available */
+				if (data.contains('?'))
+				{
+						n->setText(2, "Data unavailable");
+						break;
+				}
 				if (node.bitsize)
 				{
 					x >>= node.bitposition, x &= (1 << node.bitsize) - 1;
@@ -1213,20 +1220,20 @@ uint32_t pc = -1;
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
 		locationSforthCode = QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc));
 		ui->tableWidgetLocalVariables->setItem(row, 3, currently_evaluated_local_data_object = new QTableWidgetItem("n/a"));
-		auto x = dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
-		if (x.type == DwarfEvaluator::DwarfExpressionValue::INVALID)
+		auto location = dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
+		if (location.type == DwarfEvaluator::DwarfExpressionValue::INVALID)
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem("cannot evaluate"));
 		else
 		{
 			QString prefix;
 			int base = 16, width = 0;
-			if (x.type == DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS)
+			if (location.type == DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS)
 				prefix = "@$", width = 8;
-			else if (x.type == DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER)
+			else if (location.type == DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER)
 				prefix = "#r";
 			else
 				base = 10;
-			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem((prefix + "%1").arg(x.value, width, base)));
+			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem((prefix + "%1").arg(location.value, width, base)));
 			
 			switch (base = ui->comboBoxDataDisplayNumericBase->currentText().toUInt())
 			{
@@ -1238,19 +1245,24 @@ uint32_t pc = -1;
 
 			struct DwarfData::DataNode node;
 			dwdata->dataForType(type_cache, node, 1);
-			if (x.type == DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS)
+			/*
+			if (location.type == DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
-				n->addChild(itemForNode(node, target->readBytes(x.value, node.bytesize, true).toHex(), 0, base, ""));
+				n->addChild(itemForNode(node, target->readBytes(location.value, node.bytesize, true).toHex(), 0, base, ""));
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
-			else if (x.type == DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER)
+			else if (location.type == DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER)
 			{
 				auto n = new QTreeWidgetItem(QStringList() << data_object_name);
-				uint32_t register_contents = register_cache.readCachedRegister(x.value);
+				uint32_t register_contents = register_cache.readCachedRegister(location.value);
 				n->addChild(itemForNode(node, QByteArray((const char *) & register_contents, sizeof register_contents).toHex(), 0, base, ""));
 				ui->treeWidgetDataObjects->addTopLevelItem(n);
 			}
+			*/
+			auto n = new QTreeWidgetItem(QStringList() << data_object_name);
+			n->addChild(itemForNode(node, DwarfEvaluator::fetchValueFromTarget(location, target, node.bytesize), 0, base, ""));
+			ui->treeWidgetDataObjects->addTopLevelItem(n);
 		}
 		ui->tableWidgetLocalVariables->setItem(row, 4, new QTableWidgetItem(locationSforthCode));
 		if (locationSforthCode.isEmpty())

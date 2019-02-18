@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016-2017 stoyan shopov
+Copyright (c) 2016-2017, 2019 Stoyan Shopov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include "util.hxx"
 #include "libtroll.hxx"
 #include "registercache.hxx"
+#include "target.hxx"
 
 class DwarfEvaluator : public QObject
 {
@@ -36,12 +37,7 @@ private:
 	Sforth	* sforth;
 	int saved_active_register_frame_number;
 public:
-	struct DwarfExpressionValue;
-	struct DwarfCompositeLocation
-	{
-		struct DwarfExpressionValue;
-		int	byte_size;
-	};
+	struct DwarfCompositeLocation;
 
 	/*! \warning	these constants must match the dwarf expression type constants in file 'dwarf-evaluator.fs' */
 	/*! \todo	On startup initialization, load the constants in 'dwarf-evaluator.fs' with these values, to
@@ -51,6 +47,7 @@ public:
 		enum DwarfExpressionType
 		{
 			INVALID		= 0,
+			/*! \todo	Constant values are not yet handled properly, fix this */
 			CONSTANT	= 1,
 			MEMORY_ADDRESS	= 2,
 			REGISTER_NUMBER	= 3,
@@ -61,19 +58,28 @@ public:
 		}
 		type;
 		uint32_t				value;
-		std::list<DwarfCompositeLocation>	compositeLocation;
+		/*! \todo	This isn't really nice placed here, as the DwarfExpressionValue and DwarfCompositePieceLocation
+		 * 		get mutually recursive, and this is not really needed. Make this more sane */
+		std::list<DwarfCompositeLocation>	pieces;
 	};
+
+	struct DwarfCompositeLocation
+	{
+		struct DwarfExpressionValue details;
+		int	byte_size;
+	};
+
 	DwarfEvaluator(class Sforth * sforth,
-		       class DwarfData * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ libtroll_class,
-	               class RegisterCache * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ register_cache_class
-	               );
+		       class DwarfData * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ libtroll,
+		       class RegisterCache * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ register_cache_class
+		       );
 	struct DwarfExpressionValue evaluateLocation(uint32_t cfa_value, const QString & frameBaseSforthCode, const QString & locationSforthCode, bool reset_expression_evaluator = true);
 	void entryValueReady(struct DwarfExpressionValue entry_value) { emit entryValueComputed(entry_value); }
 	/* The format of the returned data is this - for each successfully retrieved byte of data, two ascii
 	 * bytes are present, which contain the hexadecimal representation of that byte. For each
 	 * byte that is unavailable (e.g., it has been optimized away, or can not be retrieved from the target),
 	 * the bytes "??" are * stored */
-	QByteArray fetchValueFromTarget(const struct DwarfExpressionValue& location);
+	static QByteArray fetchValueFromTarget(const struct DwarfExpressionValue& location, Target * target, int bytesize = -1);
 signals:
 	void entryValueComputed(struct DwarfEvaluator::DwarfExpressionValue entry_value);
 };

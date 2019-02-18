@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016-2017 stoyan shopov
+Copyright (c) 2016-2017, 2019 Stoyan Shopov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,9 +23,11 @@ THE SOFTWARE.
 #include <QFile>
 #include "dwarf-evaluator.hxx"
 
+/*! \todo	These are bad... */
 static DwarfData * libtroll;
 static RegisterCache * register_cache;
 static DwarfEvaluator * dwarf_evaluator;
+static Sforth * sforth;
 
 extern "C"
 {
@@ -73,45 +75,44 @@ extern "C"
 		dwarf_evaluator->entryValueReady(result);
 	}
 
+static std::list<DwarfEvaluator::DwarfCompositeLocation> composite_location_pieces;
+
 	void do_DW_OP_piece(void)
 	{
-#if 0
-		auto piece_size = sf_pop();
-		DwarfEvaluator::DwarfExpressionValue result;
+		DwarfEvaluator::DwarfCompositeLocation l;
+		l.byte_size = sf_pop();
+		sforth->evaluate("expression-value-type");
 		auto x = sforth->getResults(2);
-		if (x.size() != 2)
-			result.type = DwarfEvaluator::DwarfExpressionValue::INVALID;
-		else
-			result.type = (enum DwarfEvaluator::DwarfExpressionValue::DwarfExpressionType) x.at(1), result.value = x.at(0);
-		do_abort();
-		switch (result.type)
+		if (x.size() == 1)
+			/* Piece unavailable */
+			l.details.type = DwarfEvaluator::DwarfExpressionValue::INVALID;
+		else if (x.size() == 2)
 		{
-		case DwarfEvaluator::DwarfExpressionValue::INVALID:
-			/* Data unavailable */
-			composite_value.append(QString(2 * piece_size, QChar('?')));
-			break;
-		case DwarfEvaluator::DwarfExpressionValue::CONSTANT:
-			composite_value.append(QString("%1").arg(result.value, 2 * piece_size, 16, QChar('0')));
-			break;
-		case DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS: break;
-			composite_value.append(
-		case DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER: break;
-		default: DwarfUtil::panic();
+			l.details.type = (enum DwarfEvaluator::DwarfExpressionValue::DwarfExpressionType) x.at(1), l.details.value = x.at(0);
+			switch (l.details.type)
+			{
+			default: DwarfUtil::panic();
+			case DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS: case DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER:
+				break;
+			}
 		}
-		DwarfUtil::panic();
-#endif
-		do_abort();
+		else
+			DwarfUtil::panic();
+		composite_location_pieces.push_back(l);
+		/* By default, make the next piece a memory address location */
+		sforth->evaluate("expression-is-a-memory-address to expression-value-type");
 	}
 }
 
+
 DwarfEvaluator::DwarfEvaluator(class Sforth * sforth,
-	       class DwarfData * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ libtroll_class,
+	       class DwarfData * /* needed for evaluating dwarf expressions containing DW_OP_entry_value opcodes */ libtroll,
 	       RegisterCache * register_cache_class)
 {
 	dwarf_evaluator = this;
-	libtroll = libtroll_class;
+	::libtroll = libtroll;
 	register_cache = register_cache_class;
-	this->sforth = sforth;
+	this->sforth = ::sforth = sforth;
 	QFile f(":/sforth/dwarf-evaluator.fs");
 	f.open(QFile::ReadOnly);
 	sforth->evaluate(f.readAll());
@@ -123,6 +124,7 @@ DwarfEvaluator::DwarfExpressionValue DwarfEvaluator::evaluateLocation(uint32_t c
 	{
 		saved_active_register_frame_number = register_cache->activeFrame();
 		sforth->evaluate("expression-stack-reset");
+		composite_location_pieces.clear();
 	}
 	DwarfExpressionValue result;
 	sforth->evaluate(QString("init-dwarf-evaluator $%1 to cfa-value").arg(cfa_value, 0, 16));
@@ -132,7 +134,12 @@ DwarfEvaluator::DwarfExpressionValue DwarfEvaluator::evaluateLocation(uint32_t c
 	
 	auto x = sforth->getResults(2);
 	if (x.size() != 2)
-		result.type = DwarfExpressionValue::INVALID;
+	{
+		if (composite_location_pieces.size())
+			result.type = DwarfExpressionValue::DwarfExpressionType::COMPOSITE_VALUE, result.pieces = composite_location_pieces;
+		else
+			result.type = DwarfExpressionValue::DwarfExpressionType::INVALID;
+	}
 	else
 		result.type = (enum DwarfExpressionValue::DwarfExpressionType) x.at(1), result.value = x.at(0);
 	if (reset_expression_evaluator)
@@ -140,7 +147,28 @@ DwarfEvaluator::DwarfExpressionValue DwarfEvaluator::evaluateLocation(uint32_t c
 	return result;
 }
 
-QByteArray DwarfEvaluator::fetchValueFromTarget(const DwarfEvaluator::DwarfExpressionValue &location)
+QByteArray DwarfEvaluator::fetchValueFromTarget(const DwarfEvaluator::DwarfExpressionValue& location, Target * target, int bytesize)
 {
-	return QByteArray();
+QByteArray data;
+	switch (location.type)
+	{
+	case DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS:
+		data = target->readBytes(location.value, bytesize, true);
+		break;
+	case DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER:
+	{
+		uint32_t register_contents = register_cache->readCachedRegister(location.value);
+		data = QByteArray((const char *) & register_contents, sizeof register_contents);
+	}
+		break;
+	case DwarfEvaluator::DwarfExpressionValue::COMPOSITE_VALUE:
+		for (const auto& piece : location.pieces)
+			data += fetchValueFromTarget(piece.details, target, piece.byte_size);
+		return data;
+	case DwarfEvaluator::DwarfExpressionValue::INVALID:
+		/* Return an array containing deliberately invalid values, which is, however, of the proper size.
+		 * IMPORTANT: it is the caller's responsibility to properly handle this special case! */
+		return QByteArray(2 * bytesize, '?');
+	}
+	return data.toHex();
 }
