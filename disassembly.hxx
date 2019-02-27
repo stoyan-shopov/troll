@@ -86,7 +86,20 @@ public:
 	{
 		int i = 0, x;
 		bool ok;
-		QRegExp rx("^\\s*(\\w+):");
+		QRegExp rx("^\\s*(\\w+):"
+		/* Note: a whitespace is expected here, because the objdump disassembly
+		 * normally starts with something like:
+		 * "<Filename>:	file format elf32-littlearm"
+		 * and the file name may contain the complete path to the file.
+		 * Now, on a windows machine, if the file is in a windows drive which is a
+		 * valid hex digit (i.e., in the range 'a' - 'f'), then this line is being
+		 * incorrectly detected as a valid disassembly line (e.g., if the file is in the 'c'
+		 * drive, a disassmbly line is being detected for address 0x0000000c).
+		 * To avoid such incorrect detection of disassembly lines in the objdump
+		 * disassembly output, only accept lines which contain some whitespace after
+		 * the colon character.
+		 */
+		"\\s+");
 		this->memory = memory;
 		if (cs_open(CS_ARCH_ARM, CS_MODE_THUMB, & cs_handle))
 		{
