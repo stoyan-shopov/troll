@@ -1,0 +1,433 @@
+<!-- MHonArc v2.6.3 -->
+<!--X-Subject: [rfc] Work around ARM RV compiler unwind info -->
+<!--X-From-R13: Rnavry Xnpbobjvgm <qebjNsnyfr.bet> -->
+<!--X-Date: 18 Dec 2006 21:59:15 &#45;0000 -->
+<!--X-Message-Id: 20061218215900.GA22892@nevyn.them.org -->
+<!--X-Content-Type: text/plain -->
+<!--X-Head-End-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML//EN">
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>Daniel Jacobowitz - [rfc] Work around ARM RV compiler unwind info</title>
+</head>
+<body>
+<!--X-Body-Begin-->
+<!--X-User-Header-->
+<!--htdig_noindex-->
+<p>This is the mail archive of the 
+<tt>gdb-patches@sourceware.org</tt>
+mailing list for the <a href="https://sourceware.org/gdb/">GDB project</a>.
+
+
+<!--/htdig_noindex-->
+<!--X-User-Header-End-->
+<!--X-TopPNI-->
+<!--htdig_noindex-->
+</p><hr>
+<table border="0">
+  <tbody><tr><th align="left">Index Nav:</th>
+      <td colspan="2">
+        [<a href="https://sourceware.org/ml/gdb-patches/2006-12/index.html#00249">Date&nbsp;Index</a>] [<a href="https://sourceware.org/ml/gdb-patches/2006-12/subjects.html#00249">Subject&nbsp;Index</a>] [<a href="https://sourceware.org/ml/gdb-patches/2006-12/authors.html#00249">Author&nbsp;Index</a>] [<a href="https://sourceware.org/ml/gdb-patches/2006-12/threads.html#00249">Thread&nbsp;Index</a>]
+      </td>
+  </tr>
+  <tr><th align="left">Message Nav:</th>
+      <td>[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00248.html">Date&nbsp;Prev</a>]&nbsp;[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00250.html">Date&nbsp;Next</a>]</td>
+      <td>[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00248.html">Thread&nbsp;Prev</a>]&nbsp;[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00254.html">Thread&nbsp;Next</a>]</td>
+  </tr>
+  <tr><th align="left">Other format:</th>
+  <td>[<a href="https://sourceware.org/cgi-bin/get-raw-msg?listname=gdb-patches&amp;date=2006-12&amp;msgid=20061218215900.GA22892%40nevyn.them.org">Raw text</a>]</td>
+  </tr>
+</tbody></table>
+<!--/htdig_noindex-->
+
+<!--X-TopPNI-End-->
+<!--X-MsgBody-->
+<!--X-Subject-Header-Begin-->
+<h1>[rfc] Work around ARM RV compiler unwind info</h1>
+<!--X-Subject-Header-End-->
+<!--X-Head-of-Message-->
+<ul>
+<li><em>From</em>: Daniel Jacobowitz &lt;drow at false dot org&gt;</li>
+<li><em>To</em>: gdb-patches at sourceware dot org</li>
+<li><em>Date</em>: Mon, 18 Dec 2006 16:59:00 -0500</li>
+<li><em>Subject</em>: [rfc] Work around ARM RV compiler unwind info</li>
+</ul>
+<!--X-Head-of-Message-End-->
+<!--X-Head-Body-Sep-Begin-->
+<hr>
+<!--X-Head-Body-Sep-End-->
+<!--X-Body-of-Message-->
+<pre>ARM's compilers generate, overall, very good debug info.  It's poorly
+supported by GDB, for various reasons: a few places where the debug info is
+in fact wrong, and a number where it is so very right that GDB can't handle
+it (since we rely on less correct information typically output by GCC).
+Unfortunately this is one of the former cases, but it's one that I think is
+tentatively worth supporting in GDB.
+
+The compilers have two problems.  Both have been fixed, but the fixes are
+conditionalized, for maximum compatibility with other ARM tools that made
+the same assumptions.
+
+  - When generating DWARF2, with the version field in .debug_frame set to
+    1, they assume that DW_CFA_def_cfa and DW_CFA_def_cfa_offset take
+    factored offsets instead of unfactored.  Using --dwarf3 makes this
+    problem go away; the first ARM compilers to generate DWARF3 were
+    released after this bug was found.
+
+  - When generating either DWARF2 or DWARF3 (CIE version 1 or 3), they
+    assume that a reg_offset rule for the CFA is REG - OFFSET instead of
+    REG + OFFSET.  RVCT 3.0 has this problem.  RVCT 3.0 SP1 does not;
+    but it marks the output with an "armcc+" augmentation to indicate
+    that it has the standard DWARF meaning, again for compatibility
+    with other versions of ARM tools.
+
+These aren't reverse engineered fixes, by the way - I spoke with the ARM
+compiler team about the proper checks.  I only turn on either of the fixes
+if the file also has .debug_info, so that we can find a producer string that
+unambiguously indicates that the ARM compiler was used.
+
+What do you think?  Useful?  Too ugly?
+
+-- 
+Daniel Jacobowitz
+CodeSourcery
+
+2006-12-18  Daniel Jacobowitz  &lt;dan@codesourcery.com&gt;
+
+	* buildsym.c (start_subfile): Handle producer.
+	(record_producer): New function.
+	* buildsym.h (struct subfile): Include producer.
+	(record_producer): New prototype.
+	* dwarf2-frame.c (struct dwarf2_cie): Add version and augmentation.
+	(struct dwarf2_frame_state): Add armcc_cfa_offsets_sf and
+	armcc_cfa_offsets_reversed.
+	(execute_cfa_program): Handle armcc_cfa_offsets_sf.
+	(dwarf2_frame_find_quirks): New function.
+	(dwarf2_frame_cache): Call it.  Handle armcc_cfa_offsets_reversed.
+	(decode_frame_entry_1): Record the CIE version.  Record the
+	augmentation.  Skip armcc augmentations.
+	* dwarf2read.c (read_file_scope): Save the producer.
+	* symtab.h (struct symtab): Rename unused version member to
+	producer.
+
+Index: gdb/buildsym.c
+===================================================================
+RCS file: /scratch/gcc/repos/src/src/gdb/buildsym.c,v
+retrieving revision 1.43
+diff -u -p -r1.43 buildsym.c
+--- gdb/buildsym.c	25 Aug 2006 16:32:32 -0000	1.43
++++ gdb/buildsym.c	6 Nov 2006 19:46:19 -0000
+@@ -596,6 +596,9 @@ start_subfile (char *name, char *dirname
+      later via a call to record_debugformat. */
+   subfile-&gt;debugformat = NULL;
+ 
++  /* Similarly for the producer.  */
++  subfile-&gt;producer = NULL;
++
+   /* If the filename of this subfile ends in .C, then change the
+      language of any pending subfiles from C to C++.  We also accept
+      any other C++ suffixes accepted by deduce_language_from_filename.  */
+@@ -1004,6 +1007,12 @@ end_symtab (CORE_ADDR end_addr, struct o
+ 						  &amp;objfile-&gt;objfile_obstack);
+ 	    }
+ 
++	  /* Similarly for the producer.  */
++	  if (subfile-&gt;producer != NULL)
++	    symtab-&gt;producer = obsavestring (subfile-&gt;producer,
++					     strlen (subfile-&gt;producer),
++					     &amp;objfile-&gt;objfile_obstack);
++
+ 	  /* All symtabs for the main file and the subfiles share a
+ 	     blockvector, so we need to clear primary for everything
+ 	     but the main file.  */
+@@ -1026,6 +1035,8 @@ end_symtab (CORE_ADDR end_addr, struct o
+ 	{
+ 	  xfree ((void *) subfile-&gt;debugformat);
+ 	}
++      if (subfile-&gt;producer != NULL)
++	xfree (subfile-&gt;producer);
+ 
+       nextsub = subfile-&gt;next;
+       xfree ((void *) subfile);
+@@ -1102,6 +1113,12 @@ record_debugformat (char *format)
+   current_subfile-&gt;debugformat = savestring (format, strlen (format));
+ }
+ 
++void
++record_producer (const char *producer)
++{
++  current_subfile-&gt;producer = savestring (producer, strlen (producer));
++}
++
+ /* Merge the first symbol list SRCLIST into the second symbol list
+    TARGETLIST by repeated calls to add_symbol_to_list().  This
+    procedure "frees" each link of SRCLIST by adding it to the
+Index: gdb/buildsym.h
+===================================================================
+RCS file: /scratch/gcc/repos/src/src/gdb/buildsym.h,v
+retrieving revision 1.13
+diff -u -p -r1.13 buildsym.h
+--- gdb/buildsym.h	17 Dec 2005 22:33:59 -0000	1.13
++++ gdb/buildsym.h	6 Nov 2006 19:46:19 -0000
+@@ -68,6 +68,7 @@ struct subfile
+     struct linetable *line_vector;
+     int line_vector_length;
+     enum language language;
++    char *producer;
+     char *debugformat;
+   };
+ 
+@@ -281,6 +282,8 @@ extern void record_pending_block (struct
+ 
+ extern void record_debugformat (char *format);
+ 
++extern void record_producer (const char *producer);
++
+ extern void merge_symbol_lists (struct pending **srclist,
+ 				struct pending **targetlist);
+ 
+Index: gdb/dwarf2-frame.c
+===================================================================
+RCS file: /scratch/gcc/repos/src/src/gdb/dwarf2-frame.c,v
+retrieving revision 1.63
+diff -u -p -r1.63 dwarf2-frame.c
+--- gdb/dwarf2-frame.c	28 May 2006 05:56:50 -0000	1.63
++++ gdb/dwarf2-frame.c	6 Nov 2006 20:24:34 -0000
+@@ -64,6 +64,9 @@ struct dwarf2_cie
+   gdb_byte *initial_instructions;
+   gdb_byte *end;
+ 
++  /* Saved augmentation, in case it's needed later.  */
++  char *augmentation;
++
+   /* Encoding of addresses.  */
+   gdb_byte encoding;
+ 
+@@ -73,6 +76,9 @@ struct dwarf2_cie
+   /* True if an 'S' augmentation existed.  */
+   unsigned char signal_frame;
+ 
++  /* The version recorded in the CIE.  */
++  unsigned char version;
++
+   struct dwarf2_cie *next;
+ };
+ 
+@@ -138,6 +144,16 @@ struct dwarf2_frame_state
+   LONGEST data_align;
+   ULONGEST code_align;
+   ULONGEST retaddr_column;
++
++  /* Flags for known producer quirks.  */
++
++  /* The ARM compilers, in DWARF2 mode, assume that DW_CFA_def_cfa
++     and DW_CFA_def_cfa_offset takes a factored offset.  */
++  int armcc_cfa_offsets_sf;
++
++  /* The ARM compilers, in DWARF2 or DWARF3 mode, may assume that
++     the CFA is defined as REG - OFFSET rather than REG + OFFSET.  */
++  int armcc_cfa_offsets_reversed;
+ };
+ 
+ /* Store the length the expression for the CFA in the `cfa_reg' field,
+@@ -430,6 +446,10 @@ bad CFI data; mismatched DW_CFA_restore_
+ 	    case DW_CFA_def_cfa:
+ 	      insn_ptr = read_uleb128 (insn_ptr, insn_end, &amp;fs-&gt;cfa_reg);
+ 	      insn_ptr = read_uleb128 (insn_ptr, insn_end, &amp;utmp);
++
++	      if (fs-&gt;armcc_cfa_offsets_sf)
++		utmp *= fs-&gt;data_align;
++
+ 	      fs-&gt;cfa_offset = utmp;
+ 	      fs-&gt;cfa_how = CFA_REG_OFFSET;
+ 	      break;
+@@ -444,6 +464,10 @@ bad CFI data; mismatched DW_CFA_restore_
+ 
+ 	    case DW_CFA_def_cfa_offset:
+ 	      insn_ptr = read_uleb128 (insn_ptr, insn_end, &amp;utmp);
++
++	      if (fs-&gt;armcc_cfa_offsets_sf)
++		utmp *= fs-&gt;data_align;
++
+ 	      fs-&gt;cfa_offset = utmp;
+ 	      /* cfa_how deliberately not set.  */
+ 	      break;
+@@ -715,6 +739,49 @@ dwarf2_frame_eh_frame_regnum (struct gdb
+     return regnum;
+   return ops-&gt;eh_frame_regnum (gdbarch, regnum);
+ }
++
++static void
++dwarf2_frame_find_quirks (struct dwarf2_frame_state *fs,
++			  struct dwarf2_fde *fde)
++{
++  static const char *arm_idents[] = {
++    "ARM C Compiler, ADS",
++    "Thumb C Compiler, ADS",
++    "ARM C++ Compiler, ADS",
++    "Thumb C++ Compiler, ADS",
++    "ARM/Thumb C/C++ Compiler, RVCT"
++  };
++  int i;
++
++  struct symtab *s;
++
++  s = find_pc_symtab (fs-&gt;pc);
++  if (s == NULL || s-&gt;producer == NULL)
++    return;
++
++  for (i = 0; i &lt; ARRAY_SIZE (arm_idents); i++)
++    if (strncmp (s-&gt;producer, arm_idents[i], strlen (arm_idents[i])) == 0)
++      {
++	if (fde-&gt;cie-&gt;version == 1)
++	  fs-&gt;armcc_cfa_offsets_sf = 1;
++
++	if (fde-&gt;cie-&gt;version == 1)
++	  fs-&gt;armcc_cfa_offsets_reversed = 1;
++
++	/* The reversed offset problem is present in some compilers
++	   using DWARF3, but it was eventually fixed.  Check the ARM
++	   defined augmentations, which are in the format "armcc" followed
++	   by a list of one-character options.  The "+" option means
++	   this problem is fixed (no quirk needed).  If the armcc
++	   augmentation is missing, the quirk is needed.  */
++	if (fde-&gt;cie-&gt;version == 3
++	    &amp;&amp; (strncmp (fde-&gt;cie-&gt;augmentation, "armcc", 5) != 0
++		|| strchr (fde-&gt;cie-&gt;augmentation + 5, '+') == NULL))
++	  fs-&gt;armcc_cfa_offsets_reversed = 1;
++
++	return;
++      }
++}
+ 
+ 
+ struct dwarf2_frame_cache
+@@ -781,6 +848,9 @@ dwarf2_frame_cache (struct frame_info *n
+   fs-&gt;code_align = fde-&gt;cie-&gt;code_alignment_factor;
+   fs-&gt;retaddr_column = fde-&gt;cie-&gt;return_address_register;
+ 
++  /* Check for "quirks" - known bugs in producers.  */
++  dwarf2_frame_find_quirks (fs, fde);
++
+   /* First decode all the insns in the CIE.  */
+   execute_cfa_program (fde-&gt;cie-&gt;initial_instructions,
+ 		       fde-&gt;cie-&gt;end, next_frame, fs, fde-&gt;eh_frame_p);
+@@ -798,7 +868,10 @@ dwarf2_frame_cache (struct frame_info *n
+     {
+     case CFA_REG_OFFSET:
+       cache-&gt;cfa = read_reg (next_frame, fs-&gt;cfa_reg);
+-      cache-&gt;cfa += fs-&gt;cfa_offset;
++      if (fs-&gt;armcc_cfa_offsets_reversed)
++	cache-&gt;cfa -= fs-&gt;cfa_offset;
++      else
++	cache-&gt;cfa += fs-&gt;cfa_offset;
+       break;
+ 
+     case CFA_EXP:
+@@ -1584,12 +1657,18 @@ decode_frame_entry_1 (struct comp_unit *
+       cie_version = read_1_byte (unit-&gt;abfd, buf);
+       if (cie_version != 1 &amp;&amp; cie_version != 3)
+ 	return NULL;
++      cie-&gt;version = cie_version;
+       buf += 1;
+ 
+       /* Interpret the interesting bits of the augmentation.  */
+-      augmentation = (char *) buf;
++      cie-&gt;augmentation = augmentation = (char *) buf;
+       buf += (strlen (augmentation) + 1);
+ 
++      /* Ignore armcc augmentations.  We only use them for quirks,
++	 and that doesn't happen until later.  */
++      if (strncmp (augmentation, "armcc", 5) == 0)
++	augmentation += strlen (augmentation);
++
+       /* The GCC 2.x "eh" augmentation has a pointer immediately
+          following the augmentation string, so it must be handled
+          first.  */
+Index: gdb/dwarf2read.c
+===================================================================
+RCS file: /scratch/gcc/repos/src/src/gdb/dwarf2read.c,v
+retrieving revision 1.206
+diff -u -p -r1.206 dwarf2read.c
+--- gdb/dwarf2read.c	2 Nov 2006 21:34:07 -0000	1.206
++++ gdb/dwarf2read.c	6 Nov 2006 19:46:19 -0000
+@@ -2803,16 +2803,9 @@ read_file_scope (struct die_info *die, s
+   attr = dwarf2_attr (die, DW_AT_producer, cu);
+   if (attr) 
+     cu-&gt;producer = DW_STRING (attr);
+-  
++
+   /* We assume that we're processing GCC output. */
+   processing_gcc_compilation = 2;
+-#if 0
+-  /* FIXME:Do something here.  */
+-  if (dip-&gt;at_producer != NULL)
+-    {
+-      handle_producer (dip-&gt;at_producer);
+-    }
+-#endif
+ 
+   /* The compilation unit may be in a different language or objfile,
+      zero out all remembered fundamental types.  */
+@@ -2820,6 +2813,7 @@ read_file_scope (struct die_info *die, s
+ 
+   start_symtab (name, comp_dir, lowpc);
+   record_debugformat ("DWARF 2");
++  record_producer (cu-&gt;producer);
+ 
+   initialize_cu_func_list (cu);
+ 
+Index: gdb/symtab.h
+===================================================================
+RCS file: /scratch/gcc/repos/src/src/gdb/symtab.h,v
+retrieving revision 1.98
+diff -u -p -r1.98 symtab.h
+--- gdb/symtab.h	17 Oct 2006 20:17:45 -0000	1.98
++++ gdb/symtab.h	6 Nov 2006 19:46:19 -0000
+@@ -846,9 +846,9 @@ struct symtab
+ 
+   char *debugformat;
+ 
+-  /* String of version information.  May be zero.  */
++  /* String of producer version information.  May be zero.  */
+ 
+-  char *version;
++  char *producer;
+ 
+   /* Full name of file as found by searching the source path.
+      NULL if not yet known.  */
+
+</pre>
+<!--X-Body-of-Message-End-->
+<!--X-MsgBody-End-->
+<!--X-Follow-Ups-->
+<hr>
+<ul><li><strong>Follow-Ups</strong>:
+<ul>
+<li><strong><a name="00254" href="https://sourceware.org/ml/gdb-patches/2006-12/msg00254.html">Re: [rfc] Work around ARM RV compiler unwind info</a></strong>
+<ul><li><em>From:</em> Jim Blandy</li></ul></li>
+</ul></li></ul>
+<!--X-Follow-Ups-End-->
+<!--X-References-->
+<!--X-References-End-->
+<!--X-BotPNI-->
+<!--htdig_noindex-->
+<table border="0">
+  <tbody><tr><th align="left">Index Nav:</th>
+      <td colspan="2">
+        [<a href="https://sourceware.org/ml/gdb-patches/2006-12/index.html#00249">Date&nbsp;Index</a>] [<a href="https://sourceware.org/ml/gdb-patches/2006-12/subjects.html#00249">Subject&nbsp;Index</a>] [<a href="https://sourceware.org/ml/gdb-patches/2006-12/authors.html#00249">Author&nbsp;Index</a>] [<a href="https://sourceware.org/ml/gdb-patches/2006-12/threads.html#00249">Thread&nbsp;Index</a>]
+      </td>
+  </tr>
+  <tr><th align="left">Message Nav:</th>
+      <td>[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00248.html">Date&nbsp;Prev</a>]&nbsp;[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00250.html">Date&nbsp;Next</a>]</td>
+      <td>[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00248.html">Thread&nbsp;Prev</a>]&nbsp;[<a href="https://sourceware.org/ml/gdb-patches/2006-12/msg00254.html">Thread&nbsp;Next</a>]</td>
+  </tr>
+</tbody></table>
+<!--/htdig_noindex-->
+
+<!--X-BotPNI-End-->
+<!--X-User-Footer-->
+<!--X-User-Footer-End-->
+
+
+</body></html>
