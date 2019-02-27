@@ -64,7 +64,7 @@ extern "C"
 		}
 		sf_eval(">expression-stack");
 		register_cache->setActiveFrame(register_cache->activeFrame() + 1);
-		auto result = dwarf_evaluator->evaluateLocation(register_cache->readCachedRegister(13), QString::fromStdString(libtroll->sforthCodeFrameBaseForContext(context, register_cache->readCachedRegister(15))), QString::fromStdString(DwarfExpression::sforthCode(l.second, l.first)), false);
+		auto result = dwarf_evaluator->evaluateLocation(register_cache->readCachedRegister(13), QString::fromStdString(libtroll->sforthCodeFrameBaseForContext(context, register_cache->readCachedRegister(15) - 1)), QString::fromStdString(DwarfExpression::sforthCode(l.second, l.first)), false);
 #if 0
 		if (result.type != DwarfEvaluator::CONSTANT)
 			Util::panic();

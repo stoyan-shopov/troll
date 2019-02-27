@@ -103,6 +103,7 @@ class MainWindow : public QMainWindow
 	Highlighter	* highlighter;
 	Highlighter	* verbose_data_type_highlighter;
 	Sforth	* sforth;
+	/*! \todo	Make this an object, somehow, as pointers to it are passed back and forth, and it can dynamically get changed */
 	Target	* target;
 	RegisterCache	register_cache;
 	DwarfUnwinder	* dwundwind;

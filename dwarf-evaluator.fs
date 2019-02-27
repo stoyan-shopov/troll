@@ -67,6 +67,10 @@ vector frame-base-rule
 create expression-stack expression-stack-depth expression-stack-frame-size * allot
 : expression-stack-reset ( --) 0 to expression-stack-sp ;
 : >expression-stack ( --)
+
+	\ expression-stack-sp 1 = if panic then
+        ." entry value expression stack depth: " expression-stack-sp . cr
+
 	expression-stack-sp expression-stack-depth = abort" dwarf expression stack overflow"
 	expression-stack-sp expression-stack-frame-size * expression-stack +
 	[ ' frame-base-rule >body ] literal @ over 0 cells + !
@@ -143,7 +147,7 @@ create expression-stack expression-stack-depth expression-stack-frame-size * all
 	
 : DW_OP_stack_value ( x -- x)
 	depth 1 <> abort" bad stack"
-	expression-is-a-constant to expression-value-type
+        expression-is-a-constant to expression-value-type
 	;
 
 : DW_OP_addr ( x -- x)

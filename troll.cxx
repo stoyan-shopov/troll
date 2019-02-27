@@ -96,6 +96,7 @@ Highlighter::Highlighter(QTextDocument *parent)
 
 void Highlighter::highlightBlock(const QString &text)
 {
+	return;
 	foreach (const HighlightingRule &rule, highlightingRules) {
 		QRegExp expression(rule.pattern);
 		int index = expression.indexIn(text);
@@ -342,7 +343,12 @@ QTextCharFormat cf;
 }
 
 static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const struct DebugLine::sourceFileNames & b)
-{ auto x = strcmp(a.file, b.file); if (x) return x < 0; return strcmp(a.directory, b.directory) < 0; }
+{
+	auto x = strcmp(a.file, b.file);
+	if (x)
+		return x < 0;
+	return strcmp(a.directory, b.directory) < 0;
+}
 
 void MainWindow::populateSourceFilesView(bool show_only_files_with_generated_machine_code)
 {
@@ -474,13 +480,14 @@ void MainWindow::searchSourceView(const QString & search_pattern)
 
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
-        source_filename.replace(QChar('\\'), QChar('/'));
+	QString adjusted_filename = source_filename;
+	adjusted_filename.replace(QChar('\\'), QChar('/'));
         directory_name.replace(QChar('\\'), QChar('/'));
         compilation_directory.replace(QChar('\\'), QChar('/'));
         if (TEST_DRIVE_MODE)
 	{
 		QRegExp rx("^[xX]:[/\\\\]");
-		source_filename.replace(rx, "troll-test-drive-files/"), directory_name.replace(rx, "troll-test-drive-files/"), compilation_directory.replace(rx, "troll-test-drive-files/");
+		adjusted_filename.replace(rx, "troll-test-drive-files/"), directory_name.replace(rx, "troll-test-drive-files/"), compilation_directory.replace(rx, "troll-test-drive-files/");
         }
 
 QTime stime;
@@ -491,7 +498,7 @@ QTextBlockFormat f;
 QTextCharFormat cf;
 QTime x;
 int i, cursor_position_for_line(0);
-QFileInfo finfo(directory_name + "/" + source_filename);
+QFileInfo finfo(directory_name + "/" + adjusted_filename);
 std::vector<struct DebugLine::lineAddress> line_addresses;
 std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 
@@ -499,9 +506,11 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	src.line_positions_in_document.clear();
 
 	if (!finfo.exists())
-                finfo.setFile(compilation_directory + "/" + source_filename);
+		finfo.setFile(compilation_directory + "/" + adjusted_filename);
 	if (!finfo.exists())
-                finfo.setFile(compilation_directory + "/" + directory_name + "/" + source_filename);
+		finfo.setFile(compilation_directory + "/" + directory_name + "/" + adjusted_filename);
+	if (!finfo.exists())
+		finfo.setFile(adjusted_filename);
 	ui->plainTextEdit->clear();
 	source_file.setFileName(finfo.canonicalFilePath());
 	
@@ -646,7 +655,7 @@ void MainWindow::backtrace()
 		}
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
-			context = dwdata->executionContextForAddress(cortexm0->programCounter()), register_cache.pushFrame(cortexm0->getRegisters());
+			context = dwdata->executionContextForAddress(cortexm0->programCounter() - 1), register_cache.pushFrame(cortexm0->getRegisters());
 		if (context.empty() && cortexm0->architecturalUnwind())
 		{
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
@@ -1200,6 +1209,8 @@ uint32_t pc = -1;
 	else 
 	{
 		pc = ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16);
+		if (frame_number)
+			pc --;
 		displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), ui->tableWidgetBacktrace->item(row, 5)->text(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt(), pc);
 		frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 7)->text();
 	}

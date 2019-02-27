@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 #include <stdint.h>
 #include <vector>
+#include <QDebug>
 #include "util.hxx"
 
 class RegisterCache
@@ -44,6 +45,10 @@ public:
 		if (active_frame + frame_offset >= register_frames.size())
 			Util::panic();
 		if (register_number >= register_frames[active_frame + frame_offset].size()) Util::panic();
+		if (register_number == 15)
+		{
+			qDebug() << "reading pc";
+		}
 		return register_frames[active_frame + frame_offset][register_number];
 	}
 };
