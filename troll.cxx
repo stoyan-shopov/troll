@@ -342,7 +342,12 @@ QTextCharFormat cf;
 }
 
 static bool sortSourcefiles(const struct DebugLine::sourceFileNames & a, const struct DebugLine::sourceFileNames & b)
-{ auto x = strcmp(a.file, b.file); if (x) return x < 0; return strcmp(a.directory, b.directory) < 0; }
+{
+	auto x = strcmp(a.file, b.file);
+	if (x)
+		return x < 0;
+	return strcmp(a.directory, b.directory) < 0;
+}
 
 void MainWindow::populateSourceFilesView(bool show_only_files_with_generated_machine_code)
 {
@@ -474,13 +479,14 @@ void MainWindow::searchSourceView(const QString & search_pattern)
 
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
-        source_filename.replace(QChar('\\'), QChar('/'));
+	QString adjusted_filename = source_filename;
+	adjusted_filename.replace(QChar('\\'), QChar('/'));
         directory_name.replace(QChar('\\'), QChar('/'));
         compilation_directory.replace(QChar('\\'), QChar('/'));
         if (TEST_DRIVE_MODE)
 	{
 		QRegExp rx("^[xX]:[/\\\\]");
-		source_filename.replace(rx, "troll-test-drive-files/"), directory_name.replace(rx, "troll-test-drive-files/"), compilation_directory.replace(rx, "troll-test-drive-files/");
+		adjusted_filename.replace(rx, "troll-test-drive-files/"), directory_name.replace(rx, "troll-test-drive-files/"), compilation_directory.replace(rx, "troll-test-drive-files/");
         }
 
 QTime stime;
@@ -491,7 +497,7 @@ QTextBlockFormat f;
 QTextCharFormat cf;
 QTime x;
 int i, cursor_position_for_line(0);
-QFileInfo finfo(directory_name + "/" + source_filename);
+QFileInfo finfo(directory_name + "/" + adjusted_filename);
 std::vector<struct DebugLine::lineAddress> line_addresses;
 std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 
@@ -499,9 +505,11 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	src.line_positions_in_document.clear();
 
 	if (!finfo.exists())
-                finfo.setFile(compilation_directory + "/" + source_filename);
+		finfo.setFile(compilation_directory + "/" + adjusted_filename);
 	if (!finfo.exists())
-                finfo.setFile(compilation_directory + "/" + directory_name + "/" + source_filename);
+		finfo.setFile(compilation_directory + "/" + directory_name + "/" + adjusted_filename);
+	if (!finfo.exists())
+		finfo.setFile(adjusted_filename);
 	ui->plainTextEdit->clear();
 	source_file.setFileName(finfo.canonicalFilePath());
 	

@@ -192,7 +192,10 @@ public:
 		case DW_FORM_ref_udata:
 			return uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip;
 		case DW_FORM_indirect:
-			panic();
+		{
+			int x;
+			return x = uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip + skip_form_bytes(x, debug_info_bytes + bytes_to_skip);
+		}
 		case DW_FORM_sec_offset:
 			return 4;
 		case DW_FORM_exprloc:
@@ -203,7 +206,7 @@ public:
 			return 8;
 		}
 	}
-	/* This function is first introduced for the needs of obtaining constant data for attributes
+	/* This function is first introduced for the needs of obtaining constant data for attribute
 	 * 'DW_AT_const_value'. It returns a raw array of bytes that hold the constant value data
 	 * for this attribute */
 	static QByteArray data_block_for_constant_value(const attribute_data & a)
@@ -343,7 +346,7 @@ struct Die
 	bool isLexicalBlock(void) const { return tag == DW_TAG_lexical_block; }
 };
 
-/* !!! warning - this can generally be a circular graph - beware of recursion when processing !!! */
+/* !!! Warning - this can generally be a graph containing cycles - beware of recursion when processing !!! */
 struct DwarfTypeNode
 {
 	struct Die	die;
@@ -389,8 +392,10 @@ public:
 		a.name = DwarfUtil::uleb128x(p);
 		a.form = DwarfUtil::uleb128x(p);
 		/* !!! insidious special cases !!! */
+		/*
 		if (a.form == DW_FORM_indirect)
 			DwarfUtil::panic();
+			*/
 		a.afterform_data = p;
 		if (a.form == DW_FORM_implicit_const)
 			/* skip the special third part present in the attribute specification */
@@ -2023,12 +2028,19 @@ private:
 		case DW_FORM_data4:
 		case DW_FORM_sec_offset:
 			return * (uint32_t *) debug_info_bytes;
+		case DW_FORM_ref2:
+			return * (uint16_t *) debug_info_bytes + compilation_unit_header_offset;
 		case DW_FORM_ref4:
 			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
 		case DW_FORM_ref_udata:
 			return DwarfUtil::uleb128(debug_info_bytes) + compilation_unit_header_offset;
 		case DW_FORM_ref_addr:
 			return * (uint32_t *) debug_info_bytes;
+		case DW_FORM_indirect:
+		{
+			int form, bytes_to_skip;
+			return form = DwarfUtil::uleb128(debug_info_bytes, & bytes_to_skip), readTypeOffset(form, debug_info_bytes + bytes_to_skip, compilation_unit_header_offset);
+		}
 		default:
 			DwarfUtil::panic();
 		}
@@ -2294,12 +2306,18 @@ std::map<uint32_t, uint32_t> recursion_detector;
 				}
 				
 				break;
+			case DW_TAG_unspecified_type:
+				/* The ARM compiler shipped with Keil generates such tags for 'vod' types */
+				if (is_prefix_printed)
+					type_string += nameOfDie(die, true), type_string += " ";
+				break;
 			default:
 				qDebug() << "unhandled tag" <<  type.at(node_number).die.tag << "in" << __func__;
 				qDebug() << "die offset" << type.at(node_number).die.offset;
 				DwarfUtil::panic();
 		}
-		if (die.tag != DW_TAG_structure_type && die.tag != DW_TAG_class_type)
+		/*! \todo	What is this?!?!?! Commenting it out, eventually delete it */
+		//if (die.tag != DW_TAG_structure_type && die.tag != DW_TAG_class_type)
 		return type_string;
 	}
 public:
@@ -2573,7 +2591,9 @@ node.data.push_back("!!! recursion detected !!!");
 			auto a = Abbreviation(debug_abbrev + abbreviationOffsetForDieOffset(cu_die_offset));
 			auto x = a.dataForAttribute(DW_AT_stmt_list, debug_info + cu_die_offset);
 			if (!x.form)
-				DwarfUtil::panic();
+				/* The ARM compiler in the Keil installation is known to generate compilation
+				 * unit dies without source code statement list information */
+				continue;
 			l.skipToOffset(DwarfUtil::formConstant(x));
 			x = a.dataForAttribute(DW_AT_name, debug_info + cu_die_offset);
 			if (x.form)
@@ -2583,7 +2603,10 @@ node.data.push_back("!!! recursion detected !!!");
 				compilation_directory = DwarfUtil::formString(x.form, x.debug_info_bytes, debug_str);
 			/*! \todo	is this line below necessary??? */
 			//sources.push_back((struct DebugLine::sourceFileNames) { .file = filename, .directory = compilation_directory, .compilation_directory = compilation_directory, });
-			l.getFileAndDirectoryNamesPointers(sources, compilation_directory);
+			/* Some compilers (e.g. the ARM compiler) do not bother emitting any entries in the
+			 * line number information directory table, so the directory strings may be null ponters.
+			 * Use an ampty string in such a case, in order to simplify processing */
+			l.getFileAndDirectoryNamesPointers(sources, compilation_directory ? compilation_directory : "");
 		}
 	}
 
@@ -2814,8 +2837,7 @@ private:
 		std::pair<const uint8_t *, int> fde_instructions(void) { return std::pair<const uint8_t *, int>(data + 16, length() - 12); }
 		
 		/*
-		 * CIE fields. Note that it is assumed that the augmentation string is empty
-		 * (checked in the constructor), otherwise these need to take in account augmentation
+		 * CIE fields
 		 */
 		/* IMPORTANT: Note that for dwarf 2, the version number is 1, for dwarf 3, it is 3 - there
 		 * is no documented version number 2 that I am aware of */
@@ -2834,16 +2856,21 @@ private:
 			this->debug_frame = debug_frame;
 			this->debug_frame_len = debug_frame_len;
 			data = debug_frame + debug_frame_offset;
-			augmentation = (const char *) data + 9;
+			augmentation = (const char *) data + /* Skip the fields before the augmentation string */ 4 + 4 + 1;
 
 			if (isCIE())
 				if (version() > 4 || version() == /* No version 2 documented, that I am aware of */ 2 || version() == 0)
 				DwarfUtil::panic("unsupported .debug_frame version");
-			if (isCIE() && strlen(augmentation))
+			if (isCIE() && strlen(augmentation)
+					&&	/* Special case for the ARM compiler. To cut a long story short, the augmentation
+						 * string "armcc+" means that the dwarf unwind information has the standard-described
+						 * behavior. See this if you are interested in more details:
+						 * https://sourceware.org/ml/gdb-patches/2006-12/msg00249.html
+						 */ strcmp(augmentation, "armcc+"))
 				DwarfUtil::panic("unsupported .debug_frame CIE augmentation");
 			if (isCIE())
 			{
-				int offset = /* Skip initial CIE fields */ 4 + 4 + 1 + 1;
+				int offset = /* Skip initial CIE fields */ 4 + 4 + 1 + strlen(augmentation) + /* Skip the null byte terminator of the augmentation string */ 1;
 				int len;
 				if (version() == 4)
 					/* Account for the 'address_size' and 'segment_size' fields
