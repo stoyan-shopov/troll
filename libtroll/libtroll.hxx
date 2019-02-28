@@ -2102,11 +2102,18 @@ std::map<uint32_t, uint32_t> recursion_detector;
 				type_string += " " + name + " ";
 				if (flags.verbose_printing)
 				{
-					auto i = type.at(node_number).children.begin();
 					type_string += "{\n";
 					verbose_type_printing_indentation_level ++;
-					while (i != type.at(node_number).children.end())
-						type_string += std::string(verbose_type_printing_indentation_level, '\t') + typeString(type, * i, flags, false) + ((die.tag == DW_TAG_enumeration_type) ? "," : ";") + "\n", i ++;
+					for (const auto& member : type.at(node_number).children)
+					{
+						if (type.at(member).die.tag != DW_TAG_member)
+							/* Some compilers (e.g. the ARM compiler) are known
+							 * to generate dies for structure types, that have
+							 * child dies which are not of type 'DW_TAG_member'.
+							 * Skip such entries */
+							continue;
+						type_string += std::string(verbose_type_printing_indentation_level, '\t') + typeString(type, member, flags, false) + ((die.tag == DW_TAG_enumeration_type) ? "," : ";") + "\n";
+					}
 					verbose_type_printing_indentation_level --;
 					type_string += std::string(verbose_type_printing_indentation_level, '\t') + "}";
 				}
@@ -2180,9 +2187,10 @@ std::map<uint32_t, uint32_t> recursion_detector;
 				Abbreviation a(debug_abbrev + die.abbrev_offset);
 				auto x = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
 				auto size = a.dataForAttribute(DW_AT_byte_size, debug_info + die.offset);
+				QString name = nameOfDie(die, true);
 				if (x.form == 0 || size.form == 0)
 					DwarfUtil::panic();
-				switch (DwarfUtil::formConstant(x))
+				if (name.isEmpty()) switch (DwarfUtil::formConstant(x))
 				{
 					default:
 						qDebug() << "unhandled encoding" << DwarfUtil::formConstant(x);
@@ -2240,6 +2248,8 @@ std::map<uint32_t, uint32_t> recursion_detector;
 								break;
 						}
 				}
+				else
+					type_string += (name + ' ').toStdString();
 			}
 				break;
 			case DW_TAG_array_type:
@@ -2471,6 +2481,7 @@ node.data.push_back("!!! recursion detected !!!");
 			case DW_TAG_template_type_parameter:
 			case DW_TAG_template_value_parameter:
 			case DW_TAG_subprogram:
+			case DW_TAG_subroutine_type:
 				break;
 			default:
 				qDebug() << "unhandled tag" << type.at(type_node_number).die.tag << "in" << __func__;
