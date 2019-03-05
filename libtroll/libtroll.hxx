@@ -560,7 +560,7 @@ struct LocationList
 /*! \todo	!!! Test all of the unsupported codes. Explicitly document them as tested/not tested !!! This is extremely important !!! */
 struct DwarfExpression
 {
-	static std::string sforthCode(const uint8_t * dwarf_expression, uint32_t expression_len)
+	static std::string sforthCode(const uint8_t * dwarf_expression, uint32_t expression_len, bool dwarf_test_mode_active = false)
 	{
 		std::stringstream x;
 		int bytes_to_skip, i, branch_counter = 0x10000;
@@ -908,6 +908,13 @@ struct DwarfExpression
 					break;
 				}
 				default:
+					if (dwarf_test_mode_active)
+					{
+						QString s = QString("unsupported dwarf opcode: $%1\n").arg(dwarf_expression[-1], 0, 16);
+						x << s.toStdString();
+						qDebug() << s;
+						goto abort;
+					}
 					DwarfUtil::panic();
 			}
 			dwarf_expression += bytes_to_skip;
@@ -920,6 +927,7 @@ struct DwarfExpression
 			else if (!branch_counter)
 				x << "[then] ", branch_counter = 0x10000;
 		}
+abort:
 		return x.str();
 	}
 	static int registerNumberOfRegXOpcode(unsigned opcode) { return (DW_OP_reg0 <= opcode && opcode <= DW_OP_reg31) ? opcode - DW_OP_reg0 : -1;
@@ -2786,6 +2794,9 @@ public:
 		for (i = 0; i < die_fingerprints.size(); i ++)
 		{
 			Abbreviation a(debug_abbrev + die_fingerprints[i].abbrev_offset);
+			static const int tested_expression_attributes[] = { DW_AT_location, DW_AT_GNU_call_site_value, };
+			for (const auto& tested_attribute : tested_expression_attributes)
+			{
 			auto x = a.dataForAttribute(DW_AT_location, debug_info + die_fingerprints[i].offset);
 			switch (x.form)
 			{
@@ -2817,6 +2828,7 @@ if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" 
 					}
 					break;
 				}
+			}
 			}
 		}
 		qDebug() << "executed dwarf expression decoding tests, total tests executed:" << test_count;
