@@ -1831,7 +1831,7 @@ private:
 				if (depth + 1 == max_depth)
 				{
 					if (/* special case for reading a single die */ depth == 0)
-						goto there;
+						goto out;
 					auto x = a.dataForAttribute(DW_AT_sibling, debug_info + die.offset);
 					if (x.form)
 					{
@@ -1843,6 +1843,7 @@ private:
 there:
 				p = debug_info + die_offset;
 			}
+out:
 			dies.push_back(die);
 			
 			if (depth == 0)
