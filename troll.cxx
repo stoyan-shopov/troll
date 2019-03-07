@@ -96,6 +96,7 @@ Highlighter::Highlighter(QTextDocument *parent)
 
 void Highlighter::highlightBlock(const QString &text)
 {
+	//return;
 	foreach (const HighlightingRule &rule, highlightingRules) {
 		QRegExp expression(rule.pattern);
 		int index = expression.indexIn(text);
@@ -479,6 +480,7 @@ void MainWindow::searchSourceView(const QString & search_pattern)
 
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
+	setWindowTitle(QString("troll debugger    File: [%1]").arg(source_filename));
 	QString adjusted_filename = source_filename;
 	adjusted_filename.replace(QChar('\\'), QChar('/'));
         directory_name.replace(QChar('\\'), QChar('/'));
@@ -537,8 +539,8 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 			src.line_positions_in_document[i] = t.length();
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
-			t += QString("%1 %2|").arg(line_indices[i] ? '*' : ' ')
-			                .arg(i, 4, 10, QChar(' ')) + source_file.readLine().replace('\t', "        ").replace('\r', "");
+			t += QString("%2 %1|").arg(line_indices[i] ? '*' : ' ')
+					.arg(i, 0, 10, QChar(' ')) + source_file.readLine().replace('\t', "        ").replace('\r', "");
 			if (ui->actionShow_disassembly_address_ranges->isChecked())
 			{
 				if (0 && address == -1)
@@ -1426,7 +1428,7 @@ static unsigned accumulator;
 				int i;
 				QString l = ui->plainTextEdit->textCursor().block().text();
 				qDebug() << l;
-				QRegExp rx("^\\**\\s*(\\w+)\\|");
+				QRegExp rx("^(\\w+)\\s*\\**\\s*\\|");
 				if (rx.indexIn(l) != -1)
 				{
 					int j;
