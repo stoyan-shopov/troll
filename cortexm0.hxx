@@ -41,7 +41,13 @@ public:
 	void primeUnwinder(void);
 	bool unwindFrame(const QString & unwind_code, uint32_t start_address, uint32_t unwind_address);
 	std::vector<uint32_t> getRegisters(void) { return registers; }
-	uint32_t programCounter(void) { if (registers.size() <= program_counter_register_number) Util::panic(); return registers.at(program_counter_register_number)&~1; }
+	uint32_t programCounter(void)
+	{
+		uint32_t pc;
+		if (registers.size() <= program_counter_register_number) Util::panic();
+		pc = registers.at(program_counter_register_number)&~1;
+		return pc;
+	}
 	uint32_t stackPointerValue(void) { if (registers.size() <= stack_pointer_register_number) Util::panic(); return registers.at(stack_pointer_register_number); }
 	bool architecturalUnwind(void);
 	static const int registerCount(void) { return register_count; }

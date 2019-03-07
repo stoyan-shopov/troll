@@ -2960,7 +2960,7 @@ private:
 				int len;
 				if (version() == 4)
 					/* Account for the 'address_size' and 'segment_size' fields
-						 * introduced in dwarf 4 */
+					 * introduced in dwarf 4 */
 					offset += 2;
 				code_alignment_factor = DwarfUtil::uleb128(data + offset, & len);
 				offset += len;
