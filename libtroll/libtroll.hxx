@@ -1190,7 +1190,7 @@ public:
 						if (len != 1) DwarfUtil::panic();
 						if (prev->address <= target_address && target_address < current->address)
 						{
-							if (prev->address == target_address)
+							if (prev->address == target_address && prev->is_stmt)
 								is_address_on_exact_line_number_boundary = true;
 							return file_number = prev->file, prev->line;
 						}
@@ -1213,7 +1213,7 @@ public:
 				current->line += lbase + x % lrange;
 				if (prev->address <= target_address && target_address < current->address)
 				{
-					if (prev->address == target_address)
+					if (prev->address == target_address && prev->is_stmt)
 						is_address_on_exact_line_number_boundary = true;
 					return file_number = prev->file, prev->line;
 				}
@@ -1234,7 +1234,7 @@ public:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
 					if (prev->address <= target_address && target_address < current->address)
 					{
-						if (prev->address == target_address)
+						if (prev->address == target_address && prev->is_stmt)
 							is_address_on_exact_line_number_boundary = true;
 						return file_number = prev->file, prev->line;
 					}
@@ -2556,17 +2556,68 @@ node.data.push_back("!!! recursion detected !!!");
 		{
 			auto x(l.fileNumber(filename));
 			if (x)
+			{
 				l.addressesForFile(x, line_addresses);
+				if (DEBUG_LINE_PROGRAMS_ENABLED)
+				{
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "Addreses for file:" << x;
+					for (const auto& line: line_addresses)
+						qDebug() << QString("$%1 - $%2	line	 %3	is_stmt=%4").arg(line.address, 8, 16, QChar('0'))
+							    .arg(line.address_span, 8, 16, QChar('0'))
+							    .arg(line.line)
+							    .arg(line.is_stmt);
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "----------------------------------------------------";
+					qDebug() << "----------------------------------------------------";
+				}
+			}
 		}
 		while (l.next());
 		int i;
 		for (i = 0; i < line_addresses.size();)
+			/*
 			if (line_addresses.at(i).address == line_addresses.at(i).address_span)
+				line_addresses.erase(line_addresses.begin() + i);
+			else
+			//*/
+			if (!line_addresses.at(i).is_stmt)
 				line_addresses.erase(line_addresses.begin() + i);
 			else
 				i ++;
 		std::sort(line_addresses.begin(), line_addresses.end());
 	}
+	/* the returned vector is sorted by increasing start address */
+	void addressRangesForFile(const char * filename, std::vector<struct DebugLine::lineAddress> & line_addresses)
+	{
+		class DebugLine l(debug_line, debug_line_len);
+		do
+		{
+			auto x(l.fileNumber(filename));
+			if (x)
+				l.addressesForFile(x, line_addresses);
+		}
+		while (l.next());
+		int i;
+		for (i = 0; i < line_addresses.size();)
+			//*
+			if (line_addresses.at(i).address == line_addresses.at(i).address_span)
+				line_addresses.erase(line_addresses.begin() + i);
+			else
+			/*/
+			if (!line_addresses.at(i).is_stmt)
+				line_addresses.erase(line_addresses.begin() + i);
+			else
+			//*/
+				i ++;
+		std::sort(line_addresses.begin(), line_addresses.end());
+	}
+
 	std::vector<uint32_t> unfilteredAddressesForFileAndLineNumber(const char * filename, int line_number)
 	{
 		std::vector<uint32_t> addresses;
@@ -2574,7 +2625,7 @@ node.data.push_back("!!! recursion detected !!!");
 		addressesForFile(filename, line_addresses);
 		int i;
 		for (i = 0; i < line_addresses.size(); i ++)
-			if (line_addresses.at(i).line == line_number && line_addresses.at(i).address_span - line_addresses.at(i).address)
+			if (line_addresses.at(i).line == line_number/* && line_addresses.at(i).address_span - line_addresses.at(i).address*/)
 				addresses.push_back(line_addresses.at(i).address);
 		/* at this point, the addresses are already sorted in ascending order */
 		return addresses;
@@ -2592,7 +2643,10 @@ node.data.push_back("!!! recursion detected !!!");
 			if (!x.size())
 				filtered_addresses.push_back(addresses.at(i));
 			else if (contexts.find(x.back().offset) == contexts.end())
+			{
 				contexts.operator [](x.back().offset) = 1, filtered_addresses.push_back(addresses.at(i));
+				qDebug() << "Adding filtered address" << QString("$%1").arg(addresses.at(i), 8, 16, QChar('0')) << "die:" << QString("$%1").arg(x.back().offset, 8, 16, QChar('0'));
+			}
 		}
 		return filtered_addresses;
 	}

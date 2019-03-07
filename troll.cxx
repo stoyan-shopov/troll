@@ -514,7 +514,8 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	source_file.setFileName(finfo.canonicalFilePath());
 	
 	x.start();
-	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	dwdata->addressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	//dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
@@ -555,7 +556,9 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 							cursor_position_for_line = t.length();
 						t += QString(x.at(i).second).replace('\r', "") + "\n";
 					}
-					t += "...\n";
+					/* Merge successive disassembly ranges */
+					if (dis->next && dis->next->address != dis->address_span)
+						t += "...\n";
 					dis = dis->next;
 				}
 			}
