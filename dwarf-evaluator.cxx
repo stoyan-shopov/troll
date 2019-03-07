@@ -152,36 +152,36 @@ QByteArray DwarfEvaluator::fetchValueFromTarget(const DwarfEvaluator::DwarfExpre
 QByteArray data;
 	switch (location.type)
 	{
-	case DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS:
-		data = target->readBytes(location.value, bytesize, true);
-		break;
-	case DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER:
-	{
-		uint32_t register_contents = register_cache->readCachedRegister(location.value);
-		data = QByteArray((const char *) & register_contents, sizeof register_contents);
-	}
-		break;
-	case DwarfEvaluator::DwarfExpressionValue::COMPOSITE_VALUE:
-		for (const auto& piece : location.pieces)
-			data += fetchValueFromTarget(piece.details, target, piece.byte_size);
-		return data;
-	case DwarfEvaluator::DwarfExpressionValue::CONSTANT:
-		data = QByteArray((const char *) & location.value, sizeof location.value);
-		/*! \todo	Zero extend the data array that is returned, in case the expected
+		case DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS:
+			data = target->readBytes(location.value, bytesize, true);
+			break;
+		case DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER:
+		{
+			uint32_t register_contents = register_cache->readCachedRegister(location.value);
+			data = QByteArray((const char *) & register_contents, sizeof register_contents);
+		}
+			break;
+		case DwarfEvaluator::DwarfExpressionValue::COMPOSITE_VALUE:
+			for (const auto& piece : location.pieces)
+				data += fetchValueFromTarget(piece.details, target, piece.byte_size);
+			return data;
+		case DwarfEvaluator::DwarfExpressionValue::CONSTANT:
+			data = QByteArray((const char *) & location.value, sizeof location.value);
+			/*! \todo	Zero extend the data array that is returned, in case the expected
 			 * 		byte size of the data item is greater than the length of the
 			 * 		computed constant. Maybe this is inappropriate? */
-		data.append(bytesize - data.size(), '\0');
-		/* Truncate extend the data array that is returned, in case the expected
+			data.append(bytesize - data.size(), '\0');
+			/* Truncate extend the data array that is returned, in case the expected
 			 * byte size of the data item is less than the length of the
 			 * computed constant. */
-		data.truncate(bytesize);
-		break;
-	case DwarfEvaluator::DwarfExpressionValue::INVALID:
-		/* Return an array containing deliberately invalid values, which is, however, of the proper size.
-		 * IMPORTANT: it is the caller's responsibility to properly handle this special case! */
-		return QByteArray(2 * bytesize, '?');
-	default:
-		DwarfUtil::panic();
+			data.truncate(bytesize);
+			break;
+		case DwarfEvaluator::DwarfExpressionValue::INVALID:
+			/* Return an array containing deliberately invalid values, which is, however, of the proper size.
+			 * IMPORTANT: it is the caller's responsibility to properly handle this special case! */
+			return QByteArray(2 * bytesize, '?');
+		default:
+			DwarfUtil::panic();
 	}
 	return data.toHex();
 }
