@@ -1004,8 +1004,14 @@ private:
 		if (version() == 4 && maximum_operations_per_instruction() != 1) DwarfUtil::panic();
 	}
 public:
-	struct lineAddress { uint32_t line, address, address_span; struct lineAddress * next; lineAddress(void) { line = address = address_span = -1; next = 0; } 
-	                   bool operator < (const struct lineAddress & rhs) const { return address < rhs.address; } };
+	struct lineAddress
+	{
+		uint32_t line, address, address_span;
+		bool is_stmt;
+		struct lineAddress * next;
+		lineAddress(void) { line = address = address_span = -1; next = 0; is_stmt = false; }
+		bool operator < (const struct lineAddress & rhs) const { return address < rhs.address; }
+	};
 	struct sourceFileNames { const char * file, * directory, * compilation_directory; };
 	DebugLine(const uint8_t * debug_line, uint32_t debug_line_len)
 	{ header = this->debug_line = debug_line, this->debug_line_len = debug_line_len; validateHeader(); }
@@ -1321,6 +1327,7 @@ public:
 						if (current->file == file_number)
 						{
 							line_data.address = prev->address;
+							line_data.is_stmt = prev->is_stmt;
 							line_data.line = current->line;
 							line_data.address_span = current->address;
 							line_addresses.push_back(line_data);
@@ -1345,6 +1352,7 @@ public:
 				if (prev->file == file_number)
 				{
 					line_data.address = prev->address;
+					line_data.is_stmt = prev->is_stmt;
 					line_data.line = prev->line;
 					line_data.address_span = current->address;
 					line_addresses.push_back(line_data);
@@ -1366,6 +1374,7 @@ public:
 					if (prev->file == file_number)
 					{
 						line_data.address = prev->address;
+						line_data.is_stmt = prev->is_stmt;
 						line_data.line = prev->line;
 						line_data.address_span = current->address;
 						line_addresses.push_back(line_data);
