@@ -18,6 +18,9 @@ QMAKE_CXXFLAGS += -Wno-sign-compare
 DEFINES += TEST_DRIVE_MODE=0
 DEFINES += BLACKSTRIKE_SUPPORT_ENABLED=0
 
+QMAKE_CXXFLAGS += --coverage
+QMAKE_LFLAGS += --coverage
+
 
 SOURCES +=\
 	main.cxx \
