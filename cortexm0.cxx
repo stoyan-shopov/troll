@@ -48,6 +48,18 @@ void do_target_fetch(void)
 		Util::panic();
 	}
 }
+
+void do_target_mem_read(void)
+{
+int len = (int) sf_pop();
+uint32_t address = (uint32_t) sf_pop();
+uint8_t * buf = (uint8_t *) sf_pop();
+
+	auto data = target->readBytes(address, len);
+	memcpy(buf, data.constData(), len);
+	sf_push(true);
+}
+
 void do_target_register_fetch(void)	{ sf_push(register_cache->readCachedRegister(sf_pop())); }
 void do_panic(void)		{ Util::panic(); }
 }

@@ -141,6 +141,20 @@ bool DwarfData::isSubroutineType(const std::vector<DwarfTypeNode> &type, int nod
 	return false;
 }
 
+int DwarfData::baseTypeEncoding(const std::vector<DwarfTypeNode> &type, int node_number)
+{
+	if (node_number == -1)
+		return false;
+	const auto& die = type.at(node_number).die;
+	if (die.tag != DW_TAG_base_type)
+		return -1;
+	Abbreviation a(debug_abbrev + die.abbrev_offset);
+	auto e = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
+	if (e.form)
+		return DwarfUtil::formConstant(e);
+	return -1;
+}
+
 std::string DwarfData::typeString(std::vector<struct DwarfTypeNode> & type, int node_number, TypePrintFlags flags, bool reset_type_recursion_detection_flags)
 {
 	if (reset_type_recursion_detection_flags)

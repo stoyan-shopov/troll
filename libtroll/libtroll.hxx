@@ -557,10 +557,18 @@ struct LocationList
 		return 0;
 	}
 };
+
 /*! \todo	!!! Test all of the unsupported codes. Explicitly document them as tested/not tested !!! This is extremely important !!! */
 struct DwarfExpression
 {
-	static std::string sforthCode(const uint8_t * dwarf_expression, uint32_t expression_len, bool dwarf_test_mode_active = false)
+	static std::string sforthCode(const uint8_t * dwarf_expression, uint32_t expression_len,
+		/* This parameter has been introduced because some dwarf opcodes (e.g. 'DW_OP_regval_type')
+		 * take as arguments offset values that are relative to the compilation unit that
+		 * contains the dwarf expression being processed. It is simpler to turn the relative
+		 * offset into an absolute offset here, than to hadle this relocation at some later point.
+		 * In case the compilation unit header offset is needed, this parameter is used to obtain it. */
+		uint32_t compilation_unit_header_offset,
+		bool dwarf_test_mode_active = false)
 	{
 		std::stringstream x;
 		int bytes_to_skip, i, branch_counter = 0x10000;
@@ -698,7 +706,7 @@ struct DwarfExpression
 					break;
 				case DW_OP_GNU_entry_value:
 					i = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
-					x << "( disassembled entry value expression: DW_OP_GNU_entry_value-start " << sforthCode(dwarf_expression + bytes_to_skip, i) << " DW_OP_GNU_entry_value-end ) ";
+					x << "( disassembled entry value expression: DW_OP_GNU_entry_value-start " << sforthCode(dwarf_expression + bytes_to_skip, i, compilation_unit_header_offset, dwarf_test_mode_active) << " DW_OP_GNU_entry_value-end ) ";
 					for (int j = 0; j < i; j ++)
 						x << (unsigned) dwarf_expression[bytes_to_skip + j] << " ";
 					x << i << " entry-value-expression-block ";
@@ -831,13 +839,10 @@ struct DwarfExpression
 				{
 					uint32_t base_type_die_offset;
 					x << DwarfUtil::uleb128(dwarf_expression, & i) << " ";
-					/* Make sure that the referenced die is indeed a base type die */
 					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression + i, & bytes_to_skip);
 					/* The die offset just read is an offset from the compilation unit that the die resides in.
 					 * Turn it into an absolute die offset, i.e. an offset from the start of the '.debug_info' section */
-					/*! \todo	Relocate the die here. It is much easier to handle it later when evaluating
-					 *		the dwarf expression */
-					x << base_type_die_offset << " ";
+					x << base_type_die_offset + compilation_unit_header_offset << " ";
 					x << "DW_OP_regval_type ";
 					bytes_to_skip += i;
 					break;
@@ -872,12 +877,9 @@ struct DwarfExpression
 				case DW_OP_const_type:
 				{
 					uint32_t base_type_die_offset, size;
-					/* Make sure that the referenced die is indeed a base type die */
 					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
 					/* The die offset just read is an offset from the compilation unit that the die resides in.
 					 * Turn it into an absolute die offset, i.e. an offset from the start of the '.debug_info' section */
-					/*! \todo	Relocate the die here. It is much easier to handle it later when evaluating
-					 *		the dwarf expression */
 					size = dwarf_expression[bytes_to_skip];
 					++ bytes_to_skip;
 					QByteArray data_bytes((const char *) dwarf_expression + bytes_to_skip, size);
@@ -885,7 +887,7 @@ struct DwarfExpression
 					for (i = size - 1; i >= 0; -- i)
 						x << (unsigned) (uint8_t) data_bytes.at(i) << " ";
 					x << size << " ";
-					x << base_type_die_offset << " ";
+					x << base_type_die_offset + compilation_unit_header_offset << " ";
 					x << "DW_OP_const_type ";
 					break;
 				}
@@ -895,15 +897,12 @@ struct DwarfExpression
 					uint32_t base_type_die_offset, size;
 					size = * dwarf_expression;
 					bytes_to_skip = 1;
-					/* Make sure that the referenced die is indeed a base type die */
-					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression, & i);
+					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression + 1, & i);
 					bytes_to_skip += i;
 					/* The die offset just read is an offset from the compilation unit that the die resides in.
 					 * Turn it into an absolute die offset, i.e. an offset from the start of the '.debug_info' section */
-					/*! \todo	Relocate the die here. It is much easier to handle it later when evaluating
-					 *		the dwarf expression */
 					x << size << " ";
-					x << base_type_die_offset << " ";
+					x << base_type_die_offset + compilation_unit_header_offset << " ";
 					x << "DW_OP_deref_type ";
 					break;
 				}
@@ -1737,7 +1736,7 @@ public:
 		qDebug() << "abbreviation fetch hits:" << stats.abbreviation_hits;
 		qDebug() << "abbreviation fetch misses:" << stats.abbreviation_misses;
 	}
-private:
+
 	/* returns -1 if the compilation unit is not found */
 	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
 	{
@@ -1758,6 +1757,7 @@ private:
 		return -1;
 	}
 
+private:
 	/* returns -1 if the compilation unit is not found */
 	uint32_t	get_compilation_unit_debug_info_offset_for_address(uint32_t address)
 	{
@@ -1891,7 +1891,7 @@ public:
 	}
 	bool callSiteAtAddress(uint32_t address, struct Die & call_site, std::vector<struct Die> * execution_context = 0)
 	{
-		auto x = executionContextForAddress(address);
+		auto x = executionContextForAddress(address - 1);
 		if (!x.size())
 			return false;
 		auto d = x.back().children.begin();
@@ -2354,6 +2354,10 @@ bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_numb
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 
+/* Checks if the referred type node is a dwarf base type node, and if so - returns its dwarf encoding.
+ * If this is not a base type node, return -1 */
+int baseTypeEncoding(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
+
 	std::string typeString(std::vector<struct DwarfTypeNode> & type, int node_number = 0, struct TypePrintFlags flags = TypePrintFlags(), bool reset_type_recursion_detection_flags = true);
 
 	int sizeOf(const std::vector<struct DwarfTypeNode> & type, int node_number = 0)
@@ -2800,14 +2804,14 @@ public:
 			case DW_FORM_block:
 			case DW_FORM_exprloc:
 				len = DwarfUtil::uleb128x(x.debug_info_bytes);
-				return DwarfExpression::sforthCode(x.debug_info_bytes, len);
+				return DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitOffsetForOffsetInDebugInfo(die.offset));
 			}
 			case DW_FORM_data4:
 			case DW_FORM_sec_offset:
 			qDebug() << "location list offset:" << * (uint32_t *) x.debug_info_bytes;
 				auto l = LocationList::locationExpressionForAddress(debug_loc, * (uint32_t *) x.debug_info_bytes,
 					compilation_unit_base_address(compilation_unit_die), address_for_location);
-				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l) : "";
+				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l, compilationUnitOffsetForOffsetInDebugInfo(die.offset)) : "";
 				
 				break;
 		}
@@ -2875,7 +2879,7 @@ public:
 				case DW_FORM_block:
 				case DW_FORM_exprloc:
 					len = DwarfUtil::uleb128x(x.debug_info_bytes);
-					DwarfExpression::sforthCode(x.debug_info_bytes, len);
+					DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitOffsetForOffsetInDebugInfo(die_fingerprints[i].offset));
 					test_count ++;
 					break;
 				}
@@ -2888,7 +2892,7 @@ if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" 
 					{
 						p += 2;
 						if (* p != 0xffffffff)
-							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2), test_count ++;
+							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p, compilationUnitOffsetForOffsetInDebugInfo(die_fingerprints[i].offset)), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2), test_count ++;
 					}
 					break;
 				}

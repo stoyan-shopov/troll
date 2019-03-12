@@ -130,10 +130,18 @@ create expression-stack expression-stack-depth expression-stack-frame-size * all
         xor ;
 
 : DW_OP_plus ( x y -- z)
-        + ;
+        \ Handle dwarf typed stack elements
+	type-stack-nonempty? if DW_OP_plus_typed else
+	+
+	then
+	;
 
 : DW_OP_minus ( x y -- z)
-        - ;
+        \ Handle dwarf typed stack elements
+	type-stack-nonempty? if DW_OP_minus_typed else
+	-
+	then
+	;
 
 : DW_OP_ne ( x y -- z)
 	<> ( normalize result)if 1 else 0 then ;

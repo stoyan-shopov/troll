@@ -57,7 +57,7 @@ public:
 			COMPOSITE_VALUE	= 4,
 		}
 		type;
-		uint32_t				value;
+		cell				value;
 		/*! \todo	This isn't really nice placed here, as the DwarfExpressionValue and DwarfCompositePieceLocation
 		 * 		get mutually recursive, and this is not really needed. Make this more sane */
 		std::list<DwarfCompositeLocation>	pieces;

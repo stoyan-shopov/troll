@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016-2017 stoyan shopov
+Copyright (c) 2019 Stoyan Shopov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,27 +19,31 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+
 #include "engine.h"
 
 #include "sf-word-wizard.h"
 
-extern void do_target_fetch(void);
-/* ( destination-address target-address length -- t:success|f:failure) */
-extern void do_target_mem_read(void);
-extern void do_target_register_fetch(void);
-extern void do_panic(void);
+void do_type_stack_nonempty(void);
+void do_DW_OP_plus_typed(void);
+void do_DW_OP_minus_typed(void);
+void do_DW_OP_regval_type(void);
+void do_DW_OP_const_type(void);
+void do_DW_OP_deref_type(void);
 
 static struct word dict_base_dummy_word[1] = { MKWORD(0, 0, "", 0), };
 static const struct word custom_dict[] = {
-	MKWORD(dict_base_dummy_word,	0,		"t@",			do_target_fetch),
-	MKWORD(custom_dict,		__COUNTER__,	"target-mem-read",	do_target_mem_read),
-	MKWORD(custom_dict,		__COUNTER__,	"tr@",			do_target_register_fetch),
-	MKWORD(custom_dict,		__COUNTER__,	"panic",		do_panic),
+	MKWORD(dict_base_dummy_word,	0,		"type-stack-nonempty?",		do_type_stack_nonempty),
+	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_plus_typed",		do_DW_OP_plus_typed),
+	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_minus_typed",		do_DW_OP_minus_typed),
+	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_regval_type",		do_DW_OP_regval_type),
+	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_const_type",		do_DW_OP_const_type),
+	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_deref_type",		do_DW_OP_deref_type),
 
 }, * custom_dict_start = custom_dict + __COUNTER__;
 
-static void sf_opt_cortexm0_init(void) __attribute__((constructor));
-static void sf_opt_cortexm0_init(void)
+static void sf_opt_dwarf_type_stack_init(void) __attribute__((constructor));
+static void sf_opt_dwarf_type_stack_init(void)
 {
 	sf_merge_custom_dictionary(dict_base_dummy_word, custom_dict_start);
 }

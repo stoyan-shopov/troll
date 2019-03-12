@@ -49,7 +49,8 @@ SOURCES +=\
     external-sources/capstone/arch/ARM/ARMMapping.c \
     external-sources/capstone/arch/ARM/ARMModule.c \
     breakpoint-cache.cxx \
-    dwarf-evaluator-sfext.c
+    dwarf-evaluator-sfext.c \
+    dwarf-type-stack-sfext.c
 
 HEADERS  += \
     libtroll/dwarf.h \
@@ -68,7 +69,9 @@ HEADERS  += \
     troll.hxx \
     blackmagic.hxx \
     gdb-remote.hxx \
-    breakpoint-cache.hxx
+    breakpoint-cache.hxx \
+    target-arch.hxx \
+    dwarf-type-stack.hxx
 
 FORMS    += mainwindow.ui \
     notification.ui
