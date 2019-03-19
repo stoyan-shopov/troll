@@ -263,7 +263,7 @@ protected:
 	bool eventFilter(QObject * watched, QEvent * event);
 	
 private:
-	GdbServer gdbserver;
+	GdbServer * gdbserver;
 	Ui::MainWindow *ui;
 	QSerialPort	blackstrike_port;
 	/* all times are in milliseconds */

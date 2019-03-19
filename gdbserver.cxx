@@ -26,10 +26,40 @@ THE SOFTWARE.
 #include "gdbserver.hxx"
 #include "gdb-remote.hxx"
 
-GdbServer::GdbServer()
-{
-QRegularExpression rx("\\$(.*)#(..)", QRegularExpression::InvertedGreedinessOption);
+const QByteArray GdbServer::cortexmTargetDescriptionXml =
+		"<?xml version=\"1.0\"?>"
+		"<!DOCTYPE target SYSTEM \"gdb-target.dtd\">"
+		"<target>"
+		"  <architecture>arm</architecture>"
+		"  <feature name=\"org.gnu.gdb.arm.m-profile\">"
+		"    <reg name=\"r0\" bitsize=\"32\"/>"
+		"    <reg name=\"r1\" bitsize=\"32\"/>"
+		"    <reg name=\"r2\" bitsize=\"32\"/>"
+		"    <reg name=\"r3\" bitsize=\"32\"/>"
+		"    <reg name=\"r4\" bitsize=\"32\"/>"
+		"    <reg name=\"r5\" bitsize=\"32\"/>"
+		"    <reg name=\"r6\" bitsize=\"32\"/>"
+		"    <reg name=\"r7\" bitsize=\"32\"/>"
+		"    <reg name=\"r8\" bitsize=\"32\"/>"
+		"    <reg name=\"r9\" bitsize=\"32\"/>"
+		"    <reg name=\"r10\" bitsize=\"32\"/>"
+		"    <reg name=\"r11\" bitsize=\"32\"/>"
+		"    <reg name=\"r12\" bitsize=\"32\"/>"
+		"    <reg name=\"sp\" bitsize=\"32\" type=\"data_ptr\"/>"
+		"    <reg name=\"lr\" bitsize=\"32\" type=\"code_ptr\"/>"
+		"    <reg name=\"pc\" bitsize=\"32\" type=\"code_ptr\"/>"
+		"    <reg name=\"xpsr\" bitsize=\"32\"/>"
+		"    <reg name=\"msp\" bitsize=\"32\" save-restore=\"no\" type=\"data_ptr\"/>"
+		"    <reg name=\"psp\" bitsize=\"32\" save-restore=\"no\" type=\"data_ptr\"/>"
+		"    <reg name=\"special\" bitsize=\"32\" save-restore=\"no\"/>"
+		"  </feature>"
+		"</target>"
+		;
 
+
+GdbServer::GdbServer(Target *target)
+{
+	this->target = target;
 	if (!gdb_tcpserver.listen(QHostAddress::Any, 1122))
 	{
 		QMessageBox::critical(0, "Cannot listen on gdbserver port", "Error opening a gdbserver port for listening for incoming gdb connections");
@@ -42,16 +72,64 @@ void GdbServer::handleGdbPacket(const QByteArray &packet)
 {
 	auto pd = GdbRemote::packetData(packet);
 	if (pd.startsWith("qSupported"))
-		sendGdbReply(GdbRemote::emptyResponsePacket());
+		sendGdbReply(GdbRemote::rawResponsePacket("qXfer:features:read+"));
 	else if (pd.startsWith("!"))
 		/* Enable extended mode. This is always enabled */
 		sendGdbReply(GdbRemote::okResponsePacket());
 	else if (pd.startsWith("?"))
 		/* Indicate the reason the target halted */
+		//sendGdbReply(GdbRemote::targetExitedExitcodeNumberPacket(0));
 		sendGdbReply(GdbRemote::stopReplySignalNumberPacket(POSIX_SIGTRAP));
 	else if (pd.startsWith("g"))
+	{
 		/* Read general registers */
-		sendGdbReply(GdbRemote::errorReplyPacket(255));
+		QByteArray registers;
+		for (auto i = 0; i < 16; i++)
+		{
+			uint32_t r = target->readRawUncachedRegister(i);
+			registers += QByteArray((const char *) & r, sizeof(uint32_t));
+		}
+		/*! \todo	Fix this. The number of registers' contents returned to
+		 *		gdb must equal the number of registers from the target
+		 * 		description xml document, but the last four registers
+		 *		are not yet handled, and dummy values are being sent for
+		 * 		them */
+		sendGdbReply(GdbRemote::rawResponsePacket(registers.toHex() + /* xpsr */ "00" + /* msp*/ "00" + /* psp */ "00" +
+			     /*! \todo 'special', I am not sure what this is, but I guess it is the 'CONTROL' register.
+			      *	Look this up in the blackmagic sources */ "00"));
+	}
+	else if (pd.startsWith("m"))
+	{
+		/* Read memory */
+		QRegularExpression rx("m(.+),(.+)");
+		QRegularExpressionMatch match = rx.match(pd);
+		if (!match.hasMatch())
+			sendGdbReply(GdbRemote::errorReplyPacket(1));
+		else
+		{
+			int address = match.captured(1).toUInt(0, 16), len = match.captured(2).toUInt(0, 16);
+			QByteArray data = target->readBytes(address, len);
+			sendGdbReply(GdbRemote::rawResponsePacket(data.toHex()));
+		}
+	}
+	else if (pd.startsWith("qXfer:features:read:target.xml:"))
+	{
+		/* Access target description */
+		QRegularExpression rx("qXfer:features:read:target.xml:(.+),(.+)");
+		QRegularExpressionMatch match = rx.match(pd);
+		if (!match.hasMatch())
+			sendGdbReply(GdbRemote::errorReplyPacket(255));
+		else
+		{
+			int start = match.captured(1).toUInt(0, 16), len = match.captured(2).toUInt(0, 16);
+			if (start < cortexmTargetDescriptionXml.length())
+				sendGdbReply(GdbRemote::rawResponsePacket(QByteArray("m") + cortexmTargetDescriptionXml.mid(start, len)));
+			else if (len == cortexmTargetDescriptionXml.length())
+				sendGdbReply(GdbRemote::rawResponsePacket("l"));
+			else
+				sendGdbReply(GdbRemote::errorReplyPacket(1));
+		}
+	}
 	else
 	{
 		qDebug() << "Unhandled gdb remote packet:" << packet;

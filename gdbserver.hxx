@@ -26,13 +26,15 @@ THE SOFTWARE.
 #include <QObject>
 #include <QTcpServer>
 #include <QTcpSocket>
+
 #include "gdb-remote.hxx"
+#include "target.hxx"
 
 class GdbServer : public QObject
 {
 	Q_OBJECT
 public:
-	GdbServer();
+	GdbServer(Target * target);
 
 private:
 	enum
@@ -40,11 +42,13 @@ private:
 		/* Signal numbers for gdb stop reply packets. Looks like gdb uses the posix signal numbers */
 		POSIX_SIGTRAP		= 5,
 	};
+	Target		* target;
 	QTcpServer	gdb_tcpserver;
 	QTcpSocket	* gdb_client_socket = 0;
 	QByteArray	incoming_data;
 	void		handleGdbPacket(const QByteArray& packet);
 	void		sendGdbReply(const QByteArray& packet) { qDebug() << "Sending reply:" << packet; gdb_client_socket->write(packet); }
+	static const QByteArray cortexmTargetDescriptionXml;
 private slots:
 	void newConneciton(void);
 	void gdbClientSocketReadyRead(void);

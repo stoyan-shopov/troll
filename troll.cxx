@@ -1069,7 +1069,10 @@ there:
 		dwundwind->dump(), dwundwind->next();
 	
 	if (TEST_DRIVE_MODE)
+	{
 		target = new TargetCorefile("troll-test-drive-files/flash.bin", 0x08000000, "troll-test-drive-files/ram.bin", 0x20000000, "troll-test-drive-files/registers.bin");
+		gdbserver = new GdbServer(target);
+	}
 	else
 		target = new TargetCorefile("flash.bin", 0x08000000, "ram.bin", 0x20000000, "registers.bin");
 	

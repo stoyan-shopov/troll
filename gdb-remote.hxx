@@ -138,9 +138,11 @@ public:
 
 
 	/* GDB response packets. Used when running a gdbserver, these are responses returned to an external gdb client */
+	static QByteArray rawResponsePacket(const QString& rawData) { return makePacket(rawData.toLocal8Bit()); }
 	static QByteArray emptyResponsePacket(void) { return makePacket(""); }
 	static QByteArray okResponsePacket(void) { return makePacket("OK"); }
 	static QByteArray stopReplySignalNumberPacket(int signal_number) { return makePacket(QString("T%1").arg(signal_number & 0xff, 2, 16, QChar('0')).toUpper().toLocal8Bit()); }
+	static QByteArray targetExitedExitcodeNumberPacket(int target_exit_code) { return makePacket(QString("W%1").arg(target_exit_code & 0xff, 2, 16, QChar('0')).toUpper().toLocal8Bit()); }
 	static QByteArray errorReplyPacket(int error_code) { return makePacket(QString("E%1").arg(error_code & 0xff, 2, 16, QChar('0')).toUpper().toLocal8Bit()); }
 
 };
