@@ -27,6 +27,8 @@ THE SOFTWARE.
 #include <QTableWidget>
 #include <QFileSystemWatcher>
 #include <QPlainTextEdit>
+#include <elfio/elfio.hpp>
+
 #include "libtroll.hxx"
 #include "sforth.hxx"
 #include "target-corefile.hxx"
@@ -42,7 +44,7 @@ THE SOFTWARE.
 #include "s-record.hxx"
 #include "disassembly.hxx"
 #include "breakpoint-cache.hxx"
-#include <elfio/elfio.hpp>
+#include "gdbserver.hxx"
 
 enum
 {
@@ -261,6 +263,7 @@ protected:
 	bool eventFilter(QObject * watched, QEvent * event);
 	
 private:
+	GdbServer gdbserver;
 	Ui::MainWindow *ui;
 	QSerialPort	blackstrike_port;
 	/* all times are in milliseconds */

@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui serialport xml
+QT       += core gui serialport xml network
 #CONFIG	+= console
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
@@ -50,7 +50,8 @@ SOURCES +=\
     external-sources/capstone/arch/ARM/ARMModule.c \
     breakpoint-cache.cxx \
     dwarf-evaluator-sfext.c \
-    dwarf-type-stack-sfext.c
+    dwarf-type-stack-sfext.c \
+    gdbserver.cxx
 
 HEADERS  += \
     libtroll/dwarf.h \
@@ -71,7 +72,8 @@ HEADERS  += \
     gdb-remote.hxx \
     breakpoint-cache.hxx \
     target-arch.hxx \
-    dwarf-type-stack.hxx
+    dwarf-type-stack.hxx \
+    gdbserver.hxx
 
 FORMS    += mainwindow.ui \
     notification.ui

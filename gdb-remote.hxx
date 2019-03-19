@@ -25,6 +25,7 @@ THE SOFTWARE.
 #include <QByteArray>
 #include <QString>
 #include <QVector>
+#include <QRegularExpression>
 #include <QDebug>
 #include "util.hxx"
 
@@ -39,13 +40,12 @@ private:
 public:
 	static QByteArray extractPacket(QByteArray & bytes)
 	{
-		QRegExp rx("(\\$.*#..)");
-		rx.setMinimal(true);
-		int i;
-		if ((i = rx.indexIn(QString(bytes))) != -1)
+		QRegularExpression rx("\\$.*#..", QRegularExpression::InvertedGreedinessOption);
+		QRegularExpressionMatch match;
+		if ((match = rx.match(bytes)).hasMatch())
 		{
-			bytes.remove(0, i + rx.cap(1).length());
-			return rx.cap(1).toLocal8Bit();
+			bytes.remove(0, match.capturedEnd());
+			return match.captured().toLocal8Bit();
 		}
 		return QByteArray();
 	}
@@ -135,7 +135,14 @@ public:
 		return packets;
 	}
 	static QByteArray eraseFlashMemoryRequest(uint32_t address, uint32_t length) { return makePacket(QString("vFlashErase:%1,%2").arg(address, 0, 16).arg(length, 0, 16).toLocal8Bit()); }
-	
+
+
+	/* GDB response packets. Used when running a gdbserver, these are responses returned to an external gdb client */
+	static QByteArray emptyResponsePacket(void) { return makePacket(""); }
+	static QByteArray okResponsePacket(void) { return makePacket("OK"); }
+	static QByteArray stopReplySignalNumberPacket(int signal_number) { return makePacket(QString("T%1").arg(signal_number & 0xff, 2, 16, QChar('0')).toUpper().toLocal8Bit()); }
+	static QByteArray errorReplyPacket(int error_code) { return makePacket(QString("E%1").arg(error_code & 0xff, 2, 16, QChar('0')).toUpper().toLocal8Bit()); }
+
 };
 
 #endif // GDBREMOTE_HXX
