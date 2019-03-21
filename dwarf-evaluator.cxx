@@ -365,7 +365,9 @@ QByteArray data;
 		case DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER:
 		{
 			uint32_t register_contents = register_cache->readCachedRegister(location.value);
-			data = QByteArray((const char *) & register_contents, sizeof register_contents);
+			data = QByteArray((const char *) & register_contents, sizeof register_contents)
+					/* Truncate, if necessary */
+					.left(bytesize);
 		}
 			break;
 		case DwarfEvaluator::DwarfExpressionValue::COMPOSITE_VALUE:

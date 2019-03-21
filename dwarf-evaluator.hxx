@@ -79,7 +79,7 @@ public:
 	 * bytes are present, which contain the hexadecimal representation of that byte. For each
 	 * byte that is unavailable (e.g., it has been optimized away, or can not be retrieved from the target),
 	 * the bytes "??" are * stored */
-	static QByteArray fetchValueFromTarget(const struct DwarfExpressionValue& location, Target * target, int bytesize = -1);
+	static QByteArray fetchValueFromTarget(const struct DwarfExpressionValue& location, Target * target, int bytesize);
 signals:
 	void entryValueComputed(struct DwarfEvaluator::DwarfExpressionValue entry_value);
 };
