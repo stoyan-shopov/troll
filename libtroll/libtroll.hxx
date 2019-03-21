@@ -826,9 +826,17 @@ struct DwarfExpression
 					DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
 					break;
 				case DW_OP_GNU_convert:
-					x << "GNU-CONVERT-UNSUPPORTED!!! ";
-					DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+				case DW_OP_convert:
+				{
+					uint32_t base_type_die_offset;
+					base_type_die_offset = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					/* The die offset just read is an offset from the compilation unit that the die resides in.
+					 * Turn it into an absolute die offset, i.e. an offset from the start of the '.debug_info' section.
+					 * The value zero is a special case, and denotes the, so-called, 'generic' type */
+					x << (base_type_die_offset ? base_type_die_offset + compilation_unit_header_offset : 0)<< " ";
+					x << "DW_OP_convert ";
 					break;
+				}
 				case DW_OP_GNU_implicit_pointer:
 					x << "GNU-IMPLICIT-POINTER-UNSUPPORTED!!! ";
 					DwarfUtil::sleb128(dwarf_expression + sizeof(uint32_t), & bytes_to_skip);

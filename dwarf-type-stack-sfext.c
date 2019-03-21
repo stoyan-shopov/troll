@@ -30,6 +30,7 @@ void do_DW_OP_minus_typed(void);
 void do_DW_OP_regval_type(void);
 void do_DW_OP_const_type(void);
 void do_DW_OP_deref_type(void);
+void do_DW_OP_convert(void);
 
 static struct word dict_base_dummy_word[1] = { MKWORD(0, 0, "", 0), };
 static const struct word custom_dict[] = {
@@ -39,6 +40,7 @@ static const struct word custom_dict[] = {
 	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_regval_type",		do_DW_OP_regval_type),
 	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_const_type",		do_DW_OP_const_type),
 	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_deref_type",		do_DW_OP_deref_type),
+	MKWORD(custom_dict,		__COUNTER__,	"DW_OP_convert",		do_DW_OP_convert),
 
 }, * custom_dict_start = custom_dict + __COUNTER__;
 

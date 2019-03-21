@@ -206,6 +206,50 @@ static std::list<DwarfEvaluator::DwarfCompositeLocation> composite_location_piec
 		dwarf_type_stack.push_back(dwarf_type_stack_entry(base_type_encoding, type_bytesize, sf_get_depth()));
 	}
 
+	void do_DW_OP_convert(void)
+	{
+		/* In essence, this is like the C-language type cast operator: '(type)' */
+		cell base_type_die_offset = sf_pop();
+		std::vector<DwarfTypeNode> base_type;
+		libtroll->readType(base_type_die_offset, base_type);
+		/* Make sure the type die is indeed a base type die, and the bytesize of this base type can fit in the
+		 * sforth stack */
+		int base_type_encoding = libtroll->baseTypeEncoding(base_type), bytesize = libtroll->sizeOf(base_type);
+		if (base_type.size() != 1 || base_type_encoding == -1 || bytesize > sizeof(cell))
+			DwarfUtil::panic();
+		/* Make sure only known base type lengths are handled */
+		if (bytesize > sizeof(uint32_t) && bytesize != 8)
+			DwarfUtil::panic();
+		union { cell value; float f; double d; } v = { .value = sf_pop(), };
+		if (!dwarf_type_stack.size())
+			DwarfUtil::panic();
+		auto cast_from_type = dwarf_type_stack.back();
+		dwarf_type_stack.pop_back();
+		switch (cast_from_type.dwarf_type_encoding)
+		{
+		default: DwarfUtil::panic();
+		case DW_ATE_float:
+			switch (cast_from_type.dwarf_type_bytesize)
+			{
+			default: DwarfUtil::panic();
+			case 4:
+				/* Typecast from 'float' */
+				switch (bytesize)
+				{
+					default: DwarfUtil::panic();
+					case 8:
+					/* Typecast to 'double': (float) --> (double) */
+					v.d = v.f;
+				}
+				break;
+			}
+		}
+
+		sf_push(v.value);
+		/*! \todo	Save the dwarf type entry for later use. This really is not at all correct... */
+		dwarf_type_stack.push_back(dwarf_type_stack_entry(base_type_encoding, bytesize, sf_get_depth()));
+	}
+
 	void do_type_stack_nonempty(void)
 	{
 		sf_push(dwarf_type_stack.empty() ? 0 : -1);
