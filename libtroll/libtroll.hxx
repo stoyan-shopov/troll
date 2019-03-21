@@ -858,10 +858,16 @@ struct DwarfExpression
 					x << "DW_OP_bit_piece ";
 					break;
 				case DW_OP_implicit_value:
-					x << "IMPLICIT-VALUE-UNSUPPORTED!!! ";
-					i = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
-					bytes_to_skip += i;
+				{
+					int size = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					QByteArray data_bytes((const char *) dwarf_expression + bytes_to_skip, size);
+					bytes_to_skip += size;
+					for (i = size - 1; i >= 0; -- i)
+						x << (unsigned) (uint8_t) data_bytes.at(i) << " ";
+					x << size << " ";
+					x << "DW_OP_implicit_value ";
 					break;
+				}
 				case DW_OP_bra:
 					x << "0= [if] ";
 					bytes_to_skip = sizeof(int16_t);

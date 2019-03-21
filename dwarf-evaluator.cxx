@@ -109,6 +109,19 @@ static std::list<DwarfEvaluator::DwarfCompositeLocation> composite_location_piec
 		dwarf_type_stack.clear();
 	}
 
+	void do_DW_OP_implicit_value(void)
+	{
+		cell bytesize = sf_pop(), implicit_value = 0;
+		int i;
+		/* Make sure the bytesize of the implicit constant is a supported one */
+		if (bytesize > sizeof(cell) || (bytesize != 4 && bytesize != 8))
+			DwarfUtil::panic();
+		for (i = 0; i < bytesize; implicit_value |= sf_pop() << (i ++ << 3))
+			;
+		sf_push(implicit_value);
+		sf_eval("DW_OP_stack_value");
+	}
+
 	/*
 	 * Words handling type information attached to dwarf stack elements
 	 */
