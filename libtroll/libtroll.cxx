@@ -102,6 +102,22 @@ int DwarfData::readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> &
 	return index;
 }
 
+DwarfBaseType DwarfData::readBaseOrGenericType(uint32_t die_offset)
+{
+	if (!die_offset)
+		/* Special case - a die_offset of zero means that the 'generic' type, described in the Dwarf 5 standard, should be returned.
+		 * This special case is described in the Dwarf 5 standard, in the section describing 'Type conversions' */
+		return DwarfBaseType(sizeof(uint32_t), DW_ATE_unsigned);
+	std::vector<DwarfTypeNode> base_type;
+	readType(die_offset, base_type);
+	/* Make sure the type die is indeed a base type die, and the bytesize of this base type can fit in the
+	 * sforth stack */
+	int base_type_encoding = baseTypeEncoding(base_type), bytesize = sizeOf(base_type);
+	if (base_type.size() != 1 || base_type_encoding == -1 || bytesize > sizeof(uint64_t))
+		DwarfUtil::panic();
+	return DwarfBaseType(bytesize, base_type_encoding);
+}
+
 bool DwarfData::isPointerType(const std::vector<DwarfTypeNode> &type, int node_number)
 {
 	if (node_number == -1)

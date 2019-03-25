@@ -360,6 +360,12 @@ struct DwarfTypeNode
         DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; type_print_recursion_flag = processed = false; }
 };
 
+struct DwarfBaseType
+{
+	uint32_t bytesize, dwarfEncoding;
+	DwarfBaseType(uint32_t size, uint32_t encoding) : bytesize(size), dwarfEncoding(encoding) {}
+};
+
 struct Abbreviation
 {
 private:
@@ -2364,6 +2370,7 @@ std::map<uint32_t, uint32_t> recursion_detector;
 	}
 public:
 int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
+DwarfBaseType readBaseOrGenericType(uint32_t /* If the die offset is zero, return the 'generic' type */ die_offset);
 bool isPointerType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isArrayType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
 bool isSubroutineType(const std::vector<struct DwarfTypeNode> & type, int node_number = 0);
