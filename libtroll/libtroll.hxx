@@ -1877,7 +1877,7 @@ out:
 		return dies;
 	}
 public:
-	struct Die read_die(uint32_t die_offset) { return debug_tree_of_die(die_offset, 0, 1).at(0); }
+	struct Die dieForDieOffset(uint32_t die_offset) { return debug_tree_of_die(die_offset, 0, 1).at(0); }
 	uint32_t next_compilation_unit(uint32_t compilation_unit_offset)
 	{
 		uint32_t x = compilation_unit_header(debug_info + compilation_unit_offset).next().data - debug_info;
@@ -1984,7 +1984,7 @@ public:
 	struct SourceCodeCoordinates sourceCodeCoordinatesForDieOffset(uint32_t die_offset)
 	{
 		SourceCodeCoordinates s;
-		auto die = read_die(die_offset);
+		auto die = dieForDieOffset(die_offset);
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		auto file = a.dataForAttribute(DW_AT_decl_file, debug_info + die.offset);
 		auto line = a.dataForAttribute(DW_AT_decl_line, debug_info + die.offset);
@@ -1999,7 +1999,7 @@ public:
 		auto cu_offset = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
 		cu_offset += /* skip compilation unit header */ compilation_unit_header(debug_info + cu_offset).header_length();
 
-		auto compilation_unit_die = read_die(cu_offset);
+		auto compilation_unit_die = dieForDieOffset(cu_offset);
 		Abbreviation b(debug_abbrev + compilation_unit_die.abbrev_offset);
 		auto statement_list = b.dataForAttribute(DW_AT_stmt_list, debug_info + compilation_unit_die.offset);
 		auto compilation_directory = b.dataForAttribute(DW_AT_comp_dir, debug_info + compilation_unit_die.offset);
@@ -2031,7 +2031,7 @@ public:
 			return s;
 		cu_die_offset += /* skip compilation unit header */ compilation_unit_header(debug_info + cu_die_offset).header_length();
 
-		auto compilation_unit_die = read_die(cu_die_offset);
+		auto compilation_unit_die = dieForDieOffset(cu_die_offset);
 		uint32_t file_number;
 		if (compilation_unit_die.tag != DW_TAG_compile_unit)
 			DwarfUtil::panic();
@@ -2098,7 +2098,7 @@ private:
 		{
 			/*! \todo	!!!!!!!!!!! FIX THIS BOGUS CALL !!!!!!!!!!!!!!!!! */
 			compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
-			referred_die = read_die(referred_die_offset);
+			referred_die = dieForDieOffset(referred_die_offset);
 		}
 		return true;
 	}
