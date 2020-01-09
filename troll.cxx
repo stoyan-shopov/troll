@@ -455,6 +455,41 @@ void MainWindow::displayVerboseDataTypeForDieOffset(uint32_t die_offset)
 	ui->plainTextEditVerboseDataType->appendPlainText(QString::fromStdString(dwdata->typeString(type_cache, start_node, flags)));
 }
 
+void MainWindow::populateFunctionsListView(bool merge_duplicates)
+{
+	SourceCodeCoordinates c;
+	ui->tableWidgetFunctions->clearContents();
+	ui->tableWidgetFunctions->setRowCount(0);
+	if (merge_duplicates && subprograms.size())
+		c = dwdata->sourceCodeCoordinatesForDieOffset(subprograms.at(0).die_offset);
+	std::sort(subprograms.begin(), subprograms.end(), [](const struct StaticObject & a, const struct StaticObject & b) -> bool
+	        //{ return (strcmp(a.name, b.name) == -1) ? true : false; });
+	        { return QString(a.name).toLower() < QString(b.name).toLower(); });
+	for (int i = 0; i < subprograms.size(); i++)
+	{
+		int row(ui->tableWidgetFunctions->rowCount());
+		if (merge_duplicates && i)
+		{
+			/* check for duplicate entries */
+			SourceCodeCoordinates n = dwdata->sourceCodeCoordinatesForDieOffset(subprograms.at(i).die_offset);;
+			bool skip = (!strcmp(c.file_name, n.file_name) && !strcmp(c.directory_name, n.directory_name) && c.line == n.line
+			             && !strcmp(subprograms.at(i - 1).name, subprograms.at(i).name));
+			c = n;
+			if (skip)
+				continue;
+		}
+		ui->tableWidgetFunctions->insertRow(row);
+		ui->tableWidgetFunctions->setItem(row, 0, new QTableWidgetItem(subprograms.at(i).name));
+		ui->tableWidgetFunctions->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).file)));
+		ui->tableWidgetFunctions->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).line)));
+		ui->tableWidgetFunctions->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(subprograms.at(i).die_offset, 0, 16)));
+		if (!(i % 5000))
+			qDebug() << "constructing static subprograms view:" << subprograms.size() - i << "remaining";
+	}
+	/*! \warning	resizing the rows to fit the contents can be **very** expensive */
+	ui->tableWidgetFunctions->resizeColumnsToContents();
+}
+
 void MainWindow::searchSourceView(const QString & search_pattern)
 {
 	if (search_pattern.isEmpty())
@@ -1102,24 +1137,13 @@ there:
 	profiling.debug_lines_processing_time = t.elapsed();
 	qDebug() << ".debug_lines section processed in" << profiling.debug_lines_processing_time << "milliseconds";
 	t.restart();
-	std::vector<struct StaticObject> data_objects, subprograms;
 	dwdata->reapStaticObjects(data_objects, subprograms);
 	profiling.static_storage_duration_data_reap_time = t.elapsed();
 	qDebug() << "static storage duration data reaped in" << profiling.static_storage_duration_data_reap_time << "milliseconds";
 	qDebug() << "data objects:" << data_objects.size() << ", subprograms:" << subprograms.size();
+	populateFunctionsListView();
 	t.restart();
 
-	for (i = 0; i < subprograms.size(); i++)
-	{
-		int row(ui->tableWidgetFunctions->rowCount());
-		ui->tableWidgetFunctions->insertRow(row);
-		ui->tableWidgetFunctions->setItem(row, 0, new QTableWidgetItem(subprograms.at(i).name));
-		ui->tableWidgetFunctions->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).file)));
-		ui->tableWidgetFunctions->setItem(row, 2, new QTableWidgetItem(QString("%1").arg(subprograms.at(i).line)));
-		ui->tableWidgetFunctions->setItem(row, 3, new QTableWidgetItem(QString("$%1").arg(subprograms.at(i).die_offset, 0, 16)));
-		if (!(i % 5000))
-			qDebug() << "constructing static subprograms view:" << subprograms.size() - i << "remaining";
-	}
 	for (i = 0; i < data_objects.size(); i++)
 	{
 		int row(ui->tableWidgetStaticDataObjects->rowCount());
@@ -1133,10 +1157,6 @@ there:
 		if (!(i % 500))
 			qDebug() << "constructing static data objects view:" << data_objects.size() - i << "remaining";
 	}
-	ui->tableWidgetFunctions->sortItems(0);
-	ui->tableWidgetFunctions->resizeColumnsToContents();
-	/*! \warning	resizing the rows to fit the contents can be **very** expensive */
-	//ui->tableWidgetFunctions->resizeRowsToContents();
 	ui->tableWidgetStaticDataObjects->sortItems(0);
 	ui->tableWidgetStaticDataObjects->resizeColumnsToContents();
 	/*! \warning	resizing the rows to fit the contents can be **very** expensive */
@@ -1161,6 +1181,8 @@ there:
         ui->mainToolBar->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
         ui->actionTarget_status->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
         ui->plainTextEditVerboseDataType->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+
+	connect(ui->checkBoxHideDuplicateSubprograms, &QCheckBox::stateChanged, [this] { populateFunctionsListView(ui->checkBoxHideDuplicateSubprograms->isChecked());});
 }
 
 MainWindow::~MainWindow()
