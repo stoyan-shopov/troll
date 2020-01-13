@@ -187,7 +187,7 @@ private:
 	void searchSourceView(const QString & search_pattern);
 
 	// Returns -1 if no source code line number is detected
-	int sourceLineNumberAtCursor(const QString & line_source_code);
+	int sourceLineNumberAtCursor();
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

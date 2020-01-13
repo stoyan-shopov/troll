@@ -513,15 +513,20 @@ void MainWindow::searchSourceView(const QString & search_pattern)
 	last_search_pattern = search_pattern;
 }
 
-int MainWindow::sourceLineNumberAtCursor(const QString & line_source_code)
+int MainWindow::sourceLineNumberAtCursor()
 {
 	/* The purpose of this regular expression is to detect lines in the source code, and not in the disassembly */
 	QRegExp rx("^(\\w+)\\**\\s*\\|");
+	QTextCursor c = ui->plainTextEdit->textCursor();
 	bool ok;
-	int line_number = -1;
-	if (rx.indexIn(line_source_code) != -1 && (line_number = rx.cap(1).toInt(& ok), ok))
-		return line_number;
-	return -1;
+	int i, line_number = -1;
+	for (i = c.blockNumber(); i >= 0; i --)
+	{
+		if (rx.indexIn(c.block().text()) != -1 && (line_number = rx.cap(1).toInt(& ok), ok))
+			break;
+		c.movePosition(QTextCursor::PreviousBlock);
+	}
+	return line_number;
 }
 
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
@@ -2066,16 +2071,8 @@ void MainWindow::on_lineEditSubprograms_returnPressed()
 void MainWindow::on_pushButtonCreateBookmark_clicked()
 {
 auto row = ui->tableWidgetBookmarks->rowCount();
-QTextCursor c = ui->plainTextEdit->textCursor();
-int i, line_number = -1;
-
-	for (i = c.blockNumber(); i >= 0; i --)
-	{
-		if ((line_number = sourceLineNumberAtCursor(c.block().text())) != -1)
-			break;
-		c.movePosition(QTextCursor::PreviousBlock);
-	}
-	if (line_number == -1)
+int line_number;
+        if ((line_number = sourceLineNumberAtCursor()) == -1)
 		return;
 
 	ui->tableWidgetBookmarks->insertRow(row);
