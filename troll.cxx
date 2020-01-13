@@ -529,6 +529,24 @@ int MainWindow::sourceLineNumberAtCursor()
 	return line_number;
 }
 
+void MainWindow::navigateToSymbolAtCursor()
+{
+	switch (1)
+	{
+	default:
+		QTextCursor c = ui->plainTextEdit->textCursor();
+		c.select(QTextCursor::WordUnderCursor);
+		auto x = ui->tableWidgetFunctions->findItems(c.selectedText(), Qt::MatchExactly);
+		if (x.empty())
+			break;
+		if (x.size() > 1)
+			QMessageBox::information(0, "Multiple symbols found", "Multiple symbols found for id: " + c.selectedText() + "\nNavigating to the first item in the list");
+		ui->tableWidgetFunctions->clearSelection();
+		ui->tableWidgetFunctions->selectRow(x.at(0)->row());
+	}
+
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
 	setWindowTitle(QString("troll debugger    File: [%1]").arg(source_filename));
@@ -1185,6 +1203,7 @@ there:
 	populateSourceFilesView(false);
 
 	ui->plainTextEdit->installEventFilter(this);
+	ui->plainTextEdit->viewport()->installEventFilter(this);
 	targetDisconnected();
 	highlighter = new Highlighter(ui->plainTextEdit->document());
 	verbose_data_type_highlighter = new Highlighter(ui->plainTextEditVerboseDataType->document());
@@ -1412,11 +1431,31 @@ bool result = true;
 bool is_running_to_cursor = false;
 bool is_breakpoint_toggled = false;
 static unsigned accumulator;
+
+        if (watched == ui->plainTextEdit->viewport() && event->type() == QEvent::MouseButtonRelease)
+	{
+		QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+		if (mouseEvent->button() == Qt::LeftButton && mouseEvent->modifiers() & Qt::ControlModifier)
+		{
+			int line_number = sourceLineNumberAtCursor();
+			if (line_number != -1)
+			{
+				navigateToSymbolAtCursor();
+			}
+		}
+		return false;
+	}
+	if (watched != ui->plainTextEdit)
+		return false;
+
 	if (event->type() == QEvent::KeyPress)
 	{
 		QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
 		if (Qt::Key_0 <= keyEvent->key() && keyEvent->key() <= Qt::Key_9)
+		{
 			accumulator *= 10, accumulator += keyEvent->key() - Qt::Key_0;
+			return true;
+		}
 		switch (keyEvent->key())
 		{
 			case Qt::Key_Z:
@@ -1589,15 +1628,7 @@ static unsigned accumulator;
 		{
 			if (!keyEvent->modifiers() & Qt::ControlModifier)
 				break;
-			QTextCursor c = ui->plainTextEdit->textCursor();
-			c.select(QTextCursor::WordUnderCursor);
-			auto x = ui->tableWidgetFunctions->findItems(c.selectedText(), Qt::MatchExactly);
-			if (x.empty())
-				break;
-			if (x.size() > 1)
-				QMessageBox::information(0, "Multiple symbols found", "Multiple symbols found for id: " + c.selectedText() + "\nNavigating to the first item in the list");
-			ui->tableWidgetFunctions->clearSelection();
-			ui->tableWidgetFunctions->selectRow(x.at(0)->row());
+			navigateToSymbolAtCursor();
 			break;
 		}
 		default:

@@ -188,6 +188,7 @@ private:
 
 	// Returns -1 if no source code line number is detected
 	int sourceLineNumberAtCursor();
+	void navigateToSymbolAtCursor(void);
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
