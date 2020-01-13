@@ -516,7 +516,7 @@ void MainWindow::searchSourceView(const QString & search_pattern)
 int MainWindow::sourceLineNumberAtCursor()
 {
 	/* The purpose of this regular expression is to detect lines in the source code, and not in the disassembly */
-	QRegExp rx("^(\\w+)\\**\\s*\\|");
+	QRegExp rx("^(\\w+)\\s*\\**\\|");
 	QTextCursor c = ui->plainTextEdit->textCursor();
 	bool ok;
 	int i, line_number = -1;
@@ -531,20 +531,32 @@ int MainWindow::sourceLineNumberAtCursor()
 
 void MainWindow::navigateToSymbolAtCursor()
 {
-	switch (1)
+	/* First, store the current source code location, if available, in the source code navigation stack. */
+	int line_number = sourceLineNumberAtCursor();
+	if (line_number != -1)
 	{
-	default:
-		QTextCursor c = ui->plainTextEdit->textCursor();
-		c.select(QTextCursor::WordUnderCursor);
-		auto x = ui->tableWidgetFunctions->findItems(c.selectedText(), Qt::MatchExactly);
-		if (x.empty())
-			break;
-		if (x.size() > 1)
-			QMessageBox::information(0, "Multiple symbols found", "Multiple symbols found for id: " + c.selectedText() + "\nNavigating to the first item in the list");
-		ui->tableWidgetFunctions->clearSelection();
-		ui->tableWidgetFunctions->selectRow(x.at(0)->row());
+		SourceCodeLocation l = current_source_view;
+		l.line_number = line_number;
+		sourceNavigationStack.push_back(l);
 	}
-
+	QTableWidget * w = ui->tableWidgetFunctions;
+	QTextCursor c = ui->plainTextEdit->textCursor();
+	c.select(QTextCursor::WordUnderCursor);
+	/* First, try to find the identifier under the cursor as a subprogram. */
+	QString id = c.selectedText();
+	auto x = w->findItems(id, Qt::MatchExactly);
+	if (x.empty())
+	{
+		/* Subprogram not found, try to find the identifier under the cursor as a data object. */
+		w = ui->tableWidgetStaticDataObjects;
+		x = w->findItems(id, Qt::MatchExactly);
+	}
+	if (x.empty())
+		return;
+	if (x.size() > 1)
+		QMessageBox::information(0, "Multiple symbols found", "Multiple symbols found for id: " + c.selectedText() + "\nNavigating to the first item in the list");
+	w->clearSelection();
+	w->selectRow(x.at(0)->row());
 }
 
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
@@ -663,7 +675,7 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
 		profiling.max_context_view_generation_time = stime.elapsed();
-	current_source_view = SourceCodeViewDetails(source_filename, directory_name, compilation_directory, highlighted_line);
+	current_source_view = SourceCodeLocation(source_filename, directory_name, compilation_directory, highlighted_line);
 	last_source_highlighted_address = address;
 	statusBar()->showMessage(current_source_view.filename);
 	
@@ -1436,13 +1448,7 @@ static unsigned accumulator;
 	{
 		QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
 		if (mouseEvent->button() == Qt::LeftButton && mouseEvent->modifiers() & Qt::ControlModifier)
-		{
-			int line_number = sourceLineNumberAtCursor();
-			if (line_number != -1)
-			{
-				navigateToSymbolAtCursor();
-			}
-		}
+			        navigateToSymbolAtCursor();
 		return false;
 	}
 	if (watched != ui->plainTextEdit)
@@ -1623,6 +1629,14 @@ static unsigned accumulator;
 				on_actionResume_triggered();
 			else if (execution_state == FREE_RUNNING && keyEvent->modifiers() == Qt::ControlModifier)
 				on_actionHalt_triggered();
+			break;
+		case Qt::Key_Left:
+			if (keyEvent->modifiers() & Qt::AltModifier && sourceNavigationStack.size())
+			{
+				auto s = sourceNavigationStack.back();
+				sourceNavigationStack.pop_back();
+				displaySourceCodeFile(s);
+			}
 			break;
 		case Qt::Key_BracketRight:
 		{

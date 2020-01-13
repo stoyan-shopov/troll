@@ -128,21 +128,24 @@ public:
 		uint32_t	pointer_type_die_offset;
 	};
 private:
-	struct SourceCodeViewDetails
+	struct SourceCodeLocation
 	{
 		QString filename, directory, compilation_directory;
 		int line_number = -1;
-		SourceCodeViewDetails(const QString & source_filename, const QString & directory_name, const QString & compilation_directory, int line_number = -1)
+		SourceCodeLocation(const QString & source_filename, const QString & directory_name, const QString & compilation_directory, int line_number = -1)
 		{ filename = source_filename, directory = directory_name, this->compilation_directory = compilation_directory, this->line_number = line_number; }
-		SourceCodeViewDetails(){}
+		SourceCodeLocation(){}
 	};
+	std::vector<SourceCodeLocation> sourceNavigationStack;
+	int sourceNavigationIndex = -1;
 
 	QFileSystemWatcher	elf_file_modification_watcher;
 	int /* array bytesize */ buildArrayViewNode(QTreeWidgetItem * parent, const struct DwarfData::DataNode & array_node, int dimension_index, const QByteArray & hexAsciiData, int data_pos, int numeric_base, const QString numeric_prefix );
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & hexAsciiData = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
-	SourceCodeViewDetails current_source_view;
+	SourceCodeLocation current_source_view;
 	uint32_t last_source_highlighted_address;
 	void displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address = -1);
+	void displaySourceCodeFile(const SourceCodeLocation & s) { displaySourceCodeFile(s.filename, s.directory, s.compilation_directory, s.line_number);}
 	void refreshSourceCodeView(int center_line = -1);
 	void backtrace(void);
 	bool readElfSections(void);
