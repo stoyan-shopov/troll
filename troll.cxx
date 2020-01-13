@@ -1572,8 +1572,24 @@ static unsigned accumulator;
 			else if (execution_state == FREE_RUNNING && keyEvent->modifiers() == Qt::ControlModifier)
 				on_actionHalt_triggered();
 			break;
-			default:
-				result = false;
+		case Qt::Key_BracketRight:
+		{
+			if (!keyEvent->modifiers() & Qt::ControlModifier)
+				break;
+			QTextCursor c = ui->plainTextEdit->textCursor();
+			c.select(QTextCursor::WordUnderCursor);
+			auto x = ui->tableWidgetFunctions->findItems(c.selectedText(), Qt::MatchExactly);
+			if (x.empty())
+				break;
+			if (x.size() > 1)
+				QMessageBox::information(0, "Multiple symbols found", "Multiple symbols found for id: " + c.selectedText() + "\nNavigating to the first item in the list");
+			ui->tableWidgetFunctions->clearSelection();
+			ui->tableWidgetFunctions->selectRow(x.at(0)->row());
+			break;
+		}
+		default:
+			result = false;
+			break;
 		}
 	}
 	else
