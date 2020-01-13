@@ -2056,7 +2056,8 @@ void MainWindow::on_lineEditSubprograms_returnPressed()
 void MainWindow::on_pushButtonCreateBookmark_clicked()
 {
 auto row = ui->tableWidgetBookmarks->rowCount();
-QRegExp rx("^\\**\\s*(\\w+)\\|");
+/* The purpose of this regular expression is to detect lines in the source code, and not in the disassembly */
+QRegExp rx("^(\\w+)\\**\\s*\\|");
 QTextCursor c = ui->plainTextEdit->textCursor();
 int i, line_number = -1;
 
