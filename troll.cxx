@@ -284,7 +284,7 @@ QTextCharFormat cf;
 	QSet<struct BreakpointCache::SourceCodeBreakpoint>::const_iterator sset = breakpoints.enabledSourceCodeBreakpoints.constBegin();
 	while (sset != breakpoints.enabledSourceCodeBreakpoints.constEnd())
 	{
-		if ((x = (* sset).breakpointedLineNumberForSourceCode(last_source_filename, last_directory_name, last_compilation_directory)) != -1)
+		if ((x = (* sset).breakpointedLineNumberForSourceCode(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory)) != -1)
 			if (src.line_positions_in_document.contains(x))
 				enabled_breakpoint_positions << src.line_positions_in_document[x];
 		sset ++;
@@ -292,7 +292,7 @@ QTextCharFormat cf;
 	sset = breakpoints.disabledSourceCodeBreakpoints.constBegin();
 	while (sset != breakpoints.disabledSourceCodeBreakpoints.constEnd())
 	{
-		if ((x = (* sset).breakpointedLineNumberForSourceCode(last_source_filename, last_directory_name, last_compilation_directory)) != -1)
+		if ((x = (* sset).breakpointedLineNumberForSourceCode(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory)) != -1)
 			if (src.line_positions_in_document.contains(x))
 				disabled_breakpoint_positions << src.line_positions_in_document[x];
 		sset ++;
@@ -629,12 +629,10 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
 		profiling.max_context_view_generation_time = stime.elapsed();
-	last_source_filename = source_filename;
-	last_directory_name = directory_name;
-	last_compilation_directory = compilation_directory;
+	current_source_view = SourceCodeViewDetails(source_filename, directory_name, compilation_directory);
 	last_highlighted_line = highlighted_line;
 	last_source_highlighted_address = address;
-	statusBar()->showMessage(last_source_filename);
+	statusBar()->showMessage(current_source_view.filename);
 	
 	colorizeSourceCodeView();
 }
@@ -1460,14 +1458,14 @@ static unsigned accumulator;
 					i = rx.cap(1).toUInt(& ok);
 					if (!ok)
 						break;
-					qDebug() << "requesting breakpoint for source file" << last_source_filename << "line number" << i;
+					qDebug() << "requesting breakpoint for source file" << current_source_view.filename << "line number" << i;
 					QTime t;
 					t.start();
-					struct BreakpointCache::SourceCodeBreakpoint b = { .source_filename = last_source_filename, .directory_name = last_directory_name, .compilation_directory = last_compilation_directory, .enabled = true, .line_number = i, };
+					struct BreakpointCache::SourceCodeBreakpoint b = { .source_filename = current_source_view.filename, .directory_name = current_source_view.directory, .compilation_directory = current_source_view.compilation_directory, .enabled = true, .line_number = i, };
 					if ((j = breakpoints.sourceBreakpointIndex(b)) == -1
 							|| is_running_to_cursor)
 					{
-						auto x = dwdata->filteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
+						auto x = dwdata->filteredAddressesForFileAndLineNumber(current_source_view.filename.toLocal8Bit().constData(), i);
 						qDebug() << "filtered addresses:" << x.size();
 						if (x.empty())
 							break;
@@ -1488,7 +1486,7 @@ static unsigned accumulator;
 						if (t.elapsed() > profiling.max_time_for_retrieving_breakpoint_addresses_for_line)
 							profiling.max_time_for_retrieving_breakpoint_addresses_for_line = t.elapsed();
 						t.restart();
-						x = dwdata->unfilteredAddressesForFileAndLineNumber(last_source_filename.toLocal8Bit().constData(), i);
+						x = dwdata->unfilteredAddressesForFileAndLineNumber(current_source_view.filename.toLocal8Bit().constData(), i);
 						if (t.elapsed() > profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line)
 							profiling.max_time_for_retrieving_unfiltered_breakpoint_addresses_for_line = t.elapsed();
 						qDebug() << "total addresses:" << x.size();
@@ -1666,7 +1664,7 @@ void MainWindow::on_actionShell_triggered()
 {
 	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
 	{
-		QFileInfo f(last_source_filename);
+		QFileInfo f(current_source_view.filename);
 		if (f.exists())
 			QProcess::startDetached("cmd", QStringList() , QDir::toNativeSeparators(f.canonicalPath()));
 	}
@@ -1676,7 +1674,7 @@ void MainWindow::on_actionExplore_triggered()
 {
 	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
 	{
-		QFileInfo f(last_source_filename);
+		QFileInfo f(current_source_view.filename);
 		if (f.exists())
 			QProcess::startDetached("explorer", QStringList() << QString("/select,") + QDir::toNativeSeparators(f.canonicalFilePath()) , QDir::toNativeSeparators(f.canonicalPath()));
 	}
@@ -1849,13 +1847,13 @@ int row(ui->tableWidgetFiles->currentRow());
 
 void MainWindow::on_actionShow_disassembly_address_ranges_triggered()
 {
-	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line, last_source_highlighted_address);
+	displaySourceCodeFile(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory, last_highlighted_line, last_source_highlighted_address);
 }
 
 void MainWindow::refreshSourceCodeView(int center_line)
 {
 auto c = ui->plainTextEdit->textCursor();
-	displaySourceCodeFile(last_source_filename, last_directory_name, last_compilation_directory, last_highlighted_line, last_source_highlighted_address); 
+        displaySourceCodeFile(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory, last_highlighted_line, last_source_highlighted_address);
 	c.movePosition(QTextCursor::Start);
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, center_line);
 	ui->plainTextEdit->setTextCursor(c);
@@ -2074,10 +2072,10 @@ int i, line_number = -1;
 		return;
 
 	ui->tableWidgetBookmarks->insertRow(row);
-	ui->tableWidgetBookmarks->setItem(row, 0, new QTableWidgetItem(last_source_filename));
+	ui->tableWidgetBookmarks->setItem(row, 0, new QTableWidgetItem(current_source_view.filename));
 	ui->tableWidgetBookmarks->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(line_number)));
-	ui->tableWidgetBookmarks->setItem(row, 2, new QTableWidgetItem(last_directory_name));
-	ui->tableWidgetBookmarks->setItem(row, 3, new QTableWidgetItem(last_compilation_directory));
+	ui->tableWidgetBookmarks->setItem(row, 2, new QTableWidgetItem(current_source_view.directory));
+	ui->tableWidgetBookmarks->setItem(row, 3, new QTableWidgetItem(current_source_view.compilation_directory));
 }
 
 void MainWindow::on_tableWidgetBookmarks_doubleClicked(const QModelIndex &index)
