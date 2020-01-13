@@ -185,6 +185,9 @@ private:
 	QTableWidgetItem	* currently_evaluated_local_data_object;
 	QString	last_search_pattern;
 	void searchSourceView(const QString & search_pattern);
+
+	// Returns -1 if no source code line number is detected
+	int sourceLineNumberAtCursor(const QString & line_source_code);
 public:
 	explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();

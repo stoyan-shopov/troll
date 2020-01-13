@@ -513,6 +513,17 @@ void MainWindow::searchSourceView(const QString & search_pattern)
 	last_search_pattern = search_pattern;
 }
 
+int MainWindow::sourceLineNumberAtCursor(const QString & line_source_code)
+{
+	/* The purpose of this regular expression is to detect lines in the source code, and not in the disassembly */
+	QRegExp rx("^(\\w+)\\**\\s*\\|");
+	bool ok;
+	int line_number = -1;
+	if (rx.indexIn(line_source_code) != -1 && (line_number = rx.cap(1).toInt(& ok), ok))
+		return line_number;
+	return -1;
+}
+
 void MainWindow::displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address)
 {
 	setWindowTitle(QString("troll debugger    File: [%1]").arg(source_filename));
@@ -2056,16 +2067,12 @@ void MainWindow::on_lineEditSubprograms_returnPressed()
 void MainWindow::on_pushButtonCreateBookmark_clicked()
 {
 auto row = ui->tableWidgetBookmarks->rowCount();
-/* The purpose of this regular expression is to detect lines in the source code, and not in the disassembly */
-QRegExp rx("^(\\w+)\\**\\s*\\|");
 QTextCursor c = ui->plainTextEdit->textCursor();
 int i, line_number = -1;
 
 	for (i = c.blockNumber(); i >= 0; i --)
 	{
-		bool ok;
-		auto x = c.block().text();
-		if (rx.indexIn(x) != -1 && (line_number = rx.cap(1).toInt(& ok), ok))
+		if ((line_number = sourceLineNumberAtCursor(c.block().text())) != -1)
 			break;
 		c.movePosition(QTextCursor::PreviousBlock);
 	}
