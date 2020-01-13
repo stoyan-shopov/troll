@@ -640,8 +640,7 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
 		profiling.max_context_view_generation_time = stime.elapsed();
-	current_source_view = SourceCodeViewDetails(source_filename, directory_name, compilation_directory);
-	last_highlighted_line = highlighted_line;
+	current_source_view = SourceCodeViewDetails(source_filename, directory_name, compilation_directory, highlighted_line);
 	last_source_highlighted_address = address;
 	statusBar()->showMessage(current_source_view.filename);
 	
@@ -1858,13 +1857,13 @@ int row(ui->tableWidgetFiles->currentRow());
 
 void MainWindow::on_actionShow_disassembly_address_ranges_triggered()
 {
-	displaySourceCodeFile(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory, last_highlighted_line, last_source_highlighted_address);
+	displaySourceCodeFile(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory, current_source_view.line_number, last_source_highlighted_address);
 }
 
 void MainWindow::refreshSourceCodeView(int center_line)
 {
 auto c = ui->plainTextEdit->textCursor();
-        displaySourceCodeFile(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory, last_highlighted_line, last_source_highlighted_address);
+        displaySourceCodeFile(current_source_view.filename, current_source_view.directory, current_source_view.compilation_directory, current_source_view.line_number, last_source_highlighted_address);
 	c.movePosition(QTextCursor::Start);
 	c.movePosition(QTextCursor::NextBlock, QTextCursor::MoveAnchor, center_line);
 	ui->plainTextEdit->setTextCursor(c);
