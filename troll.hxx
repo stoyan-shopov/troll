@@ -132,7 +132,6 @@ private:
 	int /* array bytesize */ buildArrayViewNode(QTreeWidgetItem * parent, const struct DwarfData::DataNode & array_node, int dimension_index, const QByteArray & hexAsciiData, int data_pos, int numeric_base, const QString numeric_prefix );
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & hexAsciiData = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	QString last_source_filename, last_directory_name, last_compilation_directory;
-	QString current_source_code_file_displayed;
 	int last_highlighted_line;
 	uint32_t last_source_highlighted_address;
 	void displaySourceCodeFile(QString source_filename, QString directory_name, QString compilation_directory, int highlighted_line, uint32_t address = -1);

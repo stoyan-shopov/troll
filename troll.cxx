@@ -629,12 +629,12 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	qDebug() << "source code view built in " << x.elapsed() << "milliseconds";
 	if (/* this is not exact, which it needs not be */ stime.elapsed() > profiling.max_context_view_generation_time)
 		profiling.max_context_view_generation_time = stime.elapsed();
-	current_source_code_file_displayed = last_source_filename = source_filename;
+	last_source_filename = source_filename;
 	last_directory_name = directory_name;
 	last_compilation_directory = compilation_directory;
 	last_highlighted_line = highlighted_line;
 	last_source_highlighted_address = address;
-	statusBar()->showMessage(current_source_code_file_displayed);
+	statusBar()->showMessage(last_source_filename);
 	
 	colorizeSourceCodeView();
 }
@@ -1666,7 +1666,7 @@ void MainWindow::on_actionShell_triggered()
 {
 	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
 	{
-		QFileInfo f(current_source_code_file_displayed);
+		QFileInfo f(last_source_filename);
 		if (f.exists())
 			QProcess::startDetached("cmd", QStringList() , QDir::toNativeSeparators(f.canonicalPath()));
 	}
@@ -1676,7 +1676,7 @@ void MainWindow::on_actionExplore_triggered()
 {
 	if (ui->tableWidgetBacktrace->selectionModel()->hasSelection())
 	{
-		QFileInfo f(current_source_code_file_displayed);
+		QFileInfo f(last_source_filename);
 		if (f.exists())
 			QProcess::startDetached("explorer", QStringList() << QString("/select,") + QDir::toNativeSeparators(f.canonicalFilePath()) , QDir::toNativeSeparators(f.canonicalPath()));
 	}
