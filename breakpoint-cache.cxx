@@ -5,6 +5,8 @@ uint qHash(const BreakpointCache::SourceCodeBreakpoint & key)
 
 uint qHash(const BreakpointCache::MachineAddressBreakpoint & key) { return qHash(key.address); }
 
+const QString BreakpointCache::test_drive_base_directory = "troll-test-drive-files/";
+
 void BreakpointCache::updateBreakpointSets()
 {
 int i, j;

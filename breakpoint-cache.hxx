@@ -11,6 +11,7 @@ class BreakpointCache
 {
 private:
 	void updateBreakpointSets(void);
+	static const QString test_drive_base_directory;
 public:
 	BreakpointCache(void){}
 
@@ -22,17 +23,47 @@ public:
 		QVector<uint32_t> addresses;
 		bool operator == (const struct SourceCodeBreakpoint & other) const
 		{
-			return line_number == other.line_number && QDir::toNativeSeparators(source_filename) == QDir::toNativeSeparators(other.source_filename)
-					&& QDir::toNativeSeparators(directory_name) == QDir::toNativeSeparators(other.directory_name)
-					&& QDir::toNativeSeparators(compilation_directory) == QDir::toNativeSeparators(other.compilation_directory);
+			if (TEST_DRIVE_MODE)
+			{
+				/* If running a test drive, the filenames should be adjusted. */
+				QRegExp rx("^[xX]:[/\\\\]");
+				struct SourceCodeBreakpoint b = other;
+				QString sname(source_filename), dirname(directory_name), cdir(compilation_directory);
+
+				return line_number == b.line_number
+						&& QDir::toNativeSeparators(sname.replace(rx, test_drive_base_directory)) == QDir::toNativeSeparators(b.source_filename.replace(rx, test_drive_base_directory))
+						&& QDir::toNativeSeparators(dirname.replace(rx, test_drive_base_directory)) == QDir::toNativeSeparators(b.directory_name.replace(rx, test_drive_base_directory))
+						&& QDir::toNativeSeparators(cdir.replace(rx, test_drive_base_directory)) == QDir::toNativeSeparators(b.compilation_directory.replace(rx, test_drive_base_directory));
+			}
+			else
+			{
+				return line_number == other.line_number && QDir::toNativeSeparators(source_filename) == QDir::toNativeSeparators(other.source_filename)
+						&& QDir::toNativeSeparators(directory_name) == QDir::toNativeSeparators(other.directory_name)
+						&& QDir::toNativeSeparators(compilation_directory) == QDir::toNativeSeparators(other.compilation_directory);
+			}
 		}
 		/* returns -1 if the breakpoint is not inside the source code file */
 		int breakpointedLineNumberForSourceCode(const QString & source_filename, const QString & directory_name, const QString & compilation_directory) const
 		{
-			return (QDir::toNativeSeparators(source_filename) == QDir::toNativeSeparators(this->source_filename)
+			if (TEST_DRIVE_MODE)
+			{
+				/* If running a test drive, the filenames should be adjusted. */
+				QRegExp rx("^[xX]:[/\\\\]");
+				QString sname(source_filename), dirname(directory_name), cdir(compilation_directory);
+				QString sname1(this->source_filename), dirname1(this->directory_name), cdir1(this->compilation_directory);
+
+				return (QDir::toNativeSeparators(sname.replace(rx, test_drive_base_directory)) == QDir::toNativeSeparators(sname.replace(rx, test_drive_base_directory))
+						&& QDir::toNativeSeparators(dirname.replace(rx, test_drive_base_directory)) == QDir::toNativeSeparators(dirname1.replace(rx, test_drive_base_directory))
+						&& QDir::toNativeSeparators(cdir.replace(rx, test_drive_base_directory)) == QDir::toNativeSeparators(cdir1.replace(rx, test_drive_base_directory)))
+						? line_number : -1;
+			}
+			else
+			{
+				return (QDir::toNativeSeparators(source_filename) == QDir::toNativeSeparators(this->source_filename)
 					&& QDir::toNativeSeparators(directory_name) == QDir::toNativeSeparators(this->directory_name)
 					&& QDir::toNativeSeparators(compilation_directory) == QDir::toNativeSeparators(this->compilation_directory))
-				? line_number : -1;
+						? line_number : -1;
+			}
 		}
 	};
 	struct MachineAddressBreakpoint
