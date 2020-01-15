@@ -67,6 +67,11 @@ vector frame-base-rule
 create expression-stack expression-stack-depth expression-stack-frame-size * allot
 : expression-stack-reset ( --) 0 to expression-stack-sp ;
 : >expression-stack ( --)
+        ." ------------------------"cr
+	." ------------------------" ." Debug: DW_OP_entry_value evaluation - remove when debugging is finished" cr
+	." ------------------------" ." Debug: Expression stack pointer: " expression-stack-sp . cr
+	." ------------------------" expression-stack-sp 0> if ." Debug: recursive DW_OP_entry_value evaluation detected" cr then
+	." ------------------------"cr
 	expression-stack-sp expression-stack-depth = abort" dwarf expression stack overflow"
 	expression-stack-sp expression-stack-frame-size * expression-stack +
 	[ ' frame-base-rule >body ] literal @ over 0 cells + !
