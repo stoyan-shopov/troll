@@ -100,14 +100,14 @@ extern "C" {
 #define DW_TAG_file_type                0x29
 #define DW_TAG_friend                   0x2a
 #define DW_TAG_namelist                 0x2b
-        /*  Early releases of this header had the following
-            misspelled with a trailing 's' */
+	/*  Early releases of this header had the following
+	    misspelled with a trailing 's' */
 #define DW_TAG_namelist_item            0x2c /* DWARF3/2 spelling */
 #define DW_TAG_namelist_items           0x2c /* SGI misspelling/typo */
 #define DW_TAG_packed_type              0x2d
 #define DW_TAG_subprogram               0x2e
-        /*  The DWARF2 document had two spellings of the following
-            two TAGs, DWARF3 specifies the longer spelling. */
+	/*  The DWARF2 document had two spellings of the following
+	    two TAGs, DWARF3 specifies the longer spelling. */
 #define DW_TAG_template_type_parameter  0x2f /* DWARF3/2 spelling*/
 #define DW_TAG_template_type_param      0x2f /* DWARF2   spelling*/
 #define DW_TAG_template_value_parameter 0x30 /* DWARF3/2 spelling*/
@@ -125,7 +125,7 @@ extern "C" {
 #define DW_TAG_unspecified_type         0x3b  /* DWARF3 */
 #define DW_TAG_partial_unit             0x3c  /* DWARF3 */
 #define DW_TAG_imported_unit            0x3d  /* DWARF3 */
-        /*  Do not use DW_TAG_mutable_type */
+	/*  Do not use DW_TAG_mutable_type */
 #define DW_TAG_mutable_type 0x3e /* Withdrawn from DWARF3 by DWARF3f. */
 #define DW_TAG_condition                0x3f  /* DWARF3f */
 #define DW_TAG_shared_type              0x40  /* DWARF3f */
@@ -566,6 +566,13 @@ extern "C" {
 #define DW_AT_use_GNAT_descriptive_type         0x2301 /* GNAT */
 #define DW_AT_GNAT_descriptive_type             0x2302 /* GNAT */
 
+/* Go-specific type attributes */
+#define DW_AT_go_kind                           0x2900
+#define DW_AT_go_key                            0x2901
+#define DW_AT_go_elem                           0x2902
+#define DW_AT_go_embedded_field                 0x2903 /* Attribute for DW_TAG_member of a struct type. Nonzero value indicates the struct field is an embedded field. */
+#define DW_AT_go_runtime_type                   0x2904
+
 /* UPC extension */
 #define DW_AT_upc_threads_scaled                0x3210 /* UPC */
 
@@ -1002,7 +1009,7 @@ extern "C" {
 #define DW_LANG_lo_user                 0x8000
 #define DW_LANG_Mips_Assembler          0x8001 /* MIPS   */
 #define DW_LANG_Upc                     0x8765 /* UPC, use
-                                        DW_LANG_UPC instead. */
+					DW_LANG_UPC instead. */
 /* ALTIUM extension */
 #define DW_LANG_ALTIUM_Assembler        0x9101  /* ALTIUM */
 
@@ -1282,11 +1289,11 @@ extern "C" {
 #define DW_FRAME_REG30  30 /* integer reg 30 */
 #define DW_FRAME_REG31  31 /* integer reg 31, aka ra */
 
-        /* MIPS1, 2 have only some of these 64-bit registers.
-        ** MIPS1  save/restore takes 2 instructions per 64-bit reg, and
-        ** in that case, the register is considered stored after the second
-        ** swc1.
-        */
+	/* MIPS1, 2 have only some of these 64-bit registers.
+	** MIPS1  save/restore takes 2 instructions per 64-bit reg, and
+	** in that case, the register is considered stored after the second
+	** swc1.
+	*/
 #define DW_FRAME_FREG0  32 /* 64-bit floating point reg 0 */
 #define DW_FRAME_FREG1  33 /* 64-bit floating point reg 1 */
 #define DW_FRAME_FREG2  34 /* 64-bit floating point reg 2 */
