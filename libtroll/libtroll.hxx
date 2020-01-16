@@ -39,6 +39,51 @@ THE SOFTWARE.
 
 #define STATS_ENABLED			1
 
+enum
+{
+	/*
+	 * HACK HACK HACK
+	 *
+	 *  Some notes on using compilation unit base addresses.
+	 * The Dwarf standard says:
+	The base address of a compilation unit is defined as the value of the
+	DW_AT_low_pc attribute, if present; otherwise, it is undefined. If the base
+	address is undefined, then any DWARF entry or structure defined in terms of the
+	base address of that compilation unit is not valid.
+	 *
+	 * The following cases have been observed:
+	 * - a compilation unit which is spans a single contiguous memory region of machine code;
+	 * such a compilation unit has both a DW_AT_low_pc and a DW_AT_high_pc attributes, and its base
+	 * address is the value of the DW_AT_low_pc
+	 * - a compilation unit which spans multiple non-contiguous regions of memory, containing its machine code;
+	 * such a compilation unit has a DW_AT_ranges attribute, that describes the compilation unit ranges;
+	 * in this case, the gcc compiler still defines a DW_AT_low_pc attribute for the compilation unit
+	 * (usually with a value of 0), and it is taken as the base address of the compilation unit
+	 * - a compilation unit with neither a DW_AT_ranges attribute, nor a DW_AT_low_pc attributes defined;
+	 * this can be the case, for example, for a source code file that does not contain machine code,
+	 * but rather only data variable definitions, which are normally of static storage duration, and
+	 * reside at constant addresses, i.e. - no location lists are normally needed in such compilation
+	 * units, and therefore a compilation unit base address need not be defined
+	 * - a compilation unit with a DW_AT_ranges attribute defined, but no defined DW_AT_low_pc;
+	 * this has been observed for compilation unit DIEs generated from assembler source code;
+	 * in this case, the base address of the compilation unit is undefined;
+	 * however, a defined base address is necessary in order to handle range lists correctly;
+	 * in this particular case, however, it has been observed that the first entry in the
+	 * range list is typically a base address definition entry, and so from then on, there
+	 * is a defined base address in order to handle the rest of the range list entries properly
+	 *
+	 * To handle the cases where an invalid compilation unit base address may be undefined, but still
+	 * needed, the special address value (-1) is used, and is checked whenever a valid compilation
+	 * unit base address is needed. Strictly speaking, this is a HACK, but it looks reasonably safe
+	 * at this time.
+	 *
+	 * HACK HACK HACK
+	 *
+	 */
+	UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS		= -1,
+};
+
+
 class DwarfUtil
 {
 public:
@@ -555,8 +600,13 @@ struct LocationList
 				compilation_unit_base_address = 1[p], p += 2;
 				continue;
 			}
-			else if (p[0] + compilation_unit_base_address <= address_for_location && address_for_location < p[1] + compilation_unit_base_address)
+			else
+			{
+				if (compilation_unit_base_address == UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
+					DwarfUtil::panic();
+				if (p[0] + compilation_unit_base_address <= address_for_location && address_for_location < p[1] + compilation_unit_base_address)
 				return (const uint8_t *) (p + 2);
+			}
 			p += 2;
 			p = (const uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2);
 		}
@@ -1550,7 +1600,11 @@ private:
 					/* A base address selection entry */
 					base_address = range_list[1];
 				else
+				{
+					if (base_address == UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
+						DwarfUtil::panic();
 					ranges.push_back((address_range) { .start_address = range_list[0] + base_address, .end_address = range_list[1] + base_address});
+				}
 				range_list += 2;
 			}
 		}
@@ -1799,7 +1853,7 @@ private:
 		struct Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
 		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + compilation_unit_die.offset);
 		if (!low_pc.form)
-			DwarfUtil::panic();
+			return UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS;
 		return DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes);
 	}
 	bool isAddressInRange(const struct Die & die, uint32_t address, const struct Die & compilation_unit_die)
