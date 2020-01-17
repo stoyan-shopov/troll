@@ -2063,7 +2063,7 @@ public:
 		if (!statement_list.form)
 			return s;
 		DebugLine l(debug_line, debug_line_len);
-		const char * compilation_directory_string = 0;
+		static const char * compilation_directory_string = "<<< unknown compilation directory >>>";
 		if (compilation_directory.form)
 			compilation_directory_string = DwarfUtil::formString(compilation_directory.form, compilation_directory.debug_info_bytes, debug_str);
 		l.skipToOffset(DwarfUtil::formConstant(statement_list));
