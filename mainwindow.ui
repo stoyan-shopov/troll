@@ -423,6 +423,16 @@ background-color: rgb(30, 30, 30);</string>
         <number>0</number>
        </property>
        <item>
+        <widget class="QCheckBox" name="checkBoxHideDuplicateSubprograms">
+         <property name="text">
+          <string>hide duplicates</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QLabel" name="label_3">
          <property name="text">
           <string>search for:</string>
