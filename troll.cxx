@@ -38,94 +38,6 @@ THE SOFTWARE.
 
 QPlainTextEdit * MainWindow::sforth_console;
 
-/* syntax highlighter copied from the Qt documentation example on syntax highlighting */
-Highlighter::Highlighter(QTextDocument *parent)
-        : QSyntaxHighlighter(parent)
-{
-	HighlightingRule rule;
-
-	//keywordFormat.setForeground(Qt::darkBlue);
-	keywordFormat.setForeground(QColor(0x60, 0xff, 0x60));
-	//keywordFormat.setFontWeight(QFont::Bold);
-	QStringList keywordPatterns;
-	keywordPatterns << "\\bchar\\b" << "\\bclass\\b" << "\\bconst\\b"
-	                << "\\bdouble\\b" << "\\benum\\b" << "\\bexplicit\\b"
-	                << "\\bfriend\\b" << "\\binline\\b" << "\\bint\\b"
-	                << "\\blong\\b" << "\\bnamespace\\b" << "\\boperator\\b"
-	                << "\\bprivate\\b" << "\\bprotected\\b" << "\\bpublic\\b"
-	                << "\\bshort\\b" << "\\bsignals\\b" << "\\bsigned\\b"
-	                << "\\bslots\\b" << "\\bstatic\\b" << "\\bstruct\\b"
-	                << "\\btemplate\\b" << "\\btypedef\\b" << "\\btypename\\b"
-	                << "\\bunion\\b" << "\\bunsigned\\b" << "\\bvirtual\\b"
-	                << "\\bvoid\\b" << "\\bvolatile\\b";
-	foreach (const QString &pattern, keywordPatterns) {
-		rule.pattern = QRegExp(pattern);
-		rule.format = keywordFormat;
-		highlightingRules.append(rule);
-	}
-	//classFormat.setFontWeight(QFont::Bold);
-	classFormat.setForeground(Qt::darkMagenta);
-	rule.pattern = QRegExp("\\bQ[A-Za-z]+\\b");
-	rule.format = classFormat;
-	highlightingRules.append(rule);
-
-	quotationFormat.setForeground(Qt::darkGreen);
-	rule.pattern = QRegExp("\".*\"");
-	rule.format = quotationFormat;
-	highlightingRules.append(rule);
-
-	//functionFormat.setFontItalic(true);
-	//functionFormat.setForeground(Qt::blue);
-	functionFormat.setForeground(QColor(0x40, 0xff, 0xff));
-	rule.pattern = QRegExp("\\b[A-Za-z0-9_]+(?=\\()");
-	rule.format = functionFormat;
-	highlightingRules.append(rule);
-
-	//singleLineCommentFormat.setForeground(Qt::red);
-	singleLineCommentFormat.setForeground(QColor(0x80, 0xa0, 0xff));
-	rule.pattern = QRegExp("//[^\n]*");
-	rule.format = singleLineCommentFormat;
-	highlightingRules.append(rule);
-
-	//multiLineCommentFormat.setForeground(Qt::red);
-	multiLineCommentFormat.setForeground(QColor(0x80, 0xa0, 0xff));
-
-	commentStartExpression = QRegExp("/\\*");
-	commentEndExpression = QRegExp("\\*/");
-}
-
-void Highlighter::highlightBlock(const QString &text)
-{
-	//return;
-	foreach (const HighlightingRule &rule, highlightingRules) {
-		QRegExp expression(rule.pattern);
-		int index = expression.indexIn(text);
-		while (index >= 0) {
-			int length = expression.matchedLength();
-			setFormat(index, length, rule.format);
-			index = expression.indexIn(text, index + length);
-		}
-	}
-	setCurrentBlockState(0);
-	int startIndex = 0;
-	if (previousBlockState() != 1)
-		startIndex = commentStartExpression.indexIn(text);	
-	while (startIndex >= 0) {
-		int endIndex = commentEndExpression.indexIn(text, startIndex);
-		int commentLength;
-		if (endIndex == -1) {
-			setCurrentBlockState(1);
-			commentLength = text.length() - startIndex;
-		} else {
-			commentLength = endIndex - startIndex
-			                + commentEndExpression.matchedLength();
-		}
-		setFormat(startIndex, commentLength, multiLineCommentFormat);
-		startIndex = commentStartExpression.indexIn(text, startIndex + commentLength);
-	}
-}
-
-
 void MainWindow::dump_debug_tree(std::vector<struct Die> & dies, int level)
 {
 int i;
@@ -647,6 +559,25 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 			}
 			i ++;
 		}
+
+#if 1
+		QProcess highlighter;
+		QFile outfile("C:/src/build-troll-Desktop_Qt_5_12_0_MinGW_64_bit-Debug/highlighted.html");
+
+		highlighter.start("C:/src/build-troll-Desktop_Qt_5_12_0_MinGW_64_bit-Debug/highlight/highlight.exe",
+				QStringList() << "-o" << outfile.fileName() << "--syntax=c");
+		highlighter.waitForStarted();
+		highlighter.write(t.toLocal8Bit());
+		highlighter.closeWriteChannel();
+		highlighter.waitForFinished();
+		if (highlighter.error() == QProcess::UnknownError && highlighter.exitStatus() == QProcess::NormalExit && highlighter.exitCode() == 0)
+		{
+			outfile.open(QFile::ReadOnly);
+			ui->plainTextEdit->appendHtml(outfile.readAll());
+		}
+		else
+#endif
+			ui->plainTextEdit->appendPlainText(t);
 	}
 	else
 	{
@@ -654,13 +585,11 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 		showDisassembly();
 		return;
 	}
-	
-	ui->plainTextEdit->appendPlainText(t);
 
 	QTextCursor c(ui->plainTextEdit->textCursor());
 	c.movePosition(QTextCursor::Start);
 	c.setPosition(cursor_position_for_line);
-	f.setBackground(QBrush(Qt::cyan));
+	f.setBackground(QBrush(Qt::lightGray));
 	cf.setForeground(QBrush(Qt::blue));
 	c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
 	c.setBlockFormat(f);
@@ -1217,8 +1146,6 @@ there:
 	ui->plainTextEdit->installEventFilter(this);
 	ui->plainTextEdit->viewport()->installEventFilter(this);
 	targetDisconnected();
-	highlighter = new Highlighter(ui->plainTextEdit->document());
-	verbose_data_type_highlighter = new Highlighter(ui->plainTextEditVerboseDataType->document());
 	
         connect(& polishing_timer, SIGNAL(timeout()), this, SLOT(polishSourceCodeViewOnTargetExecution()));
         ui->plainTextEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));

@@ -56,35 +56,6 @@ namespace Ui {
 class MainWindow;
 }
 
-class Highlighter : public QSyntaxHighlighter
-{
-	Q_OBJECT
-
-public:
-	Highlighter(QTextDocument *parent = 0);
-
-protected:
-	void highlightBlock(const QString &text) override;
-
-private:
-	struct HighlightingRule
-	{
-		QRegExp pattern;
-		QTextCharFormat format;
-	};
-	QVector<HighlightingRule> highlightingRules;
-
-	QRegExp commentStartExpression;
-	QRegExp commentEndExpression;
-
-	QTextCharFormat keywordFormat;
-	QTextCharFormat classFormat;
-	QTextCharFormat singleLineCommentFormat;
-	QTextCharFormat multiLineCommentFormat;
-	QTextCharFormat quotationFormat;
-	QTextCharFormat functionFormat;
-};
-
 class MainWindow : public QMainWindow
 {
 	Q_OBJECT
@@ -102,8 +73,6 @@ class MainWindow : public QMainWindow
 	QTimer		polishing_timer;
 	DwarfData * dwdata;
 	Disassembly 	* disassembly;
-	Highlighter	* highlighter;
-	Highlighter	* verbose_data_type_highlighter;
 	Sforth	* sforth;
 	/*! \todo	Make this an object, somehow, as pointers to it are passed back and forth, and it can dynamically get changed */
 	Target	* target;
