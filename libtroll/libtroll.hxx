@@ -32,6 +32,7 @@ THE SOFTWARE.
 /*! \todo	Make this a function */
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
 
+#define DEBUG_ADDRESSES_FOR_FILE_ENABLED	0
 #define DEBUG_LINE_PROGRAMS_ENABLED	0
 #define DEBUG_DIE_READ_ENABLED		0
 #define UNWIND_DEBUG_ENABLED		0
@@ -2409,7 +2410,7 @@ std::map<uint32_t, uint32_t> recursion_detector;
 				
 				break;
 			case DW_TAG_unspecified_type:
-				/* The ARM compiler shipped with Keil generates such tags for 'vod' types */
+				/* The ARM compiler shipped with Keil generates such tags for 'void' types */
 				if (is_prefix_printed)
 					type_string += nameOfDie(die, true), type_string += " ";
 				break;
@@ -2638,7 +2639,7 @@ node.data.push_back("!!! recursion detected !!!");
 			if (x)
 			{
 				l.addressesForFile(x, line_addresses);
-				if (DEBUG_LINE_PROGRAMS_ENABLED)
+				if (DEBUG_ADDRESSES_FOR_FILE_ENABLED)
 				{
 					qDebug() << "----------------------------------------------------";
 					qDebug() << "----------------------------------------------------";
