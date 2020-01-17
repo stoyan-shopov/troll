@@ -323,6 +323,8 @@ public:
 			return * (uint32_t *) debug_info_bytes;
 		case DW_FORM_ref4:
 			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
+		case DW_FORM_ref_udata:
+			return DwarfUtil::uleb128(debug_info_bytes) + compilation_unit_header_offset;
 		default:
 			panic();
 		}
