@@ -376,6 +376,138 @@ public:
 		}
 		return false;
 	}
+	/* Routines for determining the dwarf 'class' of an attribute form encoding */
+	static bool isClassAddress(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_addr: case DW_FORM_addrx: case DW_FORM_addrx1: case DW_FORM_addrx2:
+			case DW_FORM_addrx3: case DW_FORM_addrx4:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassAddrptr(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_sec_offset:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassBlock(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_block: case DW_FORM_block1: case DW_FORM_block2: case DW_FORM_block4:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassConstant(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_data1: case DW_FORM_data2: case DW_FORM_data4: case DW_FORM_data8: case DW_FORM_data16:
+			case DW_FORM_sdata: case DW_FORM_udata: case DW_FORM_implicit_const:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassExprloc(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_exprloc:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassFlag(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_flag: case DW_FORM_flag_present:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassLineptr(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_sec_offset:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassLoclist(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_sec_offset: case DW_FORM_loclistx:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassLoclistptr(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_sec_offset:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassMacptr(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_sec_offset:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassReference(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_ref1: case DW_FORM_ref2: case DW_FORM_ref4: case DW_FORM_ref8: case DW_FORM_ref_udata:
+			case DW_FORM_ref_addr: case DW_FORM_ref_sig8: case DW_FORM_ref_sup4: case DW_FORM_ref_sup8:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassString(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_string:
+			case DW_FORM_strp:
+			case DW_FORM_line_strp:
+			case DW_FORM_strp_sup:
+			case DW_FORM_strx:
+			case DW_FORM_strx1:
+			case DW_FORM_strx2:
+			case DW_FORM_strx3:
+			case DW_FORM_strx4:
+				return true;
+		default:
+			return false;
+		}
+	}
 };
 
 struct Die
