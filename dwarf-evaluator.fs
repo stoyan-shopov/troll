@@ -128,6 +128,9 @@ create expression-stack expression-stack-depth expression-stack-frame-size * all
 : DW_OP_shl ( x y -- z)
 	lshift ;
 
+: DW_OP_shr ( x y -- z)
+        rshift ;
+
 : DW_OP_or ( x y -- z)
         or ;
 
@@ -145,6 +148,13 @@ create expression-stack expression-stack-depth expression-stack-frame-size * all
         \ Handle dwarf typed stack elements
 	type-stack-nonempty? if DW_OP_minus_typed else
 	-
+	then
+	;
+
+: DW_OP_mul ( x y -- z)
+        \ Handle dwarf typed stack elements
+	type-stack-nonempty? if panic else
+	*
 	then
 	;
 
