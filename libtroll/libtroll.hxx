@@ -2702,8 +2702,26 @@ node.data.push_back("!!! recursion detected !!!");
 			}
 				break;
 			case DW_TAG_enumeration_type:
+		{
 				node.enumeration_die = die;
 				node.is_enumeration = 1;
+				int enum_type_index = type.at(type_node_number).next;
+				/* Gather more details about the enumeration encoding and bytesize.
+				 * First, take in account a (base) type attribute (DW_AT_type), if present,
+				 * and then let any explicit encoding and/or bytesize (if present) to
+				 * override the values gathered from the (base) type for the enumeration (if any). */
+				if (enum_type_index != -1)
+				{
+					node.base_type_encoding = baseTypeEncoding(type, enum_type_index);
+					node.base_type_encoding = sizeOf(type, enum_type_index);
+				}
+				auto x = a.dataForAttribute(DW_AT_encoding, debug_info + die.offset);
+				if (x.form)
+					node.base_type_encoding = DwarfUtil::formConstant(x);
+				x = a.dataForAttribute(DW_AT_byte_size, debug_info + die.offset);
+				if (x.form)
+					node.bytesize = DwarfUtil::formConstant(x);
+		}
 				break;
 			case DW_TAG_array_type:
 				if (type.at(type_node_number).array_dimensions.size())
