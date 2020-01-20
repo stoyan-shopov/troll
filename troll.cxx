@@ -49,14 +49,65 @@ int i;
 	}
 }
 
+void MainWindow::resolveVariableLengthArrayDimensions(DwarfData::DataNode &dataNode)
+{
+bool recalculate_bytesize(false);
+
+	for (auto & dimension : dataNode.array_dimensions)
+	{
+		if (!dimension.subrange_die_offset)
+			continue;
+		uint32_t cfa_value = (register_cache.frameCount() - 1 > register_cache.activeFrame()) ? register_cache.readCachedRegister(/*! \todo fix this! don't hardcode it! */13, 1) : -1;
+		uint32_t pc = register_cache.readCachedRegister(15);
+		auto context = dwdata->executionContextForAddress(pc);
+		QString frameBaseSforthCode = QString::fromStdString(dwdata->sforthCodeFrameBaseForContext(context, pc));
+
+		auto s = dwdata->arrayUpperBoundSforthCode(dimension.subrange_die_offset, pc);
+		QString locationSforthCode = QString::fromStdString(s);
+		ui->plainTextEditSforthConsole->clear();
+		auto location = dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
+		if (location.type != DwarfEvaluator::DwarfExpressionValue::CONSTANT)
+			DwarfUtil::panic();
+		/* Array dimension successfully resolved - set the actual array dimension value,
+		 * and discard the die offset of the DW_TAG_subrange_type die */
+		dimension.constant_value = location.value + 1;
+		dimension.subrange_die_offset = 0;
+		recalculate_bytesize = true;
+	}
+	if (recalculate_bytesize)
+	{
+		if (!dataNode.children.size())
+			DwarfUtil::panic();
+		unsigned bytesize = dataNode.children.at(0).bytesize;
+		for (auto & dimension : dataNode.array_dimensions)
+			bytesize *= dimension.constant_value;
+		dataNode.bytesize = bytesize;
+	}
+
+}
+
 int MainWindow::buildArrayViewNode(QTreeWidgetItem *parent, const DwarfData::DataNode &array_node, int dimension_index, const QByteArray& hexAsciiData, int data_pos, int numeric_base, const QString numeric_prefix)
 {
 int i;
+int dimension = array_node.array_dimensions.at(dimension_index).constant_value;
+
 	if (dimension_index == array_node.array_dimensions.size() - 1)
 	{
 		/* last dimension - process array elements */
 		QTreeWidgetItem * n;
-		for (i = 0; i < (signed) array_node.array_dimensions.at(dimension_index); i ++)
+		if (dimension > MAX_DISPLAYED_ARRAY_ELEMENTS_LIMIT)
+		{
+			QMessageBox::critical(0, "Maximum supported array size exceeded",
+					      QString(
+					      "Requesting to display an array with element count that\n"
+					      "exceeds the current maximum array element count limit.\n\n"
+					      "Requested to display of %1 elements, and the currently set "
+					      "count limit is %2\n\n"
+					      "Displaying only the first %2 elements of the array.")
+					      .arg(dimension).arg(MAX_DISPLAYED_ARRAY_ELEMENTS_LIMIT));
+			dimension = MAX_DISPLAYED_ARRAY_ELEMENTS_LIMIT;
+		}
+		for (i = 0; i < dimension; i ++)
 		{
 			parent->addChild(n = itemForNode(array_node.children.at(0),  hexAsciiData, data_pos + i * array_node.children.at(0).bytesize, numeric_base, numeric_prefix));
 			n->setText(0, QString("[%1] ").arg(i) + n->text(0));
@@ -66,7 +117,7 @@ int i;
 	else
 	{
 		int size;
-		for (i = 0; i < array_node.array_dimensions.at(dimension_index); i ++)
+		for (i = 0; i < dimension; i ++)
 			data_pos += (size = buildArrayViewNode(new QTreeWidgetItem(parent, QStringList() << QString("[%1]").arg(i)), array_node, dimension_index + 1,  hexAsciiData, data_pos, numeric_base, numeric_prefix));
 		return size * i;
 	}
@@ -1270,7 +1321,9 @@ uint32_t pc = -1;
 			}
 			*/
 			auto n = new QTreeWidgetItem(QStringList() << data_object_name);
-			n->addChild(itemForNode(node, DwarfEvaluator::fetchValueFromTarget(location, target, node.bytesize), 0, base, ""));
+			resolveVariableLengthArrayDimensions(node);
+			n->setText(2, QString("%1").arg(node.bytesize));
+			n->addChild(itemForNode(node, DwarfEvaluator::fetchValueFromTarget(location, target, node.bytesize), 0, base, prefix));
 			ui->treeWidgetDataObjects->addTopLevelItem(n);
 		}
 		ui->tableWidgetLocalVariables->setItem(row, 4, new QTableWidgetItem(locationSforthCode));

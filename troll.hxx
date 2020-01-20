@@ -67,6 +67,11 @@ class MainWindow : public QMainWindow
 	qint64 debug_line_index;
 	qint64 debug_loc_index;
 
+	enum
+	{
+		MAX_DISPLAYED_ARRAY_ELEMENTS_LIMIT	= 10000,
+	};
+
 	QByteArray debug_info, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc;
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
@@ -109,6 +114,7 @@ private:
 	int sourceNavigationIndex = -1;
 
 	QFileSystemWatcher	elf_file_modification_watcher;
+	void resolveVariableLengthArrayDimensions(struct DwarfData::DataNode & dataNode);
 	int /* array bytesize */ buildArrayViewNode(QTreeWidgetItem * parent, const struct DwarfData::DataNode & array_node, int dimension_index, const QByteArray & hexAsciiData, int data_pos, int numeric_base, const QString numeric_prefix );
 	QTreeWidgetItem * itemForNode(const struct DwarfData::DataNode & node, const QByteArray & hexAsciiData = QByteArray(), int data_pos = 0, int numeric_base = 10, const QString & numeric_prefix = QString());
 	SourceCodeLocation current_source_view;

@@ -531,14 +531,31 @@ struct Die
 struct DwarfTypeNode
 {
 	struct Die	die;
+	/* A value of -1 denotes an invalid index. */
 	int		next;
 	/* flags to facilitate recursion when processing this data structure for various purposes */
 	bool		processed;
 	bool		type_print_recursion_flag;
 
 	std::vector<uint32_t>	children;
-	std::vector<uint32_t>	array_dimensions;
-        DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; type_print_recursion_flag = processed = false; }
+	/* This is needed to support variable length arrays.
+	 * The actual length of such arrays usually can only be computed
+	 * at runtime, and to do this, a value of the program counter
+	 * may be needed, so it is the responsibility of the caller to
+	 * compute the actual dimension value when needed. */
+	struct array_dimension
+	{
+		/* If this is nonzero, then the array dimension value needs
+		 * to be calculated from the 'subrange_die_offset',
+		 * and the constant_value should be ignored. */
+		uint32_t	subrange_die_offset;
+		uint32_t	constant_value;
+		array_dimension(uint32_t constant_value = 0, uint32_t upper_bound_die_offset = 0)
+		{ this->constant_value = constant_value, this->subrange_die_offset = upper_bound_die_offset; }
+	};
+	std::vector<array_dimension>	array_dimensions;
+
+	DwarfTypeNode(const struct Die & xdie) : die(xdie)	{ next = -1; type_print_recursion_flag = processed = false; }
 };
 
 struct DwarfBaseType
@@ -2495,7 +2512,12 @@ std::map<uint32_t, uint32_t> recursion_detector;
 							if (subrange.form == 0)
 								type_string += "[]";
 							else
-								type_string += "[!" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
+							{
+								if (DwarfUtil::isClassConstant(subrange.form))
+									type_string += "[!" + std::to_string(DwarfUtil::formConstant(subrange) + 1) + "]";
+								else
+									type_string += "[!variable length array]";
+							}
 						}
 					else
 						type_string += "[]";
@@ -2558,6 +2580,31 @@ std::map<uint32_t, uint32_t> recursion_detector;
 		//if (die.tag != DW_TAG_structure_type && die.tag != DW_TAG_class_type)
 		return type_string;
 	}
+
+public:
+	std::string arrayUpperBoundSforthCode(uint32_t array_subrange_die_offset, uint32_t address_for_location)
+	{
+		Die subrange_die = dieForDieOffset(array_subrange_die_offset);
+		struct Abbreviation a(debug_abbrev + subrange_die.abbrev_offset);
+		auto upper_bound = a.dataForAttribute(DW_AT_upper_bound, debug_info + subrange_die.offset);
+		if (!upper_bound.form)
+			DwarfUtil::panic();
+		if (DwarfUtil::isClassReference(upper_bound.form))
+		{
+			/* Currently, only references to (artificial) variables, containing the
+			 * array upper bound, are supported. The gcc compiler generates such references. */
+			uint32_t cu_offset = compilationUnitOffsetForOffsetInDebugInfo(subrange_die.offset);
+			uint32_t r = DwarfUtil::formReference(upper_bound.form, upper_bound.debug_info_bytes, cu_offset);
+			Die t = dieForDieOffset(r);
+			auto cu_die_offset = cu_offset + /* skip compilation unit header */ compilation_unit_header(this->debug_info + cu_offset).header_length();
+			Die cu_die = dieForDieOffset(cu_die_offset);
+			if (t.tag != DW_TAG_variable)
+				DwarfUtil::panic();
+			return locationSforthCode(t, cu_die, address_for_location);
+		}
+		else
+			DwarfUtil::panic();
+	}
 public:
 int readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> & type_cache, bool reset_recursion_detector = true);
 DwarfBaseType readBaseOrGenericType(uint32_t /* If the die offset is zero, return the 'generic' type */ die_offset);
@@ -2588,7 +2635,14 @@ int baseTypeEncoding(const std::vector<struct DwarfTypeNode> & type, int node_nu
 		{
 			int i;
 			uint32_t n = 1;
-			for (i = 0; i < type.at(node_number).array_dimensions.size(); n *= type.at(node_number).array_dimensions.at(i ++));
+			/*! \todo	Properly handle variable length arrays here! */
+			//for (i = 0; i < type.at(node_number).array_dimensions.size(); n *= type.at(node_number).array_dimensions.at(i ++).constant_value);
+			qDebug() << "xxx: processing array";
+			for (i = 0; i < type.at(node_number).array_dimensions.size(); i++)
+			{
+				qDebug() << "array dimension size:" << type.at(node_number).array_dimensions.at(i).constant_value;
+				n *= type.at(node_number).array_dimensions.at(i).constant_value;
+			}
 			return n * sizeOf(type, type.at(node_number).next);
 		}
 		/* special case for compilers (e.g. the IAR compiler), which do not record an explicit
@@ -2606,6 +2660,12 @@ int baseTypeEncoding(const std::vector<struct DwarfTypeNode> & type, int node_nu
 	struct DataNode
 	{
 		std::vector<std::string> data;
+		/* Special case - in case of a variable length array, the 'bytesize' field
+		 * will be deliberately set to zero. That is because the actual dimensions
+		 * of a variable size array usually need runtime target context information
+		 * to be computed properly. It is responsibility of the consumer to check
+		 * this, and to compute the actual dimension sizes of a variable length
+		 * array by using the 'array_dimensions' field below. */
 		uint32_t bytesize;
 		uint32_t data_member_location;
 		struct Die	enumeration_die;

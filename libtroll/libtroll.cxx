@@ -86,14 +86,24 @@ int DwarfData::readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> &
 			type_cache.at(index).children.push_back(x);
 			if (type_cache.at(x).die.tag == DW_TAG_subrange_type)
 			{
+				/*! \todo	process here DW_AT_count attributes; clang generates DW_AT_count attributes
+				 * instead of DW_AT_upper_bound, while gcc generates DW_AT_upper_bound attributes instead of
+				 * DW_AT_count */
 				Abbreviation a(debug_abbrev + type_cache.at(x).die.abbrev_offset);
 				auto subrange = a.dataForAttribute(DW_AT_upper_bound, debug_info + type_cache.at(x).die.offset);
 				if (subrange.form == 0)
 					/*! \todo	at least some versions of gcc are known to omit the upper bound attribute if it is 0;
 					 *		maybe have the option to store a zero here */
-					type_cache.at(index).array_dimensions.push_back(-1);
+					type_cache.at(index).array_dimensions.push_back(DwarfTypeNode::array_dimension(-1));
 				else
-					type_cache.at(index).array_dimensions.push_back(DwarfUtil::formConstant(subrange) + 1);
+				{
+					if (DwarfUtil::isClassConstant(subrange.form))
+						type_cache.at(index).array_dimensions.push_back(DwarfTypeNode::array_dimension(DwarfUtil::formConstant(subrange) + 1));
+					else if (DwarfUtil::isClassReference(subrange.form))
+						type_cache.at(index).array_dimensions.push_back(DwarfTypeNode::array_dimension(0, type_cache.at(x).die.offset));
+					else
+						DwarfUtil::panic();
+				}
 			}
 		}
 	}
