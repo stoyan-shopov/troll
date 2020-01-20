@@ -160,7 +160,7 @@ bool DwarfData::isSubroutineType(const std::vector<DwarfTypeNode> &type, int nod
 int DwarfData::baseTypeEncoding(const std::vector<DwarfTypeNode> &type, int node_number)
 {
 	if (node_number == -1)
-		return false;
+		return -1;
 	const auto& die = type.at(node_number).die;
 	if (die.tag != DW_TAG_base_type)
 		return -1;
