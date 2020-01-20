@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include <vector>
 #include <sstream>
 #include <QDebug>
+#include <QMessageBox>
 
 /*! \todo	Make this a function */
 #define HEX(x) QString("$%1").arg(x, 8, 16, QChar('0'))
@@ -2618,11 +2619,20 @@ int baseTypeEncoding(const std::vector<struct DwarfTypeNode> & type, int node_nu
 		};
 		/* This is the base type encoding value from the dwarf standard. Set to -1 if this node is not a base type node. */
 		uint32_t base_type_encoding;
-		std::vector<uint32_t> array_dimensions;
+		std::vector<struct DwarfTypeNode::array_dimension> array_dimensions;
 		std::vector<struct DataNode> children;
 	};
 	void dataForType(std::vector<struct DwarfTypeNode> & type, struct DataNode & node, int type_node_number = 0, struct TypePrintFlags flags = TypePrintFlags())
 	{
+		if (type_node_number == -1)
+		{
+			QMessageBox::critical(0, "DWARF parser internal error",
+				    "Internal error when parsing DWARF type information:\n"
+				    "invalid type node index\n\n"
+				    "Please! Report this error");
+			return;
+		}
+
 		struct Die die(type.at(type_node_number).die);
 		Abbreviation a(debug_abbrev + die.abbrev_offset);
 		node.bytesize = sizeOf(type, type_node_number);
