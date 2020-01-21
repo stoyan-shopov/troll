@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1119</width>
-    <height>600</height>
+    <height>710</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -95,7 +95,7 @@ background-color: rgb(30, 30, 30);</string>
      <x>0</x>
      <y>0</y>
      <width>1119</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>
@@ -194,12 +194,12 @@ background-color: rgb(30, 30, 30);</string>
        </column>
        <column>
         <property name="text">
-         <string>size</string>
+         <string>value</string>
         </property>
        </column>
        <column>
         <property name="text">
-         <string>value</string>
+         <string>size</string>
         </property>
        </column>
        <column>

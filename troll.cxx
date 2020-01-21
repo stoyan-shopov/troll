@@ -125,7 +125,7 @@ int dimension = array_node.array_dimensions.at(dimension_index).constant_value;
 
 QTreeWidgetItem * MainWindow::itemForNode(const DwarfData::DataNode &node, const QByteArray& hexAsciiData, int data_pos, int numeric_base, const QString & numeric_prefix)
 {
-auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << QString("%1").arg(node.bytesize) << "???" << QString("%1").arg(node.data_member_location));
+auto n = new QTreeWidgetItem(QStringList() << QString::fromStdString(node.data.at(0)) << "???" << QString("%1").arg(node.bytesize) << QString("%1").arg(node.data_member_location));
 int i;
 QByteArray data;
 
@@ -143,56 +143,55 @@ QByteArray data;
 				/* Check if the data is valid/available */
 				if (data.contains('?'))
 				{
-						n->setText(2, "Data unavailable");
-						break;
+					n->setText(1, "Data unavailable");
+					break;
 				}
 				if (node.bitsize)
 				{
+					qDebug() << "XXX" << node.bitposition << node.bitsize << node.bytesize << node.data_member_location << data_pos << hexAsciiData;
 					x >>= node.bitposition, x &= (1 << node.bitsize) - 1;
-					n->setText(1, QString("%1 bit").arg(node.bitsize) + ((node.bitsize != 1) ? "s":""));
+					n->setText(2, QString("%1 bit").arg(node.bitsize) + ((node.bitsize != 1) ? "s":""));
 				}
-				n->setText(2, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : numeric_prefix + QString("%1").arg(x, 0, numeric_base));
-				if (node.is_enumeration)
-					n->setText(2, n->text(2) + " (" + QString::fromStdString(dwdata->enumeratorNameForValue(x, node.die_offset) + ")"));
+				n->setText(1, node.is_pointer ? QString("$%1").arg(x, 8, 16, QChar('0')) : numeric_prefix + QString("%1").arg(x, 0, numeric_base));
 				switch (node.base_type_encoding)
 				{
 				case DW_ATE_float:
 					switch (node.bytesize)
 					{
 					case 4:
-						n->setText(2, QString("%1").arg(* (float *) & x));
+						n->setText(1, QString("%1").arg(* (float *) & x));
 						break;
 					case 8:
-						n->setText(2, QString("%1").arg(* (double*) & x));
+						n->setText(1, QString("%1").arg(* (double*) & x));
 						break;
 					default:
-						n->setText(2, "UNKNOWN FLOATING POINT REPRESENTATION");
+						n->setText(1, "UNKNOWN FLOATING POINT REPRESENTATION");
 						break;
 					}
 					break;
 				case DW_ATE_unsigned_char:
-					n->setText(2, QString("'%1' (%2)").arg(* (char *) & x).arg((unsigned) * (unsigned char *) & x));
+					n->setText(1, QString("'%1' (%2)").arg(* (char *) & x).arg((unsigned) * (unsigned char *) & x, 0, numeric_base, QChar('0')));
 					break;
 				case DW_ATE_signed_char:
-					n->setText(2, QString("'%1' (%2)").arg(* (char *) & x).arg((signed) * (char *) & x));
+					n->setText(1, QString("'%1' (%2)").arg(* (char *) & x).arg((signed) * (char *) & x, 0, numeric_base, QChar('0')));
 					break;
 				case DW_ATE_unsigned:
 					switch (node.bytesize)
 					{
 					case 1:
-						n->setText(2, QString("%1").arg((unsigned)* (uint8_t *) & x));
+						n->setText(1, QString("%1").arg((unsigned)* (uint8_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					case 2:
-						n->setText(2, QString("%1").arg(* (uint16_t *) & x));
+						n->setText(1, QString("%1").arg(* (uint16_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					case 4:
-						n->setText(2, QString("%1").arg(* (uint32_t *) & x));
+						n->setText(1, QString("%1").arg(* (uint32_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					case 8:
-						n->setText(2, QString("%1").arg(* (uint64_t *) & x));
+						n->setText(1, QString("%1").arg(* (uint64_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					default:
-						n->setText(2, "UNKNOWN UNSIGNED INTEGER REPRESENTATION");
+						n->setText(1, "UNKNOWN UNSIGNED INTEGER REPRESENTATION");
 						break;
 					}
 					break;
@@ -200,31 +199,38 @@ QByteArray data;
 					switch (node.bytesize)
 					{
 					case 1:
-						n->setText(2, QString("%1").arg((signed)* (int8_t *) & x));
+						n->setText(1, QString("%1").arg((signed)* (int8_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					case 2:
-						n->setText(2, QString("%1").arg(* (int16_t *) & x));
+						n->setText(1, QString("%1").arg(* (int16_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					case 4:
-						n->setText(2, QString("%1").arg(* (int32_t *) & x));
+						n->setText(1, QString("%1").arg(* (int32_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					case 8:
-						n->setText(2, QString("%1").arg(* (int64_t *) & x));
+						n->setText(1, QString("%1").arg(* (int64_t *) & x, 0, numeric_base, QChar('0')));
 						break;
 					default:
-						n->setText(2, "UNKNOWN SIGNED INTEGER REPRESENTATION");
+						n->setText(1, "UNKNOWN SIGNED INTEGER REPRESENTATION");
 						break;
 					}
 					break;
 				}
+				if (numeric_prefix.length())
+					n->setText(1, numeric_prefix + n->text(1));
+				if (node.is_enumeration)
+				{
+					qDebug() << "xxx: enum base type encoding:" << node.base_type_encoding << "die offset:" << node.die_offset;
+					n->setText(1, n->text(1) + " (" + QString::fromStdString(dwdata->enumeratorNameForValue(x, node.die_offset) + ")"));
+				}
 				break;
 			default:
-n->setText(2, "<<< UNKNOWN SIZE >>>");
+n->setText(1, "<<< UNKNOWN SIZE >>>");
 break;
 				Util::panic();
 		}
 		else
-			n->setText(2, "DATA UNAVAILABLE");
+			n->setText(1, "DATA UNAVAILABLE");
 	}
 	if (node.array_dimensions.size())
 		buildArrayViewNode(n, node, 0, hexAsciiData, data_pos, numeric_base, numeric_prefix);
@@ -529,8 +535,10 @@ void MainWindow::displaySourceCodeFile(QString source_filename, QString director
 	adjusted_filename.replace(QChar('\\'), QChar('/'));
         directory_name.replace(QChar('\\'), QChar('/'));
         compilation_directory.replace(QChar('\\'), QChar('/'));
+
         if (TEST_DRIVE_MODE)
 	{
+		/* If running a test drive, the filenames should be adjusted. */
 		QRegExp rx("^[xX]:[/\\\\]");
 		adjusted_filename.replace(rx, "troll-test-drive-files/"), directory_name.replace(rx, "troll-test-drive-files/"), compilation_directory.replace(rx, "troll-test-drive-files/");
         }
@@ -560,8 +568,8 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	source_file.setFileName(finfo.canonicalFilePath());
 	
 	x.start();
-	dwdata->addressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
-	//dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	//dwdata->addressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
@@ -593,6 +601,7 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 				while (dis)
 				{
 					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16), dis = dis->next;
+					//t += QString("$%1 - $%2\n").arg(dis->address, 0, 16).arg(dis->address_span, 0, 16);
 					auto x = disassembly->disassemblyForRange(dis->address, dis->address_span);
 					int i;
 					for (i = 0; i < x.size(); i ++)
@@ -950,6 +959,8 @@ MainWindow::MainWindow(QWidget *parent) :
 	{
 		setWindowTitle(windowTitle() + " - !!! TEST DRIVE MODE !!!");
 		auto wd = QDir::currentPath();
+		/*! \todo	also check that all needed files (flash.bin, ram.bin, registers.bin)
+		 * 		are present and have the expected sizes */
 		QFileInfo fi(wd + "/troll-test-drive-files");
 		if (!fi.exists() || !fi.isDir())
 		{
@@ -1290,16 +1301,16 @@ uint32_t pc = -1;
 			if (location.type == DwarfEvaluator::DwarfExpressionValue::MEMORY_ADDRESS)
 				prefix = "@$", width = 8;
 			else if (location.type == DwarfEvaluator::DwarfExpressionValue::REGISTER_NUMBER)
-				prefix = "#r";
+				prefix = "#r", base = 10;
 			else
-				base = 10;
+				prefix = "<const>", base = 10;
 			ui->tableWidgetLocalVariables->setItem(row, 2, new QTableWidgetItem((prefix + "%1").arg(location.value, width, base)));
-			
+
 			switch (base = ui->comboBoxDataDisplayNumericBase->currentText().toUInt())
 			{
 				case 2: prefix = "%"; break;
 				case 16: prefix = "$"; break;
-				case 10: break;
+				case 10: prefix = ""; break;
 				default: Util::panic();
 			}
 
@@ -1335,6 +1346,16 @@ uint32_t pc = -1;
 	ui->tableWidgetLocalVariables->resizeColumnsToContents();
 	ui->tableWidgetLocalVariables->resizeRowsToContents();
 	ui->treeWidgetDataObjects->expandToDepth(1);
+	/* Make the data display prettier - fold data items with a single child, and copy the value to the parent */
+	if (1) for (i = 0; i < ui->treeWidgetDataObjects->topLevelItemCount(); i ++)
+	{
+		auto item = ui->treeWidgetDataObjects->topLevelItem(i);
+		if (/* This should actually never happen */ item->childCount() != 1
+			|| /* Aggregate data types */ item->child(0)->childCount())
+			continue;
+		item->setText(1, item->child(0)->text(1));
+		ui->treeWidgetDataObjects->collapseItem(item);
+	}
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_local_data_objects_view_build_time)
 		profiling.max_local_data_objects_view_build_time = x.elapsed();
 	qDebug() << "local data objects view built in " << x.elapsed() << "milliseconds";
@@ -1768,7 +1789,7 @@ bool hack_mode(ui->actionHack_mode->isChecked());
 	ui->tableWidgetStaticDataObjects->setColumnHidden(4, !hack_mode);
 	ui->tableWidgetStaticDataObjects->setColumnHidden(5, !hack_mode);
 	
-	ui->treeWidgetDataObjects->setColumnHidden(1, !hack_mode);
+	ui->treeWidgetDataObjects->setColumnHidden(2, !hack_mode);
 	ui->treeWidgetDataObjects->setColumnHidden(3, !hack_mode);
 	ui->treeWidgetDataObjects->setColumnHidden(4, !hack_mode);
 	
