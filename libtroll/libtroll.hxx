@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016-2017, 2019 Stoyan Shopov
+Copyright (c) 2016-2017, 2019-2020 Stoyan Shopov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -317,6 +317,7 @@ public:
 	}
 	static uint32_t formReference(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
 	{
+		/*! \todo handle all reference forms here, including signatures */
 		switch (attribute_form)
 		{
 		case DW_FORM_ref_addr:
@@ -1069,11 +1070,13 @@ struct DwarfExpression
 					x << "DW_OP_piece ";
 					break;
 				case DW_OP_bit_piece:
-					x << DwarfUtil::uleb128(dwarf_expression, & i) << " ";
-					x << DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip) << " ";
+				{
+					int bitsize = DwarfUtil::uleb128(dwarf_expression, & i);
+					int bitoffset = DwarfUtil::uleb128(dwarf_expression + i, & bytes_to_skip);
 					bytes_to_skip += i;
-					x << "DW_OP_bit_piece ";
+					x << bitoffset << " " << bitsize << " " << "DW_OP_bit_piece ";
 					break;
+				}
 				case DW_OP_implicit_value:
 				{
 					int size = DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
@@ -2273,6 +2276,7 @@ private:
 		case DW_FORM_data4:
 		case DW_FORM_sec_offset:
 			return * (uint32_t *) debug_info_bytes;
+		/*! \todo handle all reference forms here, including signatures */
 		case DW_FORM_ref2:
 			return * (uint16_t *) debug_info_bytes + compilation_unit_header_offset;
 		case DW_FORM_ref4:
@@ -2309,7 +2313,7 @@ private:
 		}
 		return true;
 	}
-std::map<uint32_t, uint32_t> recursion_detector;
+std::map</* die offset */ uint32_t, /* type cache index */ uint32_t> recursion_detector;
 
 	int verbose_type_printing_indentation_level;
 	std::string typeChainString(std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, int node_number, struct TypePrintFlags flags)
@@ -2739,6 +2743,7 @@ node.data.push_back("!!! recursion detected !!!");
 					{
 					/* special cases for members */
 					case DW_FORM_block:
+					case DW_FORM_exprloc:
 						DwarfUtil::uleb128x(x.debug_info_bytes);
 						if (0)
 					case DW_FORM_block1:
