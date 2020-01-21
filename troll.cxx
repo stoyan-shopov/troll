@@ -726,7 +726,7 @@ void MainWindow::backtrace()
 		}
 		
 		if (cortexm0->unwindFrame(QString::fromStdString(unwind_data.first), unwind_data.second, cortexm0->programCounter()))
-			context = dwdata->executionContextForAddress(cortexm0->programCounter()), register_cache.pushFrame(cortexm0->getRegisters());
+			context = dwdata->executionContextForAddress(cortexm0->programCounter() - 1), register_cache.pushFrame(cortexm0->getRegisters());
 		if (context.empty() && cortexm0->architecturalUnwind())
 		{
 			context = dwdata->executionContextForAddress(cortexm0->programCounter());
@@ -1271,6 +1271,8 @@ uint32_t pc = -1;
 	else 
 	{
 		pc = ui->tableWidgetBacktrace->item(row, 0)->text().remove(0, 1).toUInt(0, 16);
+		if (frame_number)
+			pc --;
 		displaySourceCodeFile(ui->tableWidgetBacktrace->item(row, 2)->text(), ui->tableWidgetBacktrace->item(row, 4)->text(), ui->tableWidgetBacktrace->item(row, 5)->text(), ui->tableWidgetBacktrace->item(row, 3)->text().toUInt(), pc);
 		frameBaseSforthCode = ui->tableWidgetBacktrace->item(row, 7)->text();
 	}
