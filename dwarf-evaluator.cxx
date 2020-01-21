@@ -67,10 +67,15 @@ extern "C"
 		}
 		sf_eval(">expression-stack");
 		register_cache->setActiveFrame(register_cache->activeFrame() + 1);
-		auto result = dwarf_evaluator->evaluateLocation(register_cache->readCachedRegister(13), QString::fromStdString(libtroll->sforthCodeFrameBaseForContext(context, register_cache->readCachedRegister(15))), QString::fromStdString(DwarfExpression::sforthCode(l.second, l.first)), false);
-#if 0
-		if (result.type != DwarfEvaluator::CONSTANT)
-			Util::panic();
+		auto result = dwarf_evaluator->evaluateLocation(register_cache->readCachedRegister(13),
+								QString::fromStdString(libtroll->sforthCodeFrameBaseForContext(context, register_cache->readCachedRegister(15) - 0)),
+								QString::fromStdString(DwarfExpression::sforthCode(l.second, l.first, libtroll->compilationUnitOffsetForOffsetInDebugInfo(call_site.offset))),
+								false);
+#if 1
+		if (result.type != DwarfEvaluator::DwarfExpressionValue::CONSTANT)
+			qDebug() << "checkpoint"; //DwarfUtil::panic();
+		else
+			qDebug() << "checkpoint 1"; //DwarfUtil::panic();
 #endif
 		sf_eval("expression-stack>");
 		register_cache->setActiveFrame(register_cache->activeFrame() - 1);
@@ -293,7 +298,7 @@ static std::list<DwarfEvaluator::DwarfCompositeLocation> composite_location_piec
 
 	void typed_dwarf_binary_operation(int dwarf_opcode)
 	{
-		/*! \todo	Check the type steck integrity. This is currently far from exact, but still better than nothing... */
+		/*! \todo	Check the type stack integrity. This is currently far from exact, but still better than nothing... */
 		if (dwarf_type_stack.size() < 2)
 			DwarfUtil::panic();
 		auto op2 = dwarf_type_stack.back();
