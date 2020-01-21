@@ -45,15 +45,24 @@ TargetCorefile::TargetCorefile(const QString & rom_filename, uint32_t rom_base_a
 QByteArray TargetCorefile::readBytes(uint32_t address, int byte_count, bool is_failure_allowed)
 {
 	if (rom_base_address <= address && address < rom_base_address + rom.length() - byte_count + 1)
+	{
+		if (address - rom_base_address + byte_count >= rom.length())
+			goto failure;
 		return QByteArray(rom.data() + address - rom_base_address, byte_count);
+	}
 	if (ram_base_address <= address && address < ram_base_address + ram.length() - byte_count + 1)
+	{
+		if (address - ram_base_address + byte_count >= ram.length())
+			goto failure;
 		return QByteArray(ram.data() + address - ram_base_address, byte_count);
+	}
+failure:
 	if (is_failure_allowed)
 	{
-		qDebug() << QString("cannot read $%1 bytes at address $%2 from target memory").arg(byte_count).arg(address);
-		if (0) QMessageBox::warning(0, "cannot read target memory", QString("cannot read $%1 bytes at address $%2 from target memory\n")
+		qDebug() << QString("cannot read %1 bytes at address $%2 from target memory").arg(byte_count).arg(address, 8, 16, QChar('0'));
+		if (0) QMessageBox::warning(0, "cannot read target memory", QString("cannot read %1 bytes at address $%2 from target memory\n")
 		                     .arg(byte_count)
-		                     .arg(address)
+				     .arg(address, 8, 16, QChar('0'))
 		                     );
 		return QByteArray();
 	}
