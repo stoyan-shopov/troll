@@ -763,6 +763,7 @@ void MainWindow::backtrace()
 bool MainWindow::readElfSections(void)
 {
 	debug_info_index =
+	debug_types_index =
 	debug_abbrev_index =
 	debug_frame_index =
 	debug_ranges_index =
@@ -783,6 +784,7 @@ int i;
 	{
 		auto name = elf.sections[i]->get_name();
 		if (name == ".debug_info") debug_info_index = i;
+		else if (name == ".debug_types") debug_types_index = i;
 		else if (name == ".debug_abbrev") debug_abbrev_index = i;
 		else if (name == ".debug_frame") debug_frame_index = i;
 		else if (name == ".debug_ranges") debug_ranges_index = i;
@@ -1080,6 +1082,7 @@ there:
 		exit(2);
 	}
 	if (debug_info_index) debug_info = QByteArray(elf.sections[debug_info_index]->get_data(), elf.sections[debug_info_index]->get_size());
+	if (debug_types_index) debug_types = QByteArray(elf.sections[debug_types_index]->get_data(), elf.sections[debug_types_index]->get_size());
 	if (debug_abbrev_index) debug_abbrev = QByteArray(elf.sections[debug_abbrev_index]->get_data(), elf.sections[debug_abbrev_index]->get_size());
 	if (debug_frame_index) debug_frame = QByteArray(elf.sections[debug_frame_index]->get_data(), elf.sections[debug_frame_index]->get_size());
 	if (debug_ranges_index) debug_ranges = QByteArray(elf.sections[debug_ranges_index]->get_data(), elf.sections[debug_ranges_index]->get_size());
@@ -1088,7 +1091,7 @@ there:
 	if (debug_loc_index) debug_loc = QByteArray(elf.sections[debug_loc_index]->get_data(), elf.sections[debug_loc_index]->get_size());
 	
 	t.restart();
-	dwdata = new DwarfData(debug_info.data(), debug_info.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
+	dwdata = new DwarfData(debug_info.data(), debug_info.length(), debug_types.data(), debug_types.length(), debug_abbrev.data(), debug_abbrev.length(), debug_ranges.data(), debug_ranges.length(), debug_str.data(), debug_str.length(), debug_line.data(), debug_line.length(), debug_loc.data(), debug_loc.length());
 	
 	{
 		auto source_breakpoints = s.value("source-level-breakpoints", QStringList()).toStringList();

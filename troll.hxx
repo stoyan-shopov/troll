@@ -60,6 +60,7 @@ class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 	qint64 debug_info_index;
+	qint64 debug_types_index;
 	qint64 debug_abbrev_index;
 	qint64 debug_frame_index;
 	qint64 debug_ranges_index;
@@ -72,7 +73,7 @@ class MainWindow : public QMainWindow
 		MAX_DISPLAYED_ARRAY_ELEMENTS_LIMIT	= 10000,
 	};
 
-	QByteArray debug_info, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc;
+	QByteArray debug_info, debug_types, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc;
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	QTimer		polishing_timer;

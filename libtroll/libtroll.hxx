@@ -753,6 +753,38 @@ private:
 	}
 };
 
+struct dwarf4_type_unit_header
+{
+	const uint8_t		* data;
+	uint32_t	unit_length() const
+	{
+		uint32_t x = *(uint32_t*)(data+0);
+		if (x >= 0xfffffff0) /* probably 64 bit elf, not supported at this time */
+			DwarfUtil::panic();
+		return x;
+	}
+	uint16_t	version() const {return*(uint16_t*)(data+4);}
+	uint32_t	debug_abbrev_offset() const { return*(uint32_t*)(data+6); }
+	uint8_t		address_size() const { return*(uint8_t*)(data+10); }
+	uint64_t	type_signature() const { return*(uint64_t*)(data+11); }
+	uint64_t	type_offset() const { return*(uint32_t*)(data+19); }
+	uint32_t	header_length() const { return 23; }
+	dwarf4_type_unit_header(const uint8_t * data) { this->data = data; validate(); }
+	struct dwarf4_type_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
+private:
+	void validate(void) const
+	{
+		if (!data)
+			/* allow the creation of null compilation unit headers */
+			return;
+		if (unit_length() >= 0xfffffff0)
+			/* probably 64 bit elf, not supported at this time */
+			DwarfUtil::panic();
+		if (version() != 4)
+			DwarfUtil::panic();
+	}
+};
+
 struct StaticObject
 {
 	const char *	name;
@@ -1781,8 +1813,44 @@ public:
 class DwarfData
 {
 private:
+
+	/* If a '.debug_types' dwarf section is present, assume it is a DWARF4 formatted
+	 * list of type units. The DWARF standard defines this section only for DWARF4, and
+	 * type units are merged into the '.debug_info' section in DWARF5, which is a very
+	 * fine decision. Also, in DWARF5, there are other dwarf units defined, other than
+	 * a compilation unit and a type unit, and these units all reside in the '.debug_info'
+	 * section for DWARF5. In DWARF5, the type of a dwarf unit is determined by a 'type' field
+	 * in the unit header, but there is no such 'type' fielf prior to DWARF5, so in DWARF4,
+	 * the discrimination between compilation units and type units is a function of in which
+	 * section ('.debug_info', or '.debug_types') a dwarf unit resides - all units in the
+	 * '.debug_info' section are compilation units, and all units in the '.debug_types'
+	 * section are type units.
+	 *
+	 * That said, handling only one section ('.debug_info') to contain all dwarf units and
+	 * all DIEs would be much more convenient than to deal with separate '.debug_info'
+	 * and '.debug_types'. Perform a HACK, and append the '.debug_types' section
+	 * to the '.debug_info' section, and deal with only one section from then on.
+	 * The only way that a DIE can refer to a DIE in a type unit (and then, not to just
+	 * any DIE in the type unit, but to a single 'type' DIE that the type unit exports)
+	 * is through a DW_FORM_ref_sig8 reference, so also maintain a map that maps
+	 * signatures to DIE offsets - for each signature of a type unit - provide the DIE
+	 * offset of the type that the type unit exports.
+	 *
+	 * In short, the 'debug_info_bytes' array is THE master internally used '.debug_info' section
+	 * that contains all dwarf units and all DIEs, and in the case of DWARF4 where, the
+	 * compilation units and type units reside in separate sections (namely, '.debug_info'
+	 * and '.debug_types'), some HACKS are performed to unify the two sections in a single
+	 * section, so that handling of DWARF debug information is simpler and more consistent
+	 * than it would be if the two sections ('.debug_info' and '.debug_types') were handled
+	 * separately. */
+	/*! \todo Copy all dwarf debug sections supplied to the constructor into internal byte vectors */
+	std::vector<uint8_t> debug_info_bytes;
 	const uint8_t * debug_info;
 	uint32_t	debug_info_len;
+	uint32_t	debug_types_len;
+	/* A map from a Dwarf type signature (DW_FORM_ref_sig8) to the DIE offset that a type unit exports. */
+	std::map</* type signature */ uint64_t, /* exported type unit DIE offset */ uint32_t> typeSignatureMap;
+
 	const uint8_t	* debug_abbrev;
 	uint32_t	debug_abbrev_len;
 
@@ -1889,10 +1957,10 @@ private:
 	}
 	
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
-	void getAbbreviationsOfCompilationUnit(uint32_t compilation_unit_offset, std::map<uint32_t, uint32_t> & abbreviations)
+	void getAbbreviationsOfDwarfUnit(uint32_t abbreviation_offset, std::map<uint32_t, uint32_t> & abbreviations)
 	{
 		if (STATS_ENABLED) stats.abbreviation_misses ++;
-		const uint8_t * debug_abbrev = this->debug_abbrev + compilation_unit_header((uint8_t *) debug_info + compilation_unit_offset) . debug_abbrev_offset(); 
+		const uint8_t * debug_abbrev = this->debug_abbrev + abbreviation_offset;
 		abbreviations.clear();
 		Abbreviation a(debug_abbrev);
 
@@ -1918,7 +1986,7 @@ private:
 		p += len;
 
 		/*! \note	some compilers (e.g. IAR) generate abbreviations in .debug_abbrev which specify that a die has
-		 * children, while it actually does not - such a die actually considers a single null die child,
+		 * children, while it actually does not - such a die actually contains a single null die child,
 		 * which is explicitly permitted by the dwarf standard. Handle this at the condition check at the start of the loop */
 		while (code)
 		{
@@ -1952,13 +2020,19 @@ private:
 	}
 public:
 	DwarfData(const void * debug_info, uint32_t debug_info_len,
-		  const void * debug_abbrev, uint32_t debug_abbrev_len, const void * debug_ranges, uint32_t debug_ranges_len,
+		  const void * debug_types, uint32_t debug_types_len,
+		  const void * debug_abbrev, uint32_t debug_abbrev_len,
+		  const void * debug_ranges, uint32_t debug_ranges_len,
 		  const void * debug_str, uint32_t debug_str_len,
 		  const void * debug_line, uint32_t debug_line_len,
 		  const void * debug_loc, uint32_t debug_loc_len) : last_searched_compilation_unit((const uint8_t *) 0)
 	{
-		this->debug_info = (const uint8_t *) debug_info;
+		/* Warning: some HACKS are employed here for the case of DWARF4, where two separate
+		 * debug sections - '.debug_info' and '.debug_types' are present! These sections are
+		 * internally unified, because DWARF debug information is easier to handle that way.
+		 * Also, see the comments about 'debug_info_bytes'. */
 		this->debug_info_len = debug_info_len;
+		this->debug_types_len = debug_types_len;
 		this->debug_abbrev = (const uint8_t *) debug_abbrev;
 		this->debug_abbrev_len = debug_abbrev_len;
 		this->debug_ranges = (const uint8_t *) debug_ranges;
@@ -1970,19 +2044,36 @@ public:
 		this->debug_loc = (const uint8_t *) debug_loc;
 		this->debug_loc_len = debug_loc_len;
 		
-		verbose_type_printing_indentation_level = 0;
+		debug_info_bytes = std::vector<uint8_t>(debug_info_len + debug_abbrev_len);
+		memcpy(debug_info_bytes.data(), debug_info, debug_info_len);
+		/* In case of a DWARF4 '.debug_types' section - append the section contents to '.debug_info'. */
+		memcpy(debug_info_bytes.data() + debug_info_len, debug_types, debug_types_len);
+
+		this->debug_info = debug_info_bytes.data();
 
 		last_searched_compilation_unit.data = this->debug_info;
 		memset(& stats, 0, sizeof stats);
 		
 		std::map<uint32_t, uint32_t> abbreviations;
-		uint32_t cu;
-		for (cu = 0; cu != -1; cu = next_compilation_unit(cu))
+		uint32_t dwarf_unit_offset;
+		for (dwarf_unit_offset = 0; dwarf_unit_offset != -1; dwarf_unit_offset = next_compilation_unit(dwarf_unit_offset))
 		{
-			auto die_offset = cu + /* skip compilation unit header */ compilation_unit_header(this->debug_info + cu).header_length();
+			compilation_unit_header c(this->debug_info + dwarf_unit_offset);
+			auto die_offset = dwarf_unit_offset + /* Skip unit header. */ c.header_length();
 			stats.total_compilation_units ++;
-			getAbbreviationsOfCompilationUnit(cu, abbreviations);
+			getAbbreviationsOfDwarfUnit(c.debug_abbrev_offset(), abbreviations);
 			reapDieFingerprints(die_offset, abbreviations);
+		}
+		/* If present, also reap the DIEs of a DWARF4 '.debug_types' section. */
+		dwarf_unit_offset = debug_info_len;
+		while (dwarf_unit_offset < debug_info_len + debug_types_len)
+		{
+			dwarf4_type_unit_header tu(this->debug_info + dwarf_unit_offset);
+			typeSignatureMap[tu.type_signature()] = tu.data + tu.type_offset() - this->debug_info;
+			auto die_offset = dwarf_unit_offset + /* Skip unit header. */ tu.header_length();
+			getAbbreviationsOfDwarfUnit(tu.debug_abbrev_offset(), abbreviations);
+			reapDieFingerprints(die_offset, abbreviations);
+			dwarf_unit_offset = tu.next().data - this->debug_info;
 		}
 
 		buildCompilationUnitRangeTable();
@@ -2001,7 +2092,8 @@ public:
 	}
 
 	/* returns -1 if the compilation unit is not found */
-	uint32_t compilationUnitOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
+	/*! \todo	rename this, it ended up horribly long */
+	uint32_t compilationUnitHeaderOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
 	{
 		if (last_searched_compilation_unit.data - debug_info <= debug_info_offset && debug_info_offset < last_searched_compilation_unit.data - debug_info + last_searched_compilation_unit.unit_length())
 		{
@@ -2010,7 +2102,7 @@ public:
 		}
 		if (STATS_ENABLED) stats.compilation_unit_header_misses ++;
 		compilation_unit_header h(debug_info);
-		while (h.data - debug_info < debug_info_len)
+		while (h.data - debug_info < debug_info_len /* HACK HACK HACK - switch to proper types, document what is going on here - eventually extract the common unit header to support all dwarf5 units */ + debug_types_len)
 			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
 			{
 				last_searched_compilation_unit.data = h.data;
@@ -2098,7 +2190,7 @@ private:
 					auto x = a.dataForAttribute(DW_AT_sibling, debug_info + die.offset);
 					if (x.form)
 					{
-						die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, compilationUnitOffsetForOffsetInDebugInfo(die.offset));
+						die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset));
 						goto there;
 					}
 				}
@@ -2244,7 +2336,7 @@ public:
 			if (hasAbstractOrigin(die, referred_die))
 				s = sourceCodeCoordinatesForDieOffset(referred_die.offset);
 		}
-		auto cu_offset = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
+		auto cu_offset = compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset);
 		cu_offset += /* skip compilation unit header */ compilation_unit_header(debug_info + cu_offset).header_length();
 
 		auto compilation_unit_die = dieForDieOffset(cu_offset);
@@ -2306,6 +2398,7 @@ public:
 	};
 
 private:
+	/*! \todo	!!! This must be merged to 'formReference()' !!! */
 	uint32_t readTypeOffset(uint32_t attribute_form, const uint8_t * debug_info_bytes, uint32_t compilation_unit_header_offset)
 	{
 		switch (attribute_form)
@@ -2328,6 +2421,8 @@ private:
 			int form, bytes_to_skip;
 			return form = DwarfUtil::uleb128(debug_info_bytes, & bytes_to_skip), readTypeOffset(form, debug_info_bytes + bytes_to_skip, compilation_unit_header_offset);
 		}
+		case DW_FORM_ref_sig8:
+			return typeSignatureMap.at(* (uint64_t *) debug_info_bytes);
 		default:
 			DwarfUtil::panic();
 		}
@@ -2342,18 +2437,18 @@ private:
 			if (!x.form)
 				return false;
 		}
-		auto i = compilationUnitOffsetForOffsetInDebugInfo(die.offset);
+		auto i = compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset);
 		auto referred_die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, i);
 		{
 			/*! \todo	!!!!!!!!!!! FIX THIS BOGUS CALL !!!!!!!!!!!!!!!!! */
-			compilationUnitOffsetForOffsetInDebugInfo(referred_die_offset);
+			compilationUnitHeaderOffsetForOffsetInDebugInfo(referred_die_offset);
 			referred_die = dieForDieOffset(referred_die_offset);
 		}
 		return true;
 	}
 std::map</* die offset */ uint32_t, /* type cache index */ uint32_t> recursion_detector;
 
-	int verbose_type_printing_indentation_level;
+	int verbose_type_printing_indentation_level = 0;
 	std::string typeChainString(std::vector<struct DwarfTypeNode> & type, bool is_prefix_printed, int node_number, struct TypePrintFlags flags)
 	{
 		std::string type_string;
@@ -2633,7 +2728,7 @@ public:
 		{
 			/* Currently, only references to (artificial) variables, containing the
 			 * array upper bound, are supported. The gcc compiler generates such references. */
-			uint32_t cu_offset = compilationUnitOffsetForOffsetInDebugInfo(subrange_die.offset);
+			uint32_t cu_offset = compilationUnitHeaderOffsetForOffsetInDebugInfo(subrange_die.offset);
 			uint32_t r = DwarfUtil::formReference(upper_bound.form, upper_bound.debug_info_bytes, cu_offset);
 			Die t = dieForDieOffset(r);
 			auto cu_die_offset = cu_offset + /* skip compilation unit header */ compilation_unit_header(this->debug_info + cu_offset).header_length();
@@ -3143,14 +3238,14 @@ public:
 			case DW_FORM_block:
 			case DW_FORM_exprloc:
 				len = DwarfUtil::uleb128x(x.debug_info_bytes);
-				return DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitOffsetForOffsetInDebugInfo(die.offset));
+				return DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset));
 			}
 			case DW_FORM_data4:
 			case DW_FORM_sec_offset:
 			qDebug() << "location list offset:" << * (uint32_t *) x.debug_info_bytes;
 				auto l = LocationList::locationExpressionForAddress(debug_loc, * (uint32_t *) x.debug_info_bytes,
 					compilation_unit_base_address(compilation_unit_die), address_for_location);
-				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l, compilationUnitOffsetForOffsetInDebugInfo(die.offset)) : "";
+				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l, compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset)) : "";
 				
 				break;
 		}
@@ -3218,7 +3313,7 @@ public:
 				case DW_FORM_block:
 				case DW_FORM_exprloc:
 					len = DwarfUtil::uleb128x(x.debug_info_bytes);
-					DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitOffsetForOffsetInDebugInfo(die_fingerprints[i].offset));
+					DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitHeaderOffsetForOffsetInDebugInfo(die_fingerprints[i].offset));
 					test_count ++;
 					break;
 				}
@@ -3231,7 +3326,7 @@ if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" 
 					{
 						p += 2;
 						if (* p != 0xffffffff)
-							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p, compilationUnitOffsetForOffsetInDebugInfo(die_fingerprints[i].offset)), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2), test_count ++;
+							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p, compilationUnitHeaderOffsetForOffsetInDebugInfo(die_fingerprints[i].offset)), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2), test_count ++;
 					}
 					break;
 				}

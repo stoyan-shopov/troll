@@ -15,7 +15,7 @@ QMAKE_CXXFLAGS += -Wno-sign-compare
 
 # Define TEST_DRIVE_MODE to a non-zero value to get a demonstration of the troll look and feel
 # over a precompiled debug sample
-DEFINES += TEST_DRIVE_MODE=0
+DEFINES += TEST_DRIVE_MODE=1
 DEFINES += BLACKSTRIKE_SUPPORT_ENABLED=0
 
 QMAKE_CXXFLAGS += --coverage
