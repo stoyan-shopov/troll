@@ -321,7 +321,6 @@ public:
 		switch (attribute_form)
 		{
 		case DW_FORM_ref_addr:
-			qDebug() << "!!! referenced die is in another compilation unit; must update abbreviation cache !!!";
 			return * (uint32_t *) debug_info_bytes;
 		case DW_FORM_ref4:
 			return * (uint32_t *) debug_info_bytes + compilation_unit_header_offset;
@@ -378,7 +377,8 @@ public:
 		}
 		return false;
 	}
-	/* Routines for determining the dwarf 'class' of an attribute form encoding */
+
+	/* Routines for determining the dwarf 'class' of an attribute form */
 	static bool isClassAddress(uint32_t attribute_form)
 	{
 		switch (attribute_form)
@@ -475,6 +475,26 @@ public:
 	{
 		switch (attribute_form)
 		{
+			case DW_FORM_rnglistx:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassRnglist(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_sec_offset: case DW_FORM_rnglistx:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassRnglistptr(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
 			case DW_FORM_sec_offset:
 				return true;
 		default:
@@ -505,6 +525,16 @@ public:
 			case DW_FORM_strx2:
 			case DW_FORM_strx3:
 			case DW_FORM_strx4:
+				return true;
+		default:
+			return false;
+		}
+	}
+	static bool isClassStroffsetptr(uint32_t attribute_form)
+	{
+		switch (attribute_form)
+		{
+			case DW_FORM_sec_offset:
 				return true;
 		default:
 			return false;
@@ -1713,6 +1743,38 @@ public:
 	bool next(void) { return (header += ((header != debug_line + debug_line_len) ? sizeof unit_length() + unit_length() : 0)) != debug_line + debug_line_len; }
 };
 
+
+struct AddressRange
+{
+private:
+	/* The end address is NOT included in the address range, i.e. this is the first address location after this address range */
+	struct address_range { uint32_t start_address = -1, end_address = -1; };
+	std::list<struct address_range> ranges;
+public:
+	AddressRange(uint32_t start_address, uint32_t end_address) { ranges.push_back((struct address_range){ .start_address = start_address, .end_address = end_address, });}
+	AddressRange(const uint8_t * debug_ranges_section, uint32_t debug_ranges_section_offset, uint32_t base_address)
+	{
+		auto range_list = (const uint32_t *) (debug_ranges_section + debug_ranges_section_offset);
+		while (range_list[0] && range_list[1])
+		{
+			if (range_list[0] == -1)
+				/* A base address selection entry */
+				base_address = range_list[1];
+			else
+			{
+				if (base_address == UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
+					DwarfUtil::panic();
+				ranges.push_back((address_range) { .start_address = range_list[0] + base_address, .end_address = range_list[1] + base_address});
+			}
+			range_list += 2;
+		}
+	}
+	AddressRange(void){}
+	bool isAddressInRange(uint32_t address) const { for (const auto& range : ranges) if (range.start_address <= address && address < range.end_address) return true; return false; }
+	void dump(void) const { qDebug() << "Address range count:" << ranges.size(); for (const auto& r: ranges) qDebug() << HEX(r.start_address) << "-" << HEX(r.end_address); }
+};
+
+
 /*! \todo	Check for functions duplicating functionality. This is quite possible, because I have
  * 		not done any development for almost 3 years as of february 2019, and I am now resuming
  * 		development on the troll, and I am adding new code */
@@ -1739,35 +1801,6 @@ private:
 	/* cached for performance reasons */
 	struct compilation_unit_header last_searched_compilation_unit;
 
-	struct AddressRange
-	{
-	private:
-		/* The end address is NOT included in the address range, i.e. this is the first address location after this address range */
-		struct address_range { uint32_t start_address = -1, end_address = -1; };
-		std::list<struct address_range> ranges;
-	public:
-		AddressRange(uint32_t start_address, uint32_t end_address) { ranges.push_back((struct address_range){ .start_address = start_address, .end_address = end_address, });}
-		AddressRange(const uint8_t * debug_ranges_section, uint32_t debug_ranges_section_offset, uint32_t base_address)
-		{
-			auto range_list = (const uint32_t *) (debug_ranges_section + debug_ranges_section_offset);
-			while (range_list[0] && range_list[1])
-			{
-				if (range_list[0] == -1)
-					/* A base address selection entry */
-					base_address = range_list[1];
-				else
-				{
-					if (base_address == UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
-						DwarfUtil::panic();
-					ranges.push_back((address_range) { .start_address = range_list[0] + base_address, .end_address = range_list[1] + base_address});
-				}
-				range_list += 2;
-			}
-		}
-		AddressRange(void){}
-		bool isAddressInRange(uint32_t address) const { for (const auto& range : ranges) if (range.start_address <= address && address < range.end_address) return true; return false; }
-		void dump(void) const { qDebug() << "Address range count:" << ranges.size(); for (const auto& r: ranges) qDebug() << HEX(r.start_address) << "-" << HEX(r.end_address); }
-	};
 	struct CompilationUnitAddressRange
 	{
 		uint32_t	compilation_unit_header_debug_info_offset = -1;
@@ -2127,6 +2160,11 @@ public:
 		auto d = x.back().children.begin();
 		while (d != x.back().children.end())
 		{
+			/*! \todo DW_TAG_call_site is officially a part of DWARF5, and is somewhat different than
+			 * the pre-dwarf5 gcc extensions using DW_TAG_GNU_call_site and related tags, e.g.,
+			 * in dwarf5 there is now a DW_AT_call_return_pc instead of the DW_AT_low_pc that gcc
+			 * uses instead prior to dwarf5. Code the new dwarf5 representation, but also keep the
+			 * pre-dwarf5 code, */
 			if ((* d).tag == DW_TAG_GNU_call_site)
 			{
 				Abbreviation a(debug_abbrev + d->abbrev_offset);
@@ -2580,8 +2618,6 @@ std::map</* die offset */ uint32_t, /* type cache index */ uint32_t> recursion_d
 				qDebug() << "die offset" << type.at(node_number).die.offset;
 				DwarfUtil::panic();
 		}
-		/*! \todo	What is this?!?!?! Commenting it out, eventually delete it */
-		//if (die.tag != DW_TAG_structure_type && die.tag != DW_TAG_class_type)
 		return type_string;
 	}
 
