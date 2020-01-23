@@ -680,6 +680,21 @@ public:
 	}
 };
 
+/* A structure describing the common header portion that applies to all dwarf units. */
+struct common_dwarf_unit_header
+{
+	const uint8_t		* data;
+	uint32_t	unit_length() const
+	{
+		uint32_t x = *(uint32_t*)(data+0);
+		if (x >= 0xfffffff0) /* probably 64 bit elf, not supported at this time */
+			DwarfUtil::panic();
+		return x;
+	}
+	common_dwarf_unit_header(const uint8_t * data) { this->data = data; }
+	struct common_dwarf_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
+};
+
 struct compilation_unit_header
 {
 	const uint8_t		* data;
@@ -2093,7 +2108,7 @@ public:
 
 	/* returns -1 if the compilation unit is not found */
 	/*! \todo	rename this, it ended up horribly long */
-	uint32_t compilationUnitHeaderOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
+	uint32_t dwarfUnitHeaderOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
 	{
 		if (last_searched_compilation_unit.data - debug_info <= debug_info_offset && debug_info_offset < last_searched_compilation_unit.data - debug_info + last_searched_compilation_unit.unit_length())
 		{
@@ -2101,8 +2116,8 @@ public:
 			return last_searched_compilation_unit.data - debug_info;
 		}
 		if (STATS_ENABLED) stats.compilation_unit_header_misses ++;
-		compilation_unit_header h(debug_info);
-		while (h.data - debug_info < debug_info_len /* HACK HACK HACK - switch to proper types, document what is going on here - eventually extract the common unit header to support all dwarf5 units */ + debug_types_len)
+		common_dwarf_unit_header h(debug_info);
+		while (h.data - debug_info < debug_info_len + debug_types_len)
 			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
 			{
 				last_searched_compilation_unit.data = h.data;
@@ -2190,7 +2205,7 @@ private:
 					auto x = a.dataForAttribute(DW_AT_sibling, debug_info + die.offset);
 					if (x.form)
 					{
-						die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset));
+						die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, dwarfUnitHeaderOffsetForOffsetInDebugInfo(die.offset));
 						goto there;
 					}
 				}
@@ -2336,7 +2351,7 @@ public:
 			if (hasAbstractOrigin(die, referred_die))
 				s = sourceCodeCoordinatesForDieOffset(referred_die.offset);
 		}
-		auto cu_offset = compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset);
+		auto cu_offset = dwarfUnitHeaderOffsetForOffsetInDebugInfo(die.offset);
 		cu_offset += /* skip compilation unit header */ compilation_unit_header(debug_info + cu_offset).header_length();
 
 		auto compilation_unit_die = dieForDieOffset(cu_offset);
@@ -2437,11 +2452,11 @@ private:
 			if (!x.form)
 				return false;
 		}
-		auto i = compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset);
+		auto i = dwarfUnitHeaderOffsetForOffsetInDebugInfo(die.offset);
 		auto referred_die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, i);
 		{
 			/*! \todo	!!!!!!!!!!! FIX THIS BOGUS CALL !!!!!!!!!!!!!!!!! */
-			compilationUnitHeaderOffsetForOffsetInDebugInfo(referred_die_offset);
+			dwarfUnitHeaderOffsetForOffsetInDebugInfo(referred_die_offset);
 			referred_die = dieForDieOffset(referred_die_offset);
 		}
 		return true;
@@ -2728,7 +2743,7 @@ public:
 		{
 			/* Currently, only references to (artificial) variables, containing the
 			 * array upper bound, are supported. The gcc compiler generates such references. */
-			uint32_t cu_offset = compilationUnitHeaderOffsetForOffsetInDebugInfo(subrange_die.offset);
+			uint32_t cu_offset = dwarfUnitHeaderOffsetForOffsetInDebugInfo(subrange_die.offset);
 			uint32_t r = DwarfUtil::formReference(upper_bound.form, upper_bound.debug_info_bytes, cu_offset);
 			Die t = dieForDieOffset(r);
 			auto cu_die_offset = cu_offset + /* skip compilation unit header */ compilation_unit_header(this->debug_info + cu_offset).header_length();
@@ -3238,14 +3253,14 @@ public:
 			case DW_FORM_block:
 			case DW_FORM_exprloc:
 				len = DwarfUtil::uleb128x(x.debug_info_bytes);
-				return DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset));
+				return DwarfExpression::sforthCode(x.debug_info_bytes, len, dwarfUnitHeaderOffsetForOffsetInDebugInfo(die.offset));
 			}
 			case DW_FORM_data4:
 			case DW_FORM_sec_offset:
 			qDebug() << "location list offset:" << * (uint32_t *) x.debug_info_bytes;
 				auto l = LocationList::locationExpressionForAddress(debug_loc, * (uint32_t *) x.debug_info_bytes,
 					compilation_unit_base_address(compilation_unit_die), address_for_location);
-				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l, compilationUnitHeaderOffsetForOffsetInDebugInfo(die.offset)) : "";
+				return l ? DwarfExpression::sforthCode(l + 2, * (uint16_t *) l, dwarfUnitHeaderOffsetForOffsetInDebugInfo(die.offset)) : "";
 				
 				break;
 		}
@@ -3313,7 +3328,7 @@ public:
 				case DW_FORM_block:
 				case DW_FORM_exprloc:
 					len = DwarfUtil::uleb128x(x.debug_info_bytes);
-					DwarfExpression::sforthCode(x.debug_info_bytes, len, compilationUnitHeaderOffsetForOffsetInDebugInfo(die_fingerprints[i].offset));
+					DwarfExpression::sforthCode(x.debug_info_bytes, len, dwarfUnitHeaderOffsetForOffsetInDebugInfo(die_fingerprints[i].offset));
 					test_count ++;
 					break;
 				}
@@ -3326,7 +3341,7 @@ if (DWARF_EXPRESSION_TESTS_DEBUG_ENABLED) qDebug() << "location list at offset" 
 					{
 						p += 2;
 						if (* p != 0xffffffff)
-							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p, compilationUnitHeaderOffsetForOffsetInDebugInfo(die_fingerprints[i].offset)), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2), test_count ++;
+							DwarfExpression::sforthCode((uint8_t *) p + 2, * (uint16_t *) p, dwarfUnitHeaderOffsetForOffsetInDebugInfo(die_fingerprints[i].offset)), p = (uint32_t *)((uint8_t *) p + * (uint16_t *) p + 2), test_count ++;
 					}
 					break;
 				}
