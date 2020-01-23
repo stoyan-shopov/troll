@@ -2407,9 +2407,8 @@ public:
 	struct TypePrintFlags
 	{
 		bool	verbose_printing		: 1;
-		bool	print_dereferenced_types	: 1;
 		bool	discard_typedefs		: 1;
-		TypePrintFlags(void)	{ verbose_printing = print_dereferenced_types = discard_typedefs = false; }
+		TypePrintFlags(void)	{ verbose_printing = discard_typedefs = false; }
 	};
 
 private:
@@ -2503,7 +2502,7 @@ std::map</* die offset */ uint32_t, /* type cache index */ uint32_t> recursion_d
 					verbose_type_printing_indentation_level ++;
 					for (const auto& member : type.at(node_number).children)
 					{
-						if (type.at(member).die.tag != DW_TAG_member)
+						if (type.at(member).die.tag != DW_TAG_member && type.at(member).die.tag != DW_TAG_enumerator)
 							/* Some compilers (e.g. the ARM compiler) are known
 							 * to generate dies for structure types, that have
 							 * child dies which are not of type 'DW_TAG_member'.
