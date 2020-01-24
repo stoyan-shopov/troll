@@ -243,14 +243,48 @@ public:
 			int x;
 			return x = uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip + skip_form_bytes(x, debug_info_bytes + bytes_to_skip);
 		}
-		case DW_FORM_sec_offset:
-			return 4;
+		/* DWARF4 introduced forms. */
 		case DW_FORM_exprloc:
 			return uleb128(debug_info_bytes, & bytes_to_skip) + bytes_to_skip;
 		case DW_FORM_flag_present:
 			return 0;
+		case DW_FORM_sec_offset:
+			return 4;
 		case DW_FORM_ref_sig8:
 			return 8;
+		/* DWARF5 introduced forms. */
+		case DW_FORM_strx:
+			return uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip;
+		case DW_FORM_addrx:
+			return uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip;
+		//case DW_FORM_ref_sup4:
+		//case DW_FORM_strp_sup:
+		case DW_FORM_data16:
+			return 16;
+		//case DW_FORM_line_strp:
+		//case DW_FORM_ref_sig8:
+		//case DW_FORM_implicit_const:
+		case DW_FORM_loclistx:
+			return uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip;
+		case DW_FORM_rnglistx:
+			return uleb128(debug_info_bytes, & bytes_to_skip), bytes_to_skip;
+		//case DW_FORM_ref_sup8:
+		case DW_FORM_strx1:
+			return 1;
+		case DW_FORM_strx2:
+			return 2;
+		case DW_FORM_strx3:
+			return 3;
+		case DW_FORM_strx4:
+			return 4;
+		case DW_FORM_addrx1:
+			return 1;
+		case DW_FORM_addrx2:
+			return 2;
+		case DW_FORM_addrx3:
+			return 3;
+		case DW_FORM_addrx4:
+			return 4;
 		}
 	}
 	/* This function is first introduced for the needs of obtaining constant data for attribute
@@ -1936,7 +1970,6 @@ private:
 	
 	struct
 	{
-		unsigned total_dies;
 		unsigned total_compilation_units;
 		unsigned dies_read;
 		unsigned compilation_unit_address_ranges_hits;
@@ -1994,7 +2027,6 @@ private:
 
 	void reapDieFingerprints(uint32_t & die_offset, std::map<uint32_t, uint32_t> & abbreviations, int depth = 0)
 	{
-		stats.total_dies ++;
 		const uint8_t * p = debug_info + die_offset;
 		int len;
 		uint32_t code = DwarfUtil::uleb128(p, & len);
@@ -2095,7 +2127,7 @@ public:
 	}
 	void dumpStats(void)
 	{
-		qDebug() << "total dies in .debug_info:" << stats.total_dies;
+		qDebug() << "total dies in .debug_info:" << die_fingerprints.size();
 		qDebug() << "total compilation units in .debug_info:" << stats.total_compilation_units;
 		qDebug() << "total dies read:" << stats.dies_read;
 		qDebug() << "compilation unit address range search hits:" << stats.compilation_unit_address_ranges_hits;
