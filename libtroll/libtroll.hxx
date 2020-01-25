@@ -714,21 +714,6 @@ public:
 	}
 };
 
-/* A structure describing the common header portion that applies to all dwarf units. */
-struct common_dwarf_unit_header
-{
-	const uint8_t		* data;
-	uint32_t	unit_length() const
-	{
-		uint32_t x = *(uint32_t*)(data+0);
-		if (x >= 0xfffffff0) /* probably 64 bit elf, not supported at this time */
-			DwarfUtil::panic();
-		return x;
-	}
-	common_dwarf_unit_header(const uint8_t * data) { this->data = data; }
-	struct common_dwarf_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
-};
-
 struct compilation_unit_header
 {
 	const uint8_t		* data;
@@ -762,7 +747,7 @@ struct compilation_unit_header
 			return*(uint8_t*)(data+7);
 		}
 	}
-	uint8_t		unit_type() const { /* introduced in dwarf 5 */ if (version() != 5) DwarfUtil::panic(); return*(uint8_t*)(data+6);}
+	uint8_t		dwarf5_unit_type() const { /* introduced in dwarf 5 */ if (version() != 5) DwarfUtil::panic(); return*(uint8_t*)(data+6);}
 	uint32_t	header_length() const
 	{
 		switch (version())
@@ -771,10 +756,56 @@ struct compilation_unit_header
 		case 2: case 3: case 4:
 			return 11;
 		case 5:
-			if (unit_type() == DW_UT_compile || unit_type() == DW_UT_partial)
-			return 12;
+			switch (dwarf5_unit_type())
+			{
+				case DW_UT_compile:
+				case DW_UT_partial:
+					return 12;
+				case DW_UT_type:
+					return 24;
+				case DW_UT_skeleton:
+				case DW_UT_split_compile:
+				case DW_UT_split_type:
+					return 20;
+			}
 		}
 	}
+
+	/* Note that it is the caller's responsibility to make sure that this is indeed a type unit for
+	 * dwarf versions prior to 5, because in dwarf versions prior to 5, the only way to discriminate
+	 * between compilation units and type units is to know in which section ('.debug_info' or .'debug_type),
+	 * the unit resides, and the code here does not know that. */ 
+	uint64_t	type_unit_type_signature(void) const
+	{
+		switch (version())
+		{
+			default:
+				DwarfUtil::panic();
+			case 4:	
+				return*(uint64_t*)(data+11);
+			case 5:	
+				if (dwarf5_unit_type() == DW_UT_type)
+					return*(uint64_t*)(data+12);
+				else	
+					DwarfUtil::panic();
+		}
+	}
+	uint64_t	type_unit_type_offset() const
+	{
+		switch (version())
+		{
+			default:
+				DwarfUtil::panic();
+			case 4:	
+				return*(uint32_t*)(data+19);
+			case 5:	
+				if (dwarf5_unit_type() == DW_UT_type)
+					return*(uint32_t*)(data+22);
+				else	
+					DwarfUtil::panic();
+		}
+	}
+	uint32_t	dwarf4_type_unit_header_length() const { return 23; }
 
 	compilation_unit_header(const uint8_t * data) { this->data = data; validate(); }
 	struct compilation_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
@@ -795,44 +826,13 @@ private:
 			break;
 		case 5:
 			/* dwarf 5 partially supported */
-			if (unit_type() != DW_UT_compile)
+			if (dwarf5_unit_type() != DW_UT_compile)
 				DwarfUtil::panic();
 			break;
 		}
 	}
 };
 
-struct dwarf4_type_unit_header
-{
-	const uint8_t		* data;
-	uint32_t	unit_length() const
-	{
-		uint32_t x = *(uint32_t*)(data+0);
-		if (x >= 0xfffffff0) /* probably 64 bit elf, not supported at this time */
-			DwarfUtil::panic();
-		return x;
-	}
-	uint16_t	version() const {return*(uint16_t*)(data+4);}
-	uint32_t	debug_abbrev_offset() const { return*(uint32_t*)(data+6); }
-	uint8_t		address_size() const { return*(uint8_t*)(data+10); }
-	uint64_t	type_signature() const { return*(uint64_t*)(data+11); }
-	uint64_t	type_offset() const { return*(uint32_t*)(data+19); }
-	uint32_t	header_length() const { return 23; }
-	dwarf4_type_unit_header(const uint8_t * data) { this->data = data; validate(); }
-	struct dwarf4_type_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
-private:
-	void validate(void) const
-	{
-		if (!data)
-			/* allow the creation of null compilation unit headers */
-			return;
-		if (unit_length() >= 0xfffffff0)
-			/* probably 64 bit elf, not supported at this time */
-			DwarfUtil::panic();
-		if (version() != 4)
-			DwarfUtil::panic();
-	}
-};
 
 struct StaticObject
 {
@@ -1984,9 +1984,12 @@ private:
 	{
 		/*! \todo	Maybe also add here a sibling pointer field, and maybe also stash the DIE tag value.
 		 * 		This may eventually simpllify the dwarf DIE scanning code. */
+		/* This is the offset of the DIE in the '.debug_info' section. */
 		uint32_t	offset;
+		/* This is the abbreviation offset for the DIE in the '.debug_abbrev' section. */
 		uint32_t	abbrev_offset;
 	};
+	/* This can also be a std::map. */
 	std::vector<struct DieFingerprint> die_fingerprints;
 	uint32_t abbreviationOffsetForDieOffset(uint32_t die_offset)
 	{
@@ -2003,6 +2006,10 @@ private:
 		}
 		DwarfUtil::panic();
 	}
+
+	struct DwarfUnitFingerprint
+	{
+	};
 	
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
 	void getAbbreviationsOfDwarfUnit(uint32_t abbreviation_offset, std::map<uint32_t, uint32_t> & abbreviations)
@@ -2115,9 +2122,9 @@ public:
 		dwarf_unit_offset = debug_info_len;
 		while (dwarf_unit_offset < debug_info_len + debug_types_len)
 		{
-			dwarf4_type_unit_header tu(this->debug_info + dwarf_unit_offset);
-			typeSignatureMap[tu.type_signature()] = tu.data + tu.type_offset() - this->debug_info;
-			auto die_offset = dwarf_unit_offset + /* Skip unit header. */ tu.header_length();
+			compilation_unit_header tu(this->debug_info + dwarf_unit_offset);
+			typeSignatureMap[tu.type_unit_type_signature()] = tu.data + tu.type_unit_type_offset() - this->debug_info;
+			auto die_offset = dwarf_unit_offset + /* Skip unit header. */ tu.dwarf4_type_unit_header_length();
 			getAbbreviationsOfDwarfUnit(tu.debug_abbrev_offset(), abbreviations);
 			reapDieFingerprints(die_offset, abbreviations);
 			dwarf_unit_offset = tu.next().data - this->debug_info;
@@ -2148,7 +2155,7 @@ public:
 			return last_searched_compilation_unit.data - debug_info;
 		}
 		if (STATS_ENABLED) stats.compilation_unit_header_misses ++;
-		common_dwarf_unit_header h(debug_info);
+		compilation_unit_header h(debug_info);
 		while (h.data - debug_info < debug_info_len + debug_types_len)
 			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
 			{
