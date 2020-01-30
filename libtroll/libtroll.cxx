@@ -51,7 +51,7 @@ int DwarfData::readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> &
 		/*! \todo	this is braindamaged; whoever passes the abbreviation cache to this function
 		 *		should already have information about the containing compilation unit - maybe
 		 *		just pass that as an additional parameter */
-			dwarfUnitHeaderOffsetForOffsetInDebugInfo(saved_die_offset)
+			cuHeaderOffsetForOffsetInDebugInfo(saved_die_offset)
 			), type_cache, false);
 	}
 	
@@ -65,7 +65,7 @@ int DwarfData::readType(uint32_t die_offset, std::vector<struct DwarfTypeNode> &
 		/*! \todo	this is braindamaged; whoever passes the abbreviation cache to this function
 		 *		should already have information about the containing compilation unit - maybe
 		 *		just pass that as an additional parameter */
-		uint32_t cu_offset(dwarfUnitHeaderOffsetForOffsetInDebugInfo(saved_die_offset));
+		uint32_t cu_offset(cuHeaderOffsetForOffsetInDebugInfo(saved_die_offset));
 		/* generally, the referred type can be in another compilation unit; gcc has not been observed
 		 * to do this until now (02022017), but the IAR compiler does generate such references;
 		 * if this is the case, the abbreviations of the referred compilation unit must be fetched,

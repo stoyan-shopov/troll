@@ -1318,7 +1318,7 @@ uint32_t pc = -1;
 		std::vector<DwarfTypeNode> type_cache;
 		dwdata->readType(locals.at(i).offset, type_cache);
 		ui->tableWidgetLocalVariables->setItem(row, 1, new QTableWidgetItem(QString("%1").arg(dwdata->sizeOf(type_cache))));
-		locationSforthCode = QString::fromStdString(dwdata->locationSforthCode(locals.at(i), context.at(0), pc));
+		locationSforthCode = QString::fromStdString(dwdata->locationSforthCode(locals.at(i), pc));
 		ui->tableWidgetLocalVariables->setItem(row, 3, currently_evaluated_local_data_object = new QTableWidgetItem("n/a"));
 		auto location = dwarf_evaluator->evaluateLocation(cfa_value, frameBaseSforthCode, locationSforthCode);
 		if (location.type == DwarfEvaluator::DwarfExpressionValue::INVALID)

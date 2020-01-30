@@ -69,7 +69,7 @@ extern "C"
 		register_cache->setActiveFrame(register_cache->activeFrame() + 1);
 		auto result = dwarf_evaluator->evaluateLocation(register_cache->readCachedRegister(13),
 								QString::fromStdString(libtroll->sforthCodeFrameBaseForContext(context, register_cache->readCachedRegister(15) - 0)),
-								QString::fromStdString(DwarfExpression::sforthCode(l.second, l.first, libtroll->dwarfUnitHeaderOffsetForOffsetInDebugInfo(call_site.offset))),
+								QString::fromStdString(DwarfExpression::sforthCode(l.second, l.first, libtroll->cuHeaderOffsetForOffsetInDebugInfo(call_site.offset))),
 								false);
 #if 1
 		if (result.type != DwarfEvaluator::DwarfExpressionValue::CONSTANT)
