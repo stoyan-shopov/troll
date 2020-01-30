@@ -1915,6 +1915,18 @@ private:
 	const uint8_t * debug_loc;
 	uint32_t	debug_loc_len;
 
+	const uint8_t * debug_rnglists;
+	uint32_t	debug_rnglists_len;
+
+	const uint8_t * debug_loclists;
+	uint32_t	debug_loclists_len;
+
+	const uint8_t * debug_addr;
+	uint32_t	debug_addr_len;
+
+	const uint8_t * debug_str_offsets;
+	uint32_t	debug_str_offsets_len;
+
 	/* cached for performance reasons */
 	struct compilation_unit_header last_searched_compilation_unit;
 
@@ -2074,12 +2086,17 @@ private:
 	}
 public:
 	DwarfData(const void * debug_info, uint32_t debug_info_len,
-		  const void * debug_types, uint32_t debug_types_len,
 		  const void * debug_abbrev, uint32_t debug_abbrev_len,
 		  const void * debug_ranges, uint32_t debug_ranges_len,
 		  const void * debug_str, uint32_t debug_str_len,
 		  const void * debug_line, uint32_t debug_line_len,
-		  const void * debug_loc, uint32_t debug_loc_len) : last_searched_compilation_unit((const uint8_t *) 0)
+		  const void * debug_loc, uint32_t debug_loc_len,
+		  const void * debug_types, uint32_t debug_types_len,
+		  const void * debug_rnglists, uint32_t debug_rnglists_len,
+		  const void * debug_loclists, uint32_t debug_loclists_len,
+		  const void * debug_addr, uint32_t debug_addr_len,
+		  const void * debug_str_offsets, uint32_t debug_str_offsets_len
+		  )
 	{
 		/* Warning: some HACKS are employed here for the case of DWARF4, where two separate
 		 * debug sections - '.debug_info' and '.debug_types' are present! These sections are
@@ -2097,7 +2114,17 @@ public:
 		this->debug_line_len = debug_line_len;
 		this->debug_loc = (const uint8_t *) debug_loc;
 		this->debug_loc_len = debug_loc_len;
-		
+
+		/* These sections are first introduced in dwarf5 */
+		this->debug_rnglists = (const uint8_t *) debug_rnglists;
+		this->debug_rnglists_len = debug_rnglists_len;
+		this->debug_loclists = (const uint8_t *) debug_loclists;
+		this->debug_loclists_len = debug_loclists_len;
+		this->debug_addr = (const uint8_t *) debug_addr;
+		this->debug_addr_len = debug_addr_len;
+		this->debug_str_offsets = (const uint8_t *) debug_str_offsets;
+		this->debug_str_offsets_len = debug_str_offsets_len;
+
 		debug_info_bytes = std::vector<uint8_t>(debug_info_len + debug_abbrev_len);
 		memcpy(debug_info_bytes.data(), debug_info, debug_info_len);
 		/* In case of a DWARF4 '.debug_types' section - append the section contents to '.debug_info'. */

@@ -60,20 +60,30 @@ class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 	qint64 debug_info_index;
-	qint64 debug_types_index;
 	qint64 debug_abbrev_index;
 	qint64 debug_frame_index;
 	qint64 debug_ranges_index;
 	qint64 debug_str_index;
 	qint64 debug_line_index;
 	qint64 debug_loc_index;
+	/* This section is only present in dwarf4. */
+	qint64 debug_types_index;
+	/* These sections are introduced in dwarf5. */
+	qint64 debug_rnglists_index;
+	qint64 debug_loclists_index;
+	qint64 debug_addr_index;
+	qint64 debug_str_offsets_index;
 
 	enum
 	{
 		MAX_DISPLAYED_ARRAY_ELEMENTS_LIMIT	= 10000,
 	};
 
-	QByteArray debug_info, debug_types, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc;
+	QByteArray debug_info, debug_abbrev, debug_frame, debug_ranges, debug_str, debug_line, debug_loc,
+		/* This section is only present in dwarf4. */
+		debug_types,
+		/* These sections are introduced in dwarf5. */
+		debug_rnglists, debug_loclists, debug_addr, debug_str_offsets;
 	
 	void dump_debug_tree(std::vector<struct Die> & dies, int level);
 	QTimer		polishing_timer;
