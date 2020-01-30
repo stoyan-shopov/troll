@@ -108,10 +108,8 @@ public:
 		uint8_t x;
 		int shift = * decoded_len = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
-		/*
 		if (result > 0xffffffff)
 			panic();
-			*/
 		return result;
 	}
 	static uint32_t uleb128(const uint8_t * data)
@@ -120,10 +118,8 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
-		/*
 		if (result > 0xffffffff)
 			panic();
-			*/
 		return result;
 	}
 	static uint32_t uleb128x(const uint8_t * & data)
@@ -132,10 +128,8 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
-		/*
 		if (result > 0xffffffff)
 			panic();
-			*/
 		return result;
 	}
 	static int32_t sleb128(const uint8_t * data, int * decoded_len)
@@ -144,10 +138,8 @@ public:
 		uint8_t x;
 		int shift = * decoded_len = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
-		/*
 		if (result > 0xffffffff)
 			panic();
-			*/
 		/* handle sign */
 		if (x & 0x40)
 			/* propagate sign bit */
@@ -160,10 +152,8 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
-		/*
 		if (result > 0xffffffff)
 			panic();
-			*/
 		/* handle sign */
 		if (x & 0x40)
 			/* propagate sign bit */
@@ -176,10 +166,8 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
-		/*
 		if (result > 0xffffffff)
 			panic();
-			*/
 		/* handle sign */
 		if (x & 0x40)
 			/* propagate sign bit */
@@ -2017,27 +2005,6 @@ private:
 	const uint8_t * debug_str_offsets;
 	uint32_t	debug_str_offsets_len;
 
-#if XXX
-	/* cached for performance reasons */
-	struct compilation_unit_header last_searched_compilation_unit;
-
-	struct CompilationUnitAddressRange
-	{
-		uint32_t	compilation_unit_header_debug_info_offset = -1;
-		AddressRange	range;
-		void dump(void) const { qDebug() << "Compilation unit at offset:" << HEX(compilation_unit_header_debug_info_offset); range.dump(); }
-	};
-	std::vector<CompilationUnitAddressRange> compilation_unit_address_ranges;
-	void dump_compilation_unit_ranges(void) const
-	{
-		qDebug() << "Total compilation units:" << compilation_unit_address_ranges.size();
-		for (const auto& r : compilation_unit_address_ranges)
-			r.dump();
-		qDebug() << "---------------------------------------";
-	}
-	std::vector<CompilationUnitAddressRange>::const_iterator last_searched_compilation_unit_range;
-#endif
-
 	void buildCompilationUnitFingerprints(void)
 	{
 		uint32_t cu_header_offset;
@@ -2078,7 +2045,6 @@ private:
 			compilationUnitFingerprints.push_back(f);
 		}
 	}
-
 	
 	struct
 	{
@@ -2391,59 +2357,8 @@ public:
 		qDebug() << "abbreviation fetch misses:" << stats.abbreviation_misses;
 	}
 
-#if XXX
-	/* returns -1 if the compilation unit is not found */
-	/*! \todo	rename this, it ended up horribly long */
-	uint32_t dwarfUnitHeaderOffsetForOffsetInDebugInfo(uint32_t debug_info_offset)
-	{
-		if (last_searched_compilation_unit.data - debug_info <= debug_info_offset && debug_info_offset < last_searched_compilation_unit.data - debug_info + last_searched_compilation_unit.unit_length())
-		{
-			if (STATS_ENABLED) stats.compilation_unit_header_hits ++;
-			return last_searched_compilation_unit.data - debug_info;
-		}
-		if (STATS_ENABLED) stats.compilation_unit_header_misses ++;
-		compilation_unit_header h(debug_info);
-		while (h.data - debug_info < debug_info_len + debug_types_len)
-			if (h.data - debug_info <= debug_info_offset && debug_info_offset < h.data - debug_info + h.unit_length())
-			{
-				last_searched_compilation_unit.data = h.data;
-				return h.data - debug_info;
-			}
-			else h.next();
-		return -1;
-	}
-#endif
-
 private:
 
-#if XXX
-	/* returns -1 if the compilation unit is not found */
-	uint32_t	get_compilation_unit_debug_info_offset_for_address(uint32_t address)
-	{
-		if (last_searched_compilation_unit_range != compilation_unit_address_ranges.cend())
-		{
-			/* First search the last searched compilation unit, in hope of finding the address there,
-			 * and before performing a full search over all compilation units */
-			if (last_searched_compilation_unit_range->range.isAddressInRange(address))
-				return last_searched_compilation_unit_range->compilation_unit_header_debug_info_offset;
-
-		}
-		for (last_searched_compilation_unit_range = compilation_unit_address_ranges.cbegin(); last_searched_compilation_unit_range != compilation_unit_address_ranges.cend(); ++ last_searched_compilation_unit_range)
-			if (last_searched_compilation_unit_range->range.isAddressInRange(address))
-				return last_searched_compilation_unit_range->compilation_unit_header_debug_info_offset;
-		return -1;
-	}
-#endif
-	/*
-	uint32_t compilation_unit_base_address(const struct Die & compilation_unit_die)
-	{
-		struct Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
-		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + compilation_unit_die.offset);
-		if (!low_pc.form)
-			return UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS;
-		return DwarfUtil::fetchHighLowPC(low_pc.form, low_pc.debug_info_bytes);
-	}
-	*/
 	bool isAddressInRange(const CompilationUnitFingerprint & cu, const struct Die & die, uint32_t address, const struct Die & compilation_unit_die)
 	{
 		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
@@ -2736,11 +2651,7 @@ private:
 		}
 		auto i = cuHeaderOffsetForOffsetInDebugInfo(die.offset);
 		auto referred_die_offset = DwarfUtil::formReference(x.form, x.debug_info_bytes, i);
-		{
-			/*! \todo	!!!!!!!!!!! FIX THIS BOGUS CALL !!!!!!!!!!!!!!!!! */
-			cuHeaderOffsetForOffsetInDebugInfo(referred_die_offset);
-			referred_die = dieForDieOffset(referred_die_offset);
-		}
+		referred_die = dieForDieOffset(referred_die_offset);
 		return true;
 	}
 std::map</* die offset */ uint32_t, /* type cache index */ uint32_t> recursion_detector;
