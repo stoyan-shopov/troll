@@ -2104,8 +2104,77 @@ private:
 		DwarfUtil::panic();
 	}
 
-	struct DwarfUnitFingerprint
+	struct CompilationUnitFingerprint
 	{
+		AddressRange	range;
+		/* The dwarf version of the compilation unit. */
+		int	version;
+		uint32_t	cu_header_offset;
+		/* These are the offsets of the compilation unit's contribution to the '.debug_info' section.
+		 * The start offset is the offset of the first byte past the compilation unit header - it is
+		 * the offset of the compilation unit die in the '.debug_info' section. The
+		 * end offset is the first byte past the last DIE data in the compilation unit. */
+		uint32_t	debug_info_start_offset;
+		uint32_t	debug_info_end_offset;
+		/* The 'offset' fields below are applicable for DWARF5 and above. See the dwarf standard for details.
+		 * Basically, these are used as index bases in other sections, and this allows reference to data from
+		 * dies in the '.debug_info' section, to other dwarf sections ('.debug_str_offsets', '.debug_addr', '.debug_rnglist',
+		 * and '.debug_loclist') by an 'indexing' indirection, instead of directly having section offsets
+		 * (DW_FORM_sec_offset). This removes the need for relocating the section offset values by the linkage
+		 * editor, and that is the main reason for having this form of indirection.
+		 *
+		 * A value of (-1) indicates that the respective base address is undefined. */
+		uint32_t	str_offsets_base = -1;
+		uint32_t	addr_base_section_offset = -1;
+		uint32_t	rnglist_base = -1;
+		uint32_t	loclist_base = -1;
+
+		/* Compilation unit base address for range lists computations. */
+		uint32_t	base_address = UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS;
+
+		uint32_t	tag = 0;
+		const char	* compilation_directory_name = 0;
+		uint32_t	statement_list_offset = -1;
+
+		bool containsDieAtOffset(uint32_t die_offset) { return debug_info_start_offset <= die_offset && die_offset < debug_info_end_offset; }
+		CompilationUnitFingerprint(const uint8_t * debug_info, uint32_t cu_header_offset, const uint8_t * debug_abbrev_data_of_compilation_unit_die, const void * debug_str)
+		{
+			compilation_unit_header h(debug_info + cu_header_offset);
+			this->cu_header_offset = cu_header_offset;
+			version = h.version();
+			debug_info_start_offset = cu_header_offset + h.header_length();
+			debug_info_end_offset = debug_info_start_offset + h.unit_length() - h.header_length()
+				+ /* The unit_length field size itself is not included in the unit_length value, account for this. */sizeof(uint32_t);
+			const uint8_t * debug_info_bytes = debug_info + debug_info_start_offset;
+
+			struct Abbreviation a(debug_abbrev_data_of_compilation_unit_die);
+			tag = a.tag();
+
+			auto s = a.dataForAttribute(DW_AT_str_offsets_base, debug_info_bytes);
+			if (s.form)
+				str_offsets_base = DwarfUtil::formConstant(s);
+			s = a.dataForAttribute(DW_AT_addr_base, debug_info_bytes);
+			if (s.form)
+				addr_base_section_offset = DwarfUtil::formConstant(s);
+			s = a.dataForAttribute(DW_AT_rnglists_base, debug_info_bytes);
+			if (s.form)
+				rnglist_base = DwarfUtil::formConstant(s);
+			s = a.dataForAttribute(DW_AT_loclists_base, debug_info_bytes);
+			if (s.form)
+				loclist_base = DwarfUtil::formConstant(s);
+
+			s = a.dataForAttribute(DW_AT_low_pc, debug_info_bytes);
+			if (s.form)
+				base_address = DwarfUtil::fetchHighLowPC(s);
+
+			s = a.dataForAttribute(DW_AT_stmt_list, debug_info_bytes);
+			if (s.form)
+				statement_list_offset = DwarfUtil::formConstant(s);
+
+			s = a.dataForAttribute(DW_AT_comp_dir, debug_info_bytes);
+			if (s.form)
+				compilation_directory_name = DwarfUtil::formString(s, (const uint8_t *) debug_str);
+		}
 	};
 	
 	/* first number is the abbreviation code, the second is the offset in .debug_abbrev */
