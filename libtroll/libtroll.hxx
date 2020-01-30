@@ -1856,6 +1856,91 @@ public:
 };
 
 
+struct dwarf5_rangelist_header : public AddressRange
+{
+private:
+	uint32_t offset_entry_count(void) const { return *(uint32_t *) (header + 8); }
+	uint32_t * offset_array(void) const { return (uint32_t *) (header + header_length()); }
+public:
+	static int header_length(void) { return 12; }
+	dwarf5_rangelist_header(const uint8_t * header, int range_index, const uint32_t * address_table, uint32_t base_address = UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
+		: header(header)
+	{
+		decode_rangelist(range_index, address_table, base_address);
+	}
+private:
+	void decode_rangelist(int range_index, const uint32_t * address_table, uint32_t base_address = UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
+	{
+		if (range_index >= offset_entry_count())
+		{
+			qDebug() << "error: range list index out of bounds";
+			return;
+		}
+		return decode_rangelist(header + header_length() + offset_array()[range_index], address_table, base_address);
+	}
+	void decode_rangelist(const uint8_t * rangelist_bytes, const uint32_t * address_table, uint32_t base_address = UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
+	{
+		const uint8_t * p(rangelist_bytes);
+
+		while (1)
+		{
+			switch (*p++)
+			{
+			case DW_RLE_end_of_list:
+				qDebug() << "<end of range list>";
+				return;
+			case DW_RLE_base_addressx:
+				assert(address_table);
+				base_address = address_table[DwarfUtil::uleb128x(p)];
+				break;
+			case DW_RLE_startx_endx:
+				assert(address_table);
+			{
+				uint32_t start = address_table[DwarfUtil::uleb128x(p)], end = address_table[DwarfUtil::uleb128x(p)];
+				ranges.push_back((struct address_range) { .start_address = start, .end_address = end, });
+			}
+				break;
+			case DW_RLE_startx_length:
+				assert(address_table);
+			{
+				uint32_t addr = address_table[DwarfUtil::uleb128x(p)], len = DwarfUtil::uleb128x(p);
+				ranges.push_back((struct address_range) { .start_address = addr, .end_address = addr + len, });
+			}
+				break;
+			case DW_RLE_offset_pair:
+				assert(base_address != UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS);
+			{
+				uint32_t o1 = DwarfUtil::uleb128x(p), o2 = DwarfUtil::uleb128x(p);
+				ranges.push_back((struct address_range) { .start_address = base_address + o1, .end_address = base_address + o2, });
+			}
+				break;
+			case DW_RLE_base_address:
+				base_address = *(uint32_t*)p;
+				p += sizeof(uint32_t);
+				break;
+			case DW_RLE_start_end:
+				assert(base_address != UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS);
+				ranges.push_back((struct address_range) { .start_address = *(uint32_t*)p, .end_address = *(uint32_t*)(p + sizeof(uint32_t)), });
+				p += 2 * sizeof(uint32_t);
+				break;
+			case DW_RLE_start_length:
+				assert(base_address != UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS);
+			{
+				uint32_t start = *(uint32_t*)p, end = start + (p += sizeof(uint32_t), DwarfUtil::uleb128x(p));
+				ranges.push_back((struct address_range) { .start_address = start, .end_address = end, });
+			}
+				break;
+			default:
+				qDebug() << QString("error: bad range list encoding, aborting range decoding: $%1").arg(p[-1], 2, 16, QChar(0));
+				ranges.clear();
+				return;
+			}
+		}
+	}
+	const uint8_t * header = 0;
+
+};
+
 /*! \todo	Check for functions duplicating functionality. This is quite possible, because I have
  * 		not done any development for almost 3 years as of february 2019, and I am now resuming
  * 		development on the troll, and I am adding new code */
