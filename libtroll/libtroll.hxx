@@ -389,9 +389,10 @@ public:
 			panic();
 		}
 	}
-	static bool isLocationConstant(uint32_t location_attribute_form, const uint8_t * debug_info_bytes, uint32_t & address)
+	static bool isLocationConstant(const attribute_data & a, uint32_t & address)
 	{
-		switch (location_attribute_form)
+		const uint8_t * debug_info_bytes = a.debug_info_bytes;
+		switch (a.form)
 		{
 			int len;
 			case DW_FORM_block1:
@@ -3470,7 +3471,7 @@ private:
 			Abbreviation a(debug_abbrev + die.abbrev_offset);
 			uint32_t address;
 			auto x = a.dataForAttribute(DW_AT_location, debug_info + die.offset);
-			if (x.form && DwarfUtil::isLocationConstant(x.form, x.debug_info_bytes, address))
+			if (x.form && DwarfUtil::isLocationConstant(x, address))
 			{
 				StaticObject x;
 				fillStaticObjectDetails(die, x);
