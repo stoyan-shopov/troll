@@ -108,7 +108,7 @@ public:
 		uint8_t x;
 		int shift = * decoded_len = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
-		if (result > 0xffffffff)
+		if ((int64_t) result != (int32_t) result)
 			panic();
 		return result;
 	}
@@ -401,6 +401,7 @@ public:
 		return false;
 	}
 
+	/*! \todo	Maybe remove these functions, they are not currently used. */
 	/* Routines for determining the dwarf 'class' of an attribute form */
 	static bool isClassAddress(uint32_t attribute_form)
 	{
@@ -498,7 +499,7 @@ public:
 	{
 		switch (attribute_form)
 		{
-			case DW_FORM_rnglistx:
+		        case DW_FORM_sec_offset:
 				return true;
 		default:
 			return false;
@@ -797,7 +798,7 @@ struct compilation_unit_header
 	uint32_t	dwarf4_type_unit_header_length() const { return 23; }
 
 	compilation_unit_header(const uint8_t * data) { this->data = data; validate(); }
-	struct compilation_unit_header & next(void) { data += unit_length() + sizeof unit_length(); return * this; }
+	struct compilation_unit_header & next(void) { data += unit_length() + sizeof(uint32_t); return * this; }
 private:
 	void validate(void) const
 	{
@@ -1856,10 +1857,19 @@ private:
 	uint32_t * offset_array(void) const { return (uint32_t *) (header + header_length()); }
 public:
 	static int header_length(void) { return 12; }
+	/* This constructor decodes a range list, given a range table, and a range list index.
+	 * It corresponds to a DW_FORM_rnglistx form encoding of the DW_AT_ranges attribute. */
 	dwarf5_rangelist_header(const uint8_t * header, int range_index, const uint32_t * address_table, uint32_t base_address = UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
 		: header(header)
 	{
 		decode_rangelist(range_index, address_table, base_address);
+	}
+	/* This constructor decodes a range list, given an offset in the '.debug_rnglists' section.
+	 * It corresponds to a DW_FORM_sec_offset form encoding of the DW_AT_ranges attribute. */
+	dwarf5_rangelist_header(const uint8_t * debug_rnglists, uint32_t offset, const uint32_t * address_table, uint32_t base_address = UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
+	        : header(header)
+	{
+		decode_rangelist(debug_rnglists + offset, address_table, base_address);
 	}
 private:
 	void decode_rangelist(int range_index, const uint32_t * address_table, uint32_t base_address = UNDEFINED_COMPILATION_UNIT_BASE_ADDRESS)
@@ -2005,6 +2015,53 @@ private:
 	const uint8_t * debug_str_offsets;
 	uint32_t	debug_str_offsets_len;
 
+	AddressRange getRangeOfDie(const Die & die)
+	{
+		struct AddressRange r;
+
+		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
+		auto range = a.dataForAttribute(DW_AT_ranges, debug_info + die.offset);
+		if (range.form)
+		{
+			const auto & cu = compilationUnitFingerprints.at(cuFingerprintIndexForDieOffset(die.offset));
+			if (range.form == DW_FORM_sec_offset)
+			{
+				auto range_offset = DwarfUtil::formConstant(range);
+				/* In dwarf5, the range lists have a new encoding, so take the dwarf version used in account. */
+				if (cu.version == 5)
+					r = dwarf5_rangelist_header(debug_rnglists, range_offset, (uint32_t *) (debug_addr + cu.addr_base_section_offset), cu.base_address);
+				else if (cu.version < 5)
+					r = pre_dwarf5_address_range(debug_ranges, range_offset, cu.base_address);
+				else
+					DwarfUtil::panic();
+			}
+			else if (range.form == DW_FORM_rnglistx)
+			{
+				if (cu.version != 5)
+					DwarfUtil::panic();
+				auto range_index = DwarfUtil::formConstant(range);
+				r = dwarf5_rangelist_header(debug_rnglists + cu.rnglist_header_base, range_index, (uint32_t *) (debug_addr + cu.addr_base_section_offset), cu.base_address);
+			}
+			else
+				DwarfUtil::panic();
+
+		}
+		else
+		{
+			auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
+			if (low_pc.form)
+			{
+				uint32_t start_address;
+				auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
+				if (!hi_pc.form)
+					DwarfUtil::panic("Missing dwarf 'hi_pc' attribute for compilation unit; cannot compute compilation unit address ranges");
+				start_address = DwarfUtil::fetchHighLowPC(low_pc);
+				r = AddressRange(start_address, DwarfUtil::fetchHighLowPC(hi_pc, start_address));
+			}
+		}
+		return r;
+	}
+
 	void buildCompilationUnitFingerprints(void)
 	{
 		uint32_t cu_header_offset;
@@ -2016,33 +2073,16 @@ private:
 				DwarfUtil::panic("Dwarf 5 introduces a new representation of address ranges that is not yet handled");
 			CompilationUnitFingerprint f(debug_info, cu_header_offset, debug_abbrev + abbreviationOffsetForDieOffset(cu_header_offset + ch.header_length()), debug_str);
 			auto compilation_unit_die = debug_tree_of_die(cu_die_offset, 0, 1).at(0);
-			struct AddressRange r;
-
-			struct Abbreviation a(debug_abbrev + compilation_unit_die.abbrev_offset);
-			auto range = a.dataForAttribute(DW_AT_ranges, debug_info + compilation_unit_die.offset);
-			if (range.form)
-			{
-				auto range_details = DwarfUtil::formConstant(range);
-				/* In dwarf5, the range lists have a new encoding, so take the dwarf version used in account. */
-				if (ch.version() > 4)
-					DwarfUtil::panic();
-				r = pre_dwarf5_address_range(debug_ranges, range_details, f.base_address);
-			}
-			else
-			{
-				auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + compilation_unit_die.offset);
-				if (low_pc.form)
-				{
-					uint32_t start_address;
-					auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + compilation_unit_die.offset);
-					if (!hi_pc.form)
-						DwarfUtil::panic("Missing dwarf 'hi_pc' attribute for compilation unit; cannot compute compilation unit address ranges");
-					start_address = DwarfUtil::fetchHighLowPC(low_pc);
-					r = AddressRange(start_address, DwarfUtil::fetchHighLowPC(hi_pc, start_address));
-				}
-			}
-			f.range = r;
 			compilationUnitFingerprints.push_back(f);
+			compilationUnitFingerprints.back().range = getRangeOfDie(compilation_unit_die);
+		}
+		/* Handle dwarf4 type units as a special case. Ugly... */
+		uint32_t tu_header_offset = debug_info_len;
+		while (tu_header_offset < debug_info_len + debug_types_len)
+		{
+			compilationUnitFingerprints.push_back(CompilationUnitFingerprint(debug_info, tu_header_offset));
+			tu_header_offset += compilation_unit_header(this->debug_info + tu_header_offset).unit_length() + sizeof(uint32_t);
+
 		}
 	}
 	
@@ -2090,7 +2130,7 @@ private:
 	{
 		AddressRange	range;
 		/* The dwarf version of the compilation unit. */
-		int	version;
+		int		version;
 		uint32_t	cu_header_offset;
 		/* These are the offsets of the compilation unit's contribution to the '.debug_info' section.
 		 * The start offset is the offset of the first byte past the compilation unit header - it is
@@ -2108,7 +2148,11 @@ private:
 		 * A value of (-1) indicates that the respective base address is undefined. */
 		uint32_t	str_offsets_base = -1;
 		uint32_t	addr_base_section_offset = -1;
+		/*! \todo	One of these fields is redundant, because either of them can be computed from the other.
+		 * 		They are put here for convenience, but maybe eventually remove one of them. */
+		uint32_t	rnglist_header_base = -1;
 		uint32_t	rnglist_base = -1;
+
 		uint32_t	loclist_base = -1;
 
 		/* Compilation unit base address for range lists computations. */
@@ -2119,6 +2163,19 @@ private:
 		uint32_t	statement_list_offset = -1;
 
 		bool containsDieAtOffset(uint32_t die_offset) { return debug_info_start_offset <= die_offset && die_offset < debug_info_end_offset; }
+		/* Special case constructor, to be used only for dwarf4 type units. */
+		CompilationUnitFingerprint(const uint8_t * debug_info, uint32_t tu_header_offset)
+		{
+			compilation_unit_header h(debug_info + tu_header_offset);
+			this->cu_header_offset = tu_header_offset;
+			version = h.version();
+			if (h.version() != 4)
+				DwarfUtil::panic();
+			debug_info_start_offset = tu_header_offset + /* Hard coded - special case for dwarf4 type units! */ 23;
+			debug_info_end_offset = debug_info_start_offset + h.unit_length() - /* Hard coded - special case for dwarf4 type units! */ 23
+			        + /* The unit_length field size itself is not included in the unit_length value, account for this. */sizeof(uint32_t);
+
+		}
 		CompilationUnitFingerprint(const uint8_t * debug_info, uint32_t cu_header_offset, const uint8_t * debug_abbrev_data_of_compilation_unit_die, const void * debug_str)
 		{
 			compilation_unit_header h(debug_info + cu_header_offset);
@@ -2140,7 +2197,10 @@ private:
 				addr_base_section_offset = DwarfUtil::formConstant(s);
 			s = a.dataForAttribute(DW_AT_rnglists_base, debug_info_bytes);
 			if (s.form)
+			{
 				rnglist_base = DwarfUtil::formConstant(s);
+				rnglist_header_base = rnglist_base - dwarf5_rangelist_header::header_length();
+			}
 			s = a.dataForAttribute(DW_AT_loclists_base, debug_info_bytes);
 			if (s.form)
 				loclist_base = DwarfUtil::formConstant(s);
@@ -2159,7 +2219,7 @@ private:
 		}
 	};
 	std::vector<CompilationUnitFingerprint> compilationUnitFingerprints;
-	/* The last searched compilation unti fingerprint is cached with the intention to speed up subsequent searches. */
+	/* The last searched compilation unit fingerprint is cached with the intention to speed up subsequent searches. */
 	int lastSearchedCUFingerprintIndex = -1;
 	int cuFingerprintIndexForAddress(uint32_t address)
 	{
