@@ -27,6 +27,8 @@ THE SOFTWARE.
 #include <map>
 #include <vector>
 #include <sstream>
+#include <functional>
+
 #include <QDebug>
 #include <QMessageBox>
 
@@ -333,6 +335,8 @@ public:
 			return * (uint8_t *) a.debug_info_bytes;
 		case DW_FORM_data2:
 			return * (uint16_t *) a.debug_info_bytes;
+		case DW_FORM_rnglistx:
+			return uleb128(a.debug_info_bytes);
 		default:
 			panic();
 		}
@@ -352,20 +356,24 @@ public:
 			panic();
 		}
 	}
-	static const char * formString(const attribute_data & a, const uint8_t * debug_str)
+	static const char * formString(const attribute_data & a, const uint8_t * debug_str, std::function<const char * (unsigned x)> resolve_strx)
 	{
+		uint32_t x;
 		switch (a.form)
 		{
 		case DW_FORM_string:
 			return (const char *) a.debug_info_bytes;
 		case DW_FORM_strp:
 			return (const char *) (debug_str + * (uint32_t *) a.debug_info_bytes);
+		case DW_FORM_strx1:
+			x = * a.debug_info_bytes;
+			return resolve_strx(x);
 		default:
 			panic();
 		}
 	}
 
-	static uint32_t fetchHighLowPC(const attribute_data & a, uint32_t relocation_address = 0)
+	static uint32_t fetchHighLowPC(const attribute_data & a, const std::function<uint32_t (unsigned x)> & addrx_resolver, uint32_t relocation_address = 0)
 	{
 		switch (a.form)
 		{
@@ -373,6 +381,8 @@ public:
 			return * (uint32_t *) a.debug_info_bytes;
 		case DW_FORM_data4:
 			return (* (uint32_t *) a.debug_info_bytes) + relocation_address;
+		case DW_FORM_addrx:
+			return addrx_resolver(DwarfUtil::uleb128(a.debug_info_bytes));
 		default:
 			panic();
 		}
@@ -1260,41 +1270,146 @@ abort:
 	}
 };
 
+/*! \todo	Line number debug information is broken and unchecked for dwarf versions 2 and 3 - fix and test this. */
 class DebugLine
 {
+	/*
+Dwarf3 line number program header layout
+
+offset	name					size
+0	unit_length 				4
+4	version					2
+6	header_length				4
+10	minimum_instruction_length		1
+11	default_is_stmt				1
+12	line_base				1
+13	line_range				1
+14	opcode_base				1
+15	standard_opcode_lengths			variable: n = opcode_base - 1
+15 + n	include_directories			sequence of path names, variable
+						last entry is followed by a single
+						null byte
+x	file_names				sequence of file entries;
+						each entry has the following format:
+						- null terminated string, file name
+						- uleb128 number - directorry index for
+						the file name
+						- uleb128 number - time of last modification, 0 if unavailable
+						- uleb128 number - file size in bytes, 0 if unavailable
+
+
+Dwarf4 line number program header layout
+
+offset	name					size
+0	unit_length 				4
+4	version					2
+6	header_length				4
+10	minimum_instruction_length		1
+11	maximum_operations_per_instruction	1
+12	default_is_stmt				1
+13	line_base				1
+14	line_range				1
+15	opcode_base				1
+16	standard_opcode_lengths			variable: n = opcode_base - 1
+16 + n	include_directories			sequence of path names, variable
+						last entry is followed by a single
+						null byte
+x	file_names				sequence of file entries;
+						each entry has the following format:
+						- null terminated string, file name
+						- uleb128 number - directorry index for
+						the file name
+						- uleb128 number - time of last modification, 0 if unavailable
+						- uleb128 number - file size in bytes, 0 if unavailable
+Dwarf5 line number program header layout
+
+offset	name					size
+0	unit_length 				4
+4	version					2
+6	address_size				1
+7	segment_selector_size			1
+8	header_length				4
+12	minimum_instruction_length		1
+13	maximum_operations_per_instruction	1
+14	default_is_stmt				1
+15	line_base				1
+16	line_range				1
+17	opcode_base				1
+18	standard_opcode_lengths			variable: n = opcode_base - 1
+18 + n	directory_entry_format_count		1
+... finish this
+*/
 private:
 	const uint8_t *	debug_line, * header;
 	uint32_t	debug_line_len;
 	
 	uint32_t unit_length(void) { return * (uint32_t *) header; }
 	uint16_t version(void) { return * (uint16_t *) (header + 4); }
-	uint32_t header_length(void) { return * (uint32_t *) (header + 6); }
-	uint8_t minimum_instruction_length(void) { return * (uint8_t *) (header + 10); }
+	uint32_t header_length(void)
+	{
+		if (version() < 5) return * (uint32_t *) (header + 6);
+		else if (version() == 5) return * (uint32_t *) (header + 8);
+		else DwarfUtil::panic();
+	}
+	uint8_t minimum_instruction_length(void)
+	{
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: return * (uint8_t *) (header + 10);
+		case 4: return * (uint8_t *) (header + 10);
+		case 5: return * (uint8_t *) (header + 12);
+		}
+	}
 	/* Introduced in DWARF 4 */
-	uint8_t maximum_operations_per_instruction(void) { if (version() < 4) DwarfUtil::panic(); return * (uint8_t *) (header + 11); }
+	uint8_t maximum_operations_per_instruction(void)
+	{
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 4: return * (uint8_t *) (header + 11);
+		case 5: return * (uint8_t *) (header + 13);
+		}
+	}
 	uint8_t default_is_stmt(void)
 	{
-		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 11);
-		else if (version() == 4) return * (uint8_t *) (header + 12);
-		else DwarfUtil::panic();
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: return * (uint8_t *) (header + 11);
+		case 4: return * (uint8_t *) (header + 12);
+		case 5: return * (uint8_t *) (header + 14);
+		}
 	}
 	int8_t line_base(void)
 	{
-		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 12);
-		else if (version() == 4) return * (uint8_t *) (header + 13);
-		else DwarfUtil::panic();
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: return * (uint8_t *) (header + 12);
+		case 4: return * (uint8_t *) (header + 13);
+		case 5: return * (uint8_t *) (header + 15);
+		}
 	}
 	uint8_t line_range(void)
 	{
-		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 13);
-		else if (version() == 4) return * (uint8_t *) (header + 14);
-		else DwarfUtil::panic();
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: return * (uint8_t *) (header + 13);
+		case 4: return * (uint8_t *) (header + 14);
+		case 5: return * (uint8_t *) (header + 16);
+		}
 	}
 	uint8_t opcode_base(void)
 	{
-		if (version() == 2 || version() == 3) return * (uint8_t *) (header + 14);
-		else if (version() == 4) return * (uint8_t *) (header + 15);
-		else DwarfUtil::panic();
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: return * (uint8_t *) (header + 14);
+		case 4: return * (uint8_t *) (header + 15);
+		case 5: return * (uint8_t *) (header + 17);
+		}
 	}
 	/*! \todo	Field 'standard_opcode_lengths' is not handled at all! Add support for this! */
 	int standard_opcode_lengths_field_offset(void)
@@ -2015,7 +2130,25 @@ private:
 	const uint8_t * debug_str_offsets;
 	uint32_t	debug_str_offsets_len;
 
-	AddressRange getRangeOfDie(const Die & die)
+	std::function<const char * (unsigned x)> getStrxResolver(uint32_t die_offset)
+	{
+		return [this, die_offset](unsigned x) -> const char *
+		{
+			auto cu = compilationUnitFingerprints.at(cuFingerprintIndexForDieOffset(die_offset));
+			return (const char *)(debug_str + ((uint32_t *)(debug_str_offsets + cu.str_offsets_base))[x]);
+		};
+	}
+
+	std::function<uint32_t (unsigned x)> getAddrxResolver(uint32_t die_offset)
+	{
+		return [this, die_offset](unsigned x) -> uint32_t
+		{
+			auto cu = compilationUnitFingerprints.at(cuFingerprintIndexForDieOffset(die_offset));
+			return x[((uint32_t *)(debug_addr + cu.addr_base_section_offset))];
+		};
+	}
+
+	AddressRange getRangeOfDie(const Die & die, const std::function<uint32_t (unsigned x)> & addrx_resolver)
 	{
 		struct AddressRange r;
 
@@ -2054,9 +2187,17 @@ private:
 				uint32_t start_address;
 				auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
 				if (!hi_pc.form)
-					DwarfUtil::panic("Missing dwarf 'hi_pc' attribute for compilation unit; cannot compute compilation unit address ranges");
-				start_address = DwarfUtil::fetchHighLowPC(low_pc);
-				r = AddressRange(start_address, DwarfUtil::fetchHighLowPC(hi_pc, start_address));
+				{
+					/* Call site and label dies (DW_TAG_call_site and DW_TAG_label) may have a DW_AT_low_pc attribute,
+					 * and should not have a DW_AT_high_pc attribute. */
+					if (die.tag != DW_TAG_call_site && die.tag != DW_TAG_GNU_call_site && die.tag != DW_TAG_label)
+						DwarfUtil::panic("Missing dwarf 'hi_pc' attribute for die; cannot build an address range");
+				}
+				else
+				{
+					start_address = DwarfUtil::fetchHighLowPC(low_pc, addrx_resolver);
+					r = AddressRange(start_address, DwarfUtil::fetchHighLowPC(hi_pc, addrx_resolver, start_address));
+				}
 			}
 		}
 		return r;
@@ -2069,12 +2210,10 @@ private:
 		{
 			auto ch = compilation_unit_header(this->debug_info + cu_header_offset);
 			auto cu_die_offset = cu_header_offset + /* skip compilation unit header */ ch.header_length();
-			if (ch.version() > 4)
-				DwarfUtil::panic("Dwarf 5 introduces a new representation of address ranges that is not yet handled");
-			CompilationUnitFingerprint f(debug_info, cu_header_offset, debug_abbrev + abbreviationOffsetForDieOffset(cu_header_offset + ch.header_length()), debug_str);
+			CompilationUnitFingerprint f(debug_info, cu_header_offset, debug_abbrev + abbreviationOffsetForDieOffset(cu_header_offset + ch.header_length()), debug_str, debug_str_offsets, debug_addr);
 			auto compilation_unit_die = debug_tree_of_die(cu_die_offset, 0, 1).at(0);
 			compilationUnitFingerprints.push_back(f);
-			compilationUnitFingerprints.back().range = getRangeOfDie(compilation_unit_die);
+			compilationUnitFingerprints.back().range = getRangeOfDie(compilation_unit_die, getAddrxResolver(cu_die_offset));
 		}
 		/* Handle dwarf4 type units as a special case. Ugly... */
 		uint32_t tu_header_offset = debug_info_len;
@@ -2176,7 +2315,7 @@ private:
 			        + /* The unit_length field size itself is not included in the unit_length value, account for this. */sizeof(uint32_t);
 
 		}
-		CompilationUnitFingerprint(const uint8_t * debug_info, uint32_t cu_header_offset, const uint8_t * debug_abbrev_data_of_compilation_unit_die, const void * debug_str)
+		CompilationUnitFingerprint(const uint8_t * debug_info, uint32_t cu_header_offset, const uint8_t * debug_abbrev_data_of_compilation_unit_die, const void * debug_str, const uint8_t * debug_str_offsets, const uint8_t * debug_addr)
 		{
 			compilation_unit_header h(debug_info + cu_header_offset);
 			this->cu_header_offset = cu_header_offset;
@@ -2207,7 +2346,10 @@ private:
 
 			s = a.dataForAttribute(DW_AT_low_pc, debug_info_bytes);
 			if (s.form)
-				base_address = DwarfUtil::fetchHighLowPC(s);
+				base_address = DwarfUtil::fetchHighLowPC(s,
+				        [this, debug_addr](unsigned x) -> uint32_t {
+					return ((uint32_t *)(debug_addr + addr_base_section_offset))[x];
+				});
 
 			s = a.dataForAttribute(DW_AT_stmt_list, debug_info_bytes);
 			if (s.form)
@@ -2215,7 +2357,10 @@ private:
 
 			s = a.dataForAttribute(DW_AT_comp_dir, debug_info_bytes);
 			if (s.form)
-				compilation_directory_name = DwarfUtil::formString(s, (const uint8_t *) debug_str);
+				compilation_directory_name = DwarfUtil::formString(s, (const uint8_t *) debug_str,
+				           [this, debug_str_offsets, debug_str](unsigned x) -> const char * {
+					return (const char *)(debug_str + ((uint32_t *)(debug_str_offsets + str_offsets_base))[x]);
+				});
 		}
 	};
 	std::vector<CompilationUnitFingerprint> compilationUnitFingerprints;
@@ -2419,26 +2564,6 @@ public:
 
 private:
 
-	bool isAddressInRange(const CompilationUnitFingerprint & cu, const struct Die & die, uint32_t address, const struct Die & compilation_unit_die)
-	{
-		struct Abbreviation a(debug_abbrev + die.abbrev_offset);
-		auto range = a.dataForAttribute(DW_AT_ranges, debug_info + die.offset);
-		if (cu.version > 4)
-			DwarfUtil::panic();
-		if (range.form)
-			//return AddressRange(debug_ranges, DwarfUtil::formConstant(range), cu.base_address).isAddressInRange(address);
-			return pre_dwarf5_address_range(debug_ranges, DwarfUtil::formConstant(range), cu.base_address).isAddressInRange(address);
-		auto low_pc = a.dataForAttribute(DW_AT_low_pc, debug_info + die.offset);
-		if (low_pc.form)
-		{
-			auto hi_pc = a.dataForAttribute(DW_AT_high_pc, debug_info + die.offset);
-			if (!hi_pc.form)
-				return false;
-			auto low_pc_value = DwarfUtil::fetchHighLowPC(low_pc);
-			return AddressRange(low_pc_value, DwarfUtil::fetchHighLowPC(hi_pc, low_pc_value)).isAddressInRange(address);
-		}
-		return false;
-	}
 	/*! \todo	the name of this function is misleading, it really reads a sequence of dies on a same die tree level; that
 	 * 		is because of the dwarf die flattenned tree representation */
 	/*! \todo	This is an essential core function, it can be made more efficient by utilizing the dwarf die fingerprint array. */
@@ -2508,8 +2633,9 @@ public:
 		auto compilation_unit_die = debug_tree_of_die(die_offset, 0, 1);
 		int i(0);
 		std::vector<struct Die> * die_list(& compilation_unit_die);
+		auto addrx_resolver = getAddrxResolver(compilation_unit_die.at(0).offset);
 		while (i < die_list->size())
-			if (isAddressInRange(compilationUnitFingerprints.at(cu_index), die_list->at(i), address, compilation_unit_die.at(0)))
+			if (getRangeOfDie(die_list->at(i), addrx_resolver).isAddressInRange(address))
 			{
 				uint32_t die_offset(die_list->at(i).offset);
 				die_list->at(i).children = debug_tree_of_die(die_offset, /* read only immediate die children */ 0, 2).at(0).children;
@@ -2527,6 +2653,7 @@ public:
 		if (!x.size())
 			return false;
 		auto d = x.back().children.begin();
+		auto addrx_resolver = getAddrxResolver(x.at(0).offset);
 		while (d != x.back().children.end())
 		{
 			/*! \todo DW_TAG_call_site is officially a part of DWARF5, and is somewhat different than
@@ -2538,7 +2665,7 @@ public:
 			{
 				Abbreviation a(debug_abbrev + d->abbrev_offset);
 				auto l = a.dataForAttribute(DW_AT_low_pc, debug_info + d->offset);
-				if (l.form && DwarfUtil::fetchHighLowPC(l) == address)
+				if (l.form && DwarfUtil::fetchHighLowPC(l, addrx_resolver) == address)
 				{
 					call_site = * d;
 					/* make sure that the call site's children have been read */
@@ -2625,7 +2752,7 @@ public:
 		DebugLine l(debug_line, debug_line_len);
 		static const char * compilation_directory_string = "<<< unknown compilation directory >>>";
 		if (compilation_directory.form)
-			compilation_directory_string = DwarfUtil::formString(compilation_directory, debug_str);
+			compilation_directory_string = DwarfUtil::formString(compilation_directory, debug_str, getStrxResolver(die_offset));
 		l.skipToOffset(DwarfUtil::formConstant(statement_list));
 		if (file.form)
 			l.stringsForFileNumber(DwarfUtil::formConstant(file), s.file_name, s.directory_name, compilation_directory_string);
@@ -3227,7 +3354,7 @@ node.data.push_back("!!! recursion detected !!!");
 			if (DwarfUtil::formConstant(x) == value)
 			{
 				auto x = a.dataForAttribute(DW_AT_name, debug_info + die.children.at(i).offset);
-				return DwarfUtil::formString(x, debug_str);
+				return DwarfUtil::formString(x, debug_str, getStrxResolver(enumeration_die_offset));
 			}
 		}
 		return "<<< unknown enumerator value >>>";
@@ -3244,7 +3371,7 @@ node.data.push_back("!!! recursion detected !!!");
 				return nameOfDie(referred_die);
 			else return is_empty_name_allowed ? "" : "<<< no name >>>";
 		}
-		return DwarfUtil::formString(x, debug_str);
+		return DwarfUtil::formString(x, debug_str, getStrxResolver(die.offset));
 	}
 	void dumpLines(void)
 	{
@@ -3383,11 +3510,12 @@ node.data.push_back("!!! recursion detected !!!");
 				continue;
 			l.skipToOffset(DwarfUtil::formConstant(x));
 			x = a.dataForAttribute(DW_AT_name, debug_info + cu_die_offset);
+			auto strx_resolver = getStrxResolver(cu_die_offset);
 			if (x.form)
-				filename = DwarfUtil::formString(x, debug_str);
+				filename = DwarfUtil::formString(x, debug_str, strx_resolver);
 			x = a.dataForAttribute(DW_AT_comp_dir, debug_info + cu_die_offset);
 			if (x.form)
-				compilation_directory = DwarfUtil::formString(x, debug_str);
+				compilation_directory = DwarfUtil::formString(x, debug_str, strx_resolver);
 			/*! \todo	is this line below necessary??? */
 			//sources.push_back((struct DebugLine::sourceFileNames) { .file = filename, .directory = compilation_directory, .compilation_directory = compilation_directory, });
 			/* Some compilers (e.g. the ARM compiler) do not bother emitting any entries in the
