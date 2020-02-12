@@ -1434,11 +1434,11 @@ private:
 		return p + 1;
 	}
 	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
-	struct line_state { uint32_t file, address, is_stmt; int line, column; } registers[2], * current, * prev;
+	struct line_state { uint32_t file, address, is_stmt; int line, column; } registers[2], * current_line_state, * prev_line_state;
 	void init(void) { registers[0] = (struct line_state) { .file = 1, .address = 0, .is_stmt = default_is_stmt(), .line = 1, .column = 0, };
 				registers[1] = (struct line_state) { .file = 1, .address = 0xffffffff, .is_stmt = 0, .line = -1, .column = -1, };
-				current = registers, prev = registers + 1; }
-	void swap(void) { struct line_state * x(current); current = prev; prev = x; }
+				current_line_state = registers, prev_line_state = registers + 1; }
+	void swap(void) { struct line_state * x(current_line_state); current_line_state = prev_line_state; prev_line_state = x; }
 	void validateHeader(void)
 	{
 		if (version() != 2 && version() != 3 && version() != 4) DwarfUtil::panic();
@@ -1512,9 +1512,9 @@ public:
 						break;
 					case DW_LNE_set_address:
 						if (len != 5) DwarfUtil::panic();
-						current->address = * (uint32_t *) p;
-						p += sizeof current->address;
-						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "extended opcode, set address to" << HEX(current->address);
+						current_line_state->address = * (uint32_t *) p;
+						p += sizeof current_line_state->address;
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "extended opcode, set address to" << HEX(current_line_state->address);
 						break;
 				}
 			}
@@ -1522,11 +1522,11 @@ public:
 			{
 				/* special opcodes */
 				uint8_t x = * p ++ - op_base;
-				current->address += (x / lrange) * min_insn_length;
-				current->line += lbase + x % lrange;
-				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
+				current_line_state->address += (x / lrange) * min_insn_length;
+				current_line_state->line += lbase + x % lrange;
+				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current_line_state->address) << "line to" << current_line_state->line;
 				swap();
-				* current = * prev;
+				* current_line_state = * prev_line_state;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -1543,37 +1543,37 @@ public:
 						DwarfUtil::panic();*/
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
 					swap();
-					* current = * prev;
+					* current_line_state = * prev_line_state;
 					break;
 				case DW_LNS_advance_pc:
-					current->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					current_line_state->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current_line_state->address);
 					p += len;
 					break;
 				case DW_LNS_advance_line:
-					current->line += DwarfUtil::sleb128(p, & len);
+					current_line_state->line += DwarfUtil::sleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance line to" << current->line;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance line to" << current_line_state->line;
 					break;
 				case DW_LNS_const_add_pc:
-					current->address += ((255 - op_base) / lrange) * min_insn_length;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					current_line_state->address += ((255 - op_base) / lrange) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current_line_state->address);
 					break;
 				case DW_LNS_set_file:
-					current->file = DwarfUtil::uleb128(p, & len);
-					if (!current->file)
+					current_line_state->file = DwarfUtil::uleb128(p, & len);
+					if (!current_line_state->file)
 						DwarfUtil::panic();
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current->file;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current_line_state->file;
 					break;
 				case DW_LNS_set_column:
-					current->column = DwarfUtil::uleb128(p, & len);
+					current_line_state->column = DwarfUtil::uleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current->column;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current_line_state->column;
 					break;
 				case DW_LNS_negate_stmt:
-					current->is_stmt = ! current->is_stmt;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set is_stmt to " << current->is_stmt;
+					current_line_state->is_stmt = ! current_line_state->is_stmt;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set is_stmt to " << current_line_state->is_stmt;
 					break;
 			}
 		}
@@ -1631,20 +1631,20 @@ public:
 				}
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
-						if (prev->address <= target_address && target_address < current->address)
+						if (prev_line_state->address <= target_address && target_address < current_line_state->address)
 						{
-							if (prev->address == target_address && prev->is_stmt)
+							if (prev_line_state->address == target_address && prev_line_state->is_stmt)
 								is_address_on_exact_line_number_boundary = true;
-							return file_number = prev->file, prev->line;
+							return file_number = prev_line_state->file, prev_line_state->line;
 						}
 						init();
 						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "end of sequence";
 						break;
 					case DW_LNE_set_address:
 						if (len != 5) DwarfUtil::panic();
-						current->address = * (uint32_t *) p;
-						p += sizeof current->address;
-						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "extended opcode, set address to" << HEX(current->address);
+						current_line_state->address = * (uint32_t *) p;
+						p += sizeof current_line_state->address;
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "extended opcode, set address to" << HEX(current_line_state->address);
 						break;
 				}
 			}
@@ -1652,17 +1652,17 @@ public:
 			{
 				/* special opcodes */
 				uint8_t x = * p ++ - op_base;
-				current->address += (x / lrange) * min_insn_length;
-				current->line += lbase + x % lrange;
-				if (prev->address <= target_address && target_address < current->address)
+				current_line_state->address += (x / lrange) * min_insn_length;
+				current_line_state->line += lbase + x % lrange;
+				if (prev_line_state->address <= target_address && target_address < current_line_state->address)
 				{
-					if (prev->address == target_address && prev->is_stmt)
+					if (prev_line_state->address == target_address && prev_line_state->is_stmt)
 						is_address_on_exact_line_number_boundary = true;
-					return file_number = prev->file, prev->line;
+					return file_number = prev_line_state->file, prev_line_state->line;
 				}
-				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
+				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current_line_state->address) << "line to" << current_line_state->line;
 				swap();
-				* current = * prev;
+				* current_line_state = * prev_line_state;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -1678,42 +1678,42 @@ public:
 					if (xaddr <= target_address && target_address < address)
 						DwarfUtil::panic();*/
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
-					if (prev->address <= target_address && target_address < current->address)
+					if (prev_line_state->address <= target_address && target_address < current_line_state->address)
 					{
-						if (prev->address == target_address && prev->is_stmt)
+						if (prev_line_state->address == target_address && prev_line_state->is_stmt)
 							is_address_on_exact_line_number_boundary = true;
-						return file_number = prev->file, prev->line;
+						return file_number = prev_line_state->file, prev_line_state->line;
 					}
 					swap();
-					* current = * prev;
+					* current_line_state = * prev_line_state;
 					break;
 				case DW_LNS_advance_pc:
-					current->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					current_line_state->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current_line_state->address);
 					p += len;
 					break;
 				case DW_LNS_advance_line:
-					current->line += DwarfUtil::sleb128(p, & len);
+					current_line_state->line += DwarfUtil::sleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance line to" << current->line;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance line to" << current_line_state->line;
 					break;
 				case DW_LNS_const_add_pc:
-					current->address += ((255 - op_base) / lrange) * min_insn_length;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					current_line_state->address += ((255 - op_base) / lrange) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current_line_state->address);
 					break;
 				case DW_LNS_set_file:
-					current->file = DwarfUtil::uleb128(p, & len);
+					current_line_state->file = DwarfUtil::uleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current->file;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current_line_state->file;
 					break;
 				case DW_LNS_set_column:
-					current->column = DwarfUtil::uleb128(p, & len);
+					current_line_state->column = DwarfUtil::uleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current->column;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current_line_state->column;
 					break;
 				case DW_LNS_negate_stmt:
-					current->is_stmt = ! current->is_stmt;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set is_stmt to " << current->is_stmt;
+					current_line_state->is_stmt = ! current_line_state->is_stmt;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set is_stmt to " << current_line_state->is_stmt;
 					break;
 			}
 		}
@@ -1771,12 +1771,12 @@ public:
 				}
 					case DW_LNE_end_sequence:
 						if (len != 1) DwarfUtil::panic();
-						if (current->file == file_number)
+						if (current_line_state->file == file_number)
 						{
-							line_data.address = prev->address;
-							line_data.is_stmt = prev->is_stmt;
-							line_data.line = current->line;
-							line_data.address_span = current->address;
+							line_data.address = prev_line_state->address;
+							line_data.is_stmt = prev_line_state->is_stmt;
+							line_data.line = current_line_state->line;
+							line_data.address_span = current_line_state->address;
 							line_addresses.push_back(line_data);
 						}
 						init();
@@ -1784,9 +1784,9 @@ public:
 						break;
 					case DW_LNE_set_address:
 						if (len != 5) DwarfUtil::panic();
-						current->address = * (uint32_t *) p;
-						p += sizeof current->address;
-						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "extended opcode, set address to" << HEX(current->address);
+						current_line_state->address = * (uint32_t *) p;
+						p += sizeof current_line_state->address;
+						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "extended opcode, set address to" << HEX(current_line_state->address);
 						break;
 				}
 			}
@@ -1794,19 +1794,19 @@ public:
 			{
 				/* special opcodes */
 				uint8_t x = * p ++ - op_base;
-				current->address += (x / lrange) * min_insn_length;
-				current->line += lbase + x % lrange;
-				if (prev->file == file_number)
+				current_line_state->address += (x / lrange) * min_insn_length;
+				current_line_state->line += lbase + x % lrange;
+				if (prev_line_state->file == file_number)
 				{
-					line_data.address = prev->address;
-					line_data.is_stmt = prev->is_stmt;
-					line_data.line = prev->line;
-					line_data.address_span = current->address;
+					line_data.address = prev_line_state->address;
+					line_data.is_stmt = prev_line_state->is_stmt;
+					line_data.line = prev_line_state->line;
+					line_data.address_span = current_line_state->address;
 					line_addresses.push_back(line_data);
 				}
-				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current->address) << "line to" << current->line;
+				if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "special opcode, set address to" << HEX(current_line_state->address) << "line to" << current_line_state->line;
 				swap();
-				* current = * prev;
+				* current_line_state = * prev_line_state;
 			}
 			/* standard opcodes */
 			else switch (* p ++)
@@ -1818,44 +1818,44 @@ public:
 					break;
 				case DW_LNS_copy:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "copy";
-					if (prev->file == file_number)
+					if (prev_line_state->file == file_number)
 					{
-						line_data.address = prev->address;
-						line_data.is_stmt = prev->is_stmt;
-						line_data.line = prev->line;
-						line_data.address_span = current->address;
+						line_data.address = prev_line_state->address;
+						line_data.is_stmt = prev_line_state->is_stmt;
+						line_data.line = prev_line_state->line;
+						line_data.address_span = current_line_state->address;
 						line_addresses.push_back(line_data);
 					}
 					swap();
-					* current = * prev;
+					* current_line_state = * prev_line_state;
 					break;
 				case DW_LNS_advance_pc:
-					current->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					current_line_state->address += DwarfUtil::uleb128(p, & len) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current_line_state->address);
 					p += len;
 					break;
 				case DW_LNS_advance_line:
-					current->line += DwarfUtil::sleb128(p, & len);
+					current_line_state->line += DwarfUtil::sleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance line to" << current->line;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance line to" << current_line_state->line;
 					break;
 				case DW_LNS_const_add_pc:
-					current->address += ((255 - op_base) / lrange) * min_insn_length;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current->address);
+					current_line_state->address += ((255 - op_base) / lrange) * min_insn_length;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "advance pc to" << HEX(current_line_state->address);
 					break;
 				case DW_LNS_set_file:
-					current->file = DwarfUtil::uleb128(p, & len);
+					current_line_state->file = DwarfUtil::uleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current->file;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set file to" << current_line_state->file;
 					break;
 				case DW_LNS_set_column:
-					current->column = DwarfUtil::uleb128(p, & len);
+					current_line_state->column = DwarfUtil::uleb128(p, & len);
 					p += len;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current->column;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set column to" << current_line_state->column;
 					break;
 				case DW_LNS_negate_stmt:
-					current->is_stmt = ! current->is_stmt;
-					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set is_stmt to " << current->is_stmt;
+					current_line_state->is_stmt = ! current_line_state->is_stmt;
+					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set is_stmt to " << current_line_state->is_stmt;
 					break;
 			}
 		}
