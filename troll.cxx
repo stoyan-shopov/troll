@@ -568,8 +568,13 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	source_file.setFileName(finfo.canonicalFilePath());
 	
 	x.start();
-	//dwdata->addressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
-	dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	/*! \todo
+	 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	 * Choosing between 'addressRangesForFile()' and 'addressesForFile()' makes a HUGE difference for
+	 * the disassembly, but I do not remember what the difference exactly is!!! Resolve this issue!!!
+	 */
+	dwdata->addressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	//dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
