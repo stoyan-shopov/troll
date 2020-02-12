@@ -108,8 +108,12 @@ void GdbServer::handleGdbPacket(const QByteArray &packet)
 		else
 		{
 			int address = match.captured(1).toUInt(0, 16), len = match.captured(2).toUInt(0, 16);
-			QByteArray data = target->readBytes(address, len);
-			sendGdbReply(GdbRemote::rawResponsePacket(data.toHex()));
+			QByteArray data = target->readBytes(address, len, true);
+			if (data.length() == len)
+				sendGdbReply(GdbRemote::rawResponsePacket(data.toHex()));
+			else
+				/* Error reading memory. */
+				sendGdbReply(GdbRemote::errorReplyPacket(1));
 		}
 	}
 	else if (pd.startsWith("qXfer:features:read:target.xml:"))
