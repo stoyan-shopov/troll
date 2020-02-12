@@ -87,7 +87,7 @@ create expression-stack expression-stack-depth expression-stack-frame-size * all
 	dup 0 cells + @ [ ' frame-base-rule >body ] literal !
 	dup 1 cells + @ to frame-base-value
 	dup 2 cells + @ to cfa-value
-	3 cells + to expression-value-type
+	3 cells + @ to expression-value-type
 	;
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
