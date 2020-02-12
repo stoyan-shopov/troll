@@ -140,7 +140,7 @@ public:
 		uint8_t x;
 		int shift = * decoded_len = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7, (* decoded_len) ++; while (x & 0x80);
-		if (result > 0xffffffff)
+		if ((int64_t) result != (int32_t) result)
 			panic();
 		/* handle sign */
 		if (x & 0x40)
@@ -154,7 +154,7 @@ public:
 		uint8_t x;
 		int shift = 0;
 		do x = * data ++, result |= ((x & 0x7f) << shift), shift += 7; while (x & 0x80);
-		if (result > 0xffffffff)
+		if ((int64_t) result != (int32_t) result)
 			panic();
 		/* handle sign */
 		if (x & 0x40)
@@ -1143,8 +1143,7 @@ struct DwarfExpression
 					DwarfUtil::sleb128(dwarf_expression, & bytes_to_skip);
 					break;
 				case DW_OP_constu:
-					x << "CONSTU-UNSUPPORTED!!! ";
-					DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip);
+					x << DwarfUtil::uleb128(dwarf_expression, & bytes_to_skip) << " ( dw_op_constu ) ";
 					break;
 				case DW_OP_GNU_convert:
 				case DW_OP_convert:
@@ -1414,16 +1413,17 @@ private:
 	/*! \todo	Field 'standard_opcode_lengths' is not handled at all! Add support for this! */
 	int standard_opcode_lengths_field_offset(void)
 	{
-		if (version() == 2 || version() == 3) return 15;
-		else if (version() == 4) return 16;
-		else DwarfUtil::panic();
+		switch (version())
+		{
+		default: DwarfUtil::panic();
+		case 3: return 15;
+		case 4: return 16;
+		case 5: return 18;
+		}
 	}
 	const char * include_directories(void)
 	{
-		int i(opcode_base());
-		const uint8_t * p(header + standard_opcode_lengths_field_offset());
-		while (-- i) DwarfUtil::uleb128x(p);
-		return (const char *) p;
+		return (const char *) (header + standard_opcode_lengths_field_offset() + opcode_base() - 1);
 	}
 	const char * file_names(void)
 	{
@@ -1467,6 +1467,7 @@ public:
 		init();
 		if (DEBUG_LINE_PROGRAMS_ENABLED)
 		{
+			DwarfUtil::panic("broken for dwarf 5");
 			qDebug() << "debug line for offset" << HEX(header - debug_line);
 			qDebug() << "include directories table:";
 			union { const char * s; const uint8_t * p; } x;
@@ -1590,6 +1591,7 @@ public:
 		is_address_on_exact_line_number_boundary = false;
 		if (DEBUG_LINE_PROGRAMS_ENABLED)
 		{
+			DwarfUtil::panic("broken for dwarf 5");
 			qDebug() << "debug line for offset" << HEX(header - debug_line);
 			qDebug() << "include directories table:";
 			union { const char * s; const uint8_t * p; } x;
@@ -1668,7 +1670,10 @@ public:
 				default:
 					DwarfUtil::panic();
 					break;
-				case DW_LNS_copy:
+			        case DW_LNS_set_prologue_end:
+				        if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set prologue end to true";
+				        break;
+			        case DW_LNS_copy:
 				/*
 					if (xaddr <= target_address && target_address < address)
 						DwarfUtil::panic();*/
@@ -1726,6 +1731,7 @@ public:
 		struct lineAddress line_data;
 		if (DEBUG_LINE_PROGRAMS_ENABLED)
 		{
+			DwarfUtil::panic("broken for dwarf 5");
 			qDebug() << "debug line for offset" << HEX(header - debug_line);
 			qDebug() << "include directories table:";
 			union { const char * s; const uint8_t * p; } x;
@@ -2174,6 +2180,13 @@ private:
 					DwarfUtil::panic();
 				auto range_index = DwarfUtil::formConstant(range);
 				r = dwarf5_rangelist_header(debug_rnglists + cu.rnglist_header_base, range_index, (uint32_t *) (debug_addr + cu.addr_base_section_offset), cu.base_address);
+			}
+			else if /* dwarf3 */ (range.form == DW_FORM_data4)
+			{
+				if (cu.version != 3)
+					DwarfUtil::panic();
+				auto range_offset = DwarfUtil::formConstant(range);
+				r = pre_dwarf5_address_range(debug_ranges, range_offset, cu.base_address);
 			}
 			else
 				DwarfUtil::panic();
