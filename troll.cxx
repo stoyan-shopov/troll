@@ -334,7 +334,7 @@ void MainWindow::populateSourceFilesView(bool show_only_files_with_generated_mac
 		if (show_only_files_with_generated_machine_code)
 		{
 			std::vector<struct DebugLine::lineAddress> line_addresses;
-			dwdata->addressesForFile(sources.at(i).file, line_addresses);
+			dwdata->suggestedBreakpointLocationsForFile(sources.at(i).file, line_addresses);
 			if (!line_addresses.size())
 				continue;
 		}
@@ -573,7 +573,7 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	 * Choosing between 'addressRangesForFile()' and 'addressesForFile()' makes a HUGE difference for
 	 * the disassembly, but I do not remember what the difference exactly is!!! Resolve this issue!!!
 	 */
-	dwdata->addressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	dwdata->disassemblyAddressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
 	//dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
