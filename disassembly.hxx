@@ -138,6 +138,8 @@ public:
 		QByteArray data;
 		if (line_for_address)
 			* line_for_address = -1;
+		/* Force proper disassembly address alignment. */
+		address &=~ 1;
 		data = target->readBytes(address, 4, true);
 		if (!data.size())
 		{
