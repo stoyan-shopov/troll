@@ -552,8 +552,10 @@ QTextCharFormat cf;
 QTime x;
 int i, cursor_position_for_line(0);
 QFileInfo finfo(directory_name + "/" + adjusted_filename);
-std::vector<struct DebugLine::lineAddress> line_addresses;
+std::vector<struct DebugLine::lineAddress> disassemblyRanges;
+std::vector<struct DebugLine::lineAddress> suggestedBreakpointLines;
 std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
+std::map<uint32_t, struct DebugLine::lineAddress *> suggestedBreakpointLinesIndices;
 
 	src.address_positions_in_document.clear();
 	src.line_positions_in_document.clear();
@@ -573,19 +575,24 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 	 * Choosing between 'addressRangesForFile()' and 'addressesForFile()' makes a HUGE difference for
 	 * the disassembly, but I do not remember what the difference exactly is!!! Resolve this issue!!!
 	 */
-	dwdata->disassemblyAddressRangesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
-	//dwdata->addressesForFile(source_filename.toLocal8Bit().constData(), line_addresses);
+	dwdata->disassemblyAddressRangesForFile(source_filename.toLocal8Bit().constData(), disassemblyRanges);
+	//dwdata->suggestedBreakpointLocationsForFile(source_filename.toLocal8Bit().constData(), disassemblyRanges);
+	dwdata->suggestedBreakpointLocationsForFile(source_filename.toLocal8Bit().constData(), suggestedBreakpointLines);
 	if (/* this is not exact, which it needs not be */ x.elapsed() > profiling.max_addresses_for_file_retrieval_time)
 		profiling.max_addresses_for_file_retrieval_time = x.elapsed();
 	qDebug() << "addresses for file retrieved in " << x.elapsed() << "milliseconds";
-	qDebug() << "addresses for file count: " << line_addresses.size();
+	qDebug() << "addresses for file count: " << disassemblyRanges.size();
 	x.restart();
 	
-	for (i = line_addresses.size() - 1; i >= 0; i --)
+	for (i = disassemblyRanges.size() - 1; i >= 0; i --)
 	{
-		line_addresses.at(i).next = line_indices[line_addresses.at(i).line];
-		line_indices[line_addresses.at(i).line] = & line_addresses.at(i);
+		disassemblyRanges.at(i).next = line_indices[disassemblyRanges.at(i).line];
+		line_indices[disassemblyRanges.at(i).line] = & disassemblyRanges.at(i);
+		//suggestedBreakpointLinesIndices[disassemblyRanges.at(i).line] ++;
 	}
+
+	for (const auto & line : suggestedBreakpointLines)
+		suggestedBreakpointLinesIndices[line.line] ++;
 
 	if (source_file.open(QFile::ReadOnly))
 	{
@@ -596,7 +603,8 @@ std::map<uint32_t, struct DebugLine::lineAddress *> line_indices;
 			src.line_positions_in_document[i] = t.length();
 			if (i == highlighted_line)
 				cursor_position_for_line = t.length();
-			t += QString("%2 %1|").arg(line_indices[i] ? '*' : ' ')
+			//t += QString("%2 %1|").arg(line_indices[i] ? '*' : ' ')
+			t += QString("%2 %1|").arg(suggestedBreakpointLinesIndices[i] ? '*' : ' ')
 					.arg(i, 0, 10, QChar(' ')) + source_file.readLine().replace('\t', "        ").replace('\r', "");
 			if (ui->actionShow_disassembly_address_ranges->isChecked())
 			{
