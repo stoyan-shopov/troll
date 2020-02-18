@@ -1270,6 +1270,7 @@ abort:
 };
 
 /*! \todo	Line number debug information is broken and unchecked for dwarf versions 2 and 3 - fix and test this. */
+/*! \todo	There is much room for optimizations (even trivial) here. */
 class DebugLine
 {
 	/*
@@ -1339,6 +1340,7 @@ offset	name					size
 ... finish this
 */
 private:
+
 	const uint8_t *	debug_line, * header;
 	uint32_t	debug_line_len;
 	
@@ -1433,9 +1435,10 @@ private:
 			p += x + 1;
 		return p + 1;
 	}
+#endif
 	const uint8_t * line_number_program(void) { return header + sizeof unit_length() + sizeof version() + sizeof header_length() + header_length(); }
 	struct line_state { uint32_t file, address, is_stmt; int line, column; } registers[2], * current_line_state, * prev_line_state;
-	void init(void) { registers[0] = (struct line_state) { .file = 1, .address = 0, .is_stmt = default_is_stmt(), .line = 1, .column = 0, };
+	void initLineState(void) { registers[0] = (struct line_state) { .file = 1, .address = 0, .is_stmt = default_is_stmt(), .line = 1, .column = 0, };
 				registers[1] = (struct line_state) { .file = 1, .address = 0xffffffff, .is_stmt = 0, .line = -1, .column = -1, };
 				current_line_state = registers, prev_line_state = registers + 1; }
 	void swap_line_states(void) { struct line_state * x(current_line_state); current_line_state = prev_line_state; prev_line_state = x; }
@@ -1451,10 +1454,13 @@ private:
 	{
 		validateHeader();
 		const uint8_t * p(line_number_program()), op_base(opcode_base()), lrange(line_range());
+		const uint8_t * opcode_lengths = standard_opcode_lengths();
 		int lbase(line_base());
 		uint32_t min_insn_length(minimum_instruction_length());
 		int len, x;
-		init();
+		initLineState();
+#if XXX
+		BROKEN!!! FIX THIS!!!
 		if (DEBUG_LINE_PROGRAMS_ENABLED)
 		{
 			DwarfUtil::panic("broken for dwarf 5");
@@ -1474,6 +1480,7 @@ private:
 				DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p);
 			}
 		}
+#endif
 		while (p < header + sizeof(uint32_t) + unit_length())
 		{
 			if (! * p)
@@ -1499,7 +1506,7 @@ private:
 						if (len != 1) DwarfUtil::panic();
 						if (!visitor(current_line_state, prev_line_state))
 							return;
-						init();
+						initLineState();
 						if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "end of sequence";
 						break;
 					case DW_LNE_set_address:
@@ -1526,6 +1533,15 @@ private:
 			else switch (* p ++)
 			{
 				default:
+				{
+					DwarfUtil::panic();
+					/*! \todo	print a proper warning here */
+					qDebug() << "WARNING: unsupported dwarf line number program opcode:" << p[-1] << "skipping opcode";
+					/* Skip over opcode arguments. */
+					for (int i = opcode_lengths[p[-1] - 1]; i--;)
+						DwarfUtil::uleb128x(p);
+				}
+
 					break;
 				case DW_LNS_set_prologue_end:
 					if (DEBUG_LINE_PROGRAMS_ENABLED) qDebug() << "set prologue end to true";
@@ -1634,9 +1650,11 @@ public:
 	}
 
 
-	/* returns 0 if the file is not found in the file name table of the current line number program */
-	uint32_t fileNumber(const char * filename)
+	/* Returns -1 if the file is not found in the file name table of the current line number program. */
+	int fileNumber(const char * filename)
 	{
+		if (version() > 4)
+			DwarfUtil::panic();
 		int i(0), len;
 		union { const char * s; const uint8_t * p; } x;
 		x.s = file_names();
@@ -1648,11 +1666,13 @@ public:
 			/* skip directory index, file time and file size */
 			DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p), DwarfUtil::uleb128x(x.p);
 		}
-		return 0;
+		return -1;
 		
 	}
 	void stringsForFileNumber(uint32_t file_number, const char * & file_name, const char * & directory_name, const char * compilation_directory)
 	{
+		if (version() > 4)
+			DwarfUtil::panic();
 		file_name = "<<< unknown file >>>";
 		directory_name = "<<< unknown directory >>>";
 		size_t l;
@@ -1684,6 +1704,8 @@ public:
 	}
 	void getFileAndDirectoryNamesPointers(std::vector<struct sourceFileNames> & sources, const char * compilation_directory)
 	{
+		if (version() > 4)
+			DwarfUtil::panic();
 		qDebug() << (uint32_t) (header - debug_line);
 		std::vector<const char *> directories;
 		union { const char * s; const uint8_t * p; } x;
@@ -3174,7 +3196,7 @@ node.data.push_back("!!! recursion detected !!!");
 		do
 		{
 			auto x(l.fileNumber(filename));
-			if (x)
+			if (x != -1)
 				l.addressesForFile(x, line_addresses);
 		}
 		while (l.next());
@@ -3198,7 +3220,7 @@ node.data.push_back("!!! recursion detected !!!");
 		do
 		{
 			auto x(l.fileNumber(filename));
-			if (x)
+			if (x != -1)
 				l.addressesForFile(x, line_addresses);
 		}
 		while (l.next());
